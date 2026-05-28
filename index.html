@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shopiotic Ops Portal</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --navy: #0c1929;
+  --navy-mid: #162236;
+  --navy-light: #1e2f45;
+  --teal: #00c2a0;
+  --teal-dark: #009e82;
+  --teal-pale: #e6faf7;
+  --white: #ffffff;
+  --gray-50: #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
+  --indigo: #6366f1;
+  --amber: #f59e0b;
+  --green: #22c55e;
+  --red: #ef4444;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body { font-family: var(--font); background: var(--gray-100); color: var(--gray-800); display: flex; }
+
+/* ── SIDEBAR ── */
+#sidebar {
+  width: 256px; min-width: 256px; background: var(--navy);
+  display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+}
+.sidebar-logo {
+  padding: 18px 16px 14px; border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-mark {
+  width: 32px; height: 32px; background: var(--teal); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 800; color: var(--navy); flex-shrink: 0;
+}
+.logo-text { font-size: 16px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+.logo-text span { color: var(--teal); }
+.sidebar-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px;
+  color: var(--gray-400); padding: 14px 16px 5px;
+}
+.client-list { flex: 1; overflow-y: auto; padding: 4px 8px 8px; }
+.client-item {
+  padding: 9px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 2px;
+  transition: background 0.15s; border-left: 3px solid transparent;
+}
+.client-item:hover { background: rgba(255,255,255,0.07); }
+.client-item.active {
+  background: rgba(0,194,160,0.15); border-left-color: var(--teal);
+  padding-left: 7px;
+}
+.client-item-name {
+  font-size: 13px; font-weight: 500; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.client-item-meta {
+  font-size: 11px; color: var(--gray-400); margin-top: 2px;
+  display: flex; align-items: center; gap: 6px;
+}
+.phase-badge {
+  font-size: 10px; padding: 1px 6px; border-radius: 10px;
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
+}
+.badge-p1 { background: rgba(99,102,241,0.25); color: #a5b4fc; }
+.badge-p2 { background: rgba(0,194,160,0.25); color: #5eead4; }
+.badge-p3 { background: rgba(245,158,11,0.25); color: #fcd34d; }
+.sidebar-footer { padding: 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+.btn-add-client {
+  width: 100%; padding: 8px 12px; background: var(--teal); color: var(--navy);
+  border: none; border-radius: 7px; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: background 0.15s;
+}
+.btn-add-client:hover { background: var(--teal-dark); color: #fff; }
+
+/* ── MAIN ── */
+#main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+.topbar {
+  background: var(--white); border-bottom: 1px solid var(--gray-200);
+  padding: 0 24px; display: flex; align-items: center; height: 54px; flex-shrink: 0;
+  gap: 12px;
+}
+.topbar-title { font-size: 16px; font-weight: 700; color: var(--navy); flex: 1; }
+.topbar-subtitle { font-size: 12px; color: var(--gray-400); font-weight: 400; margin-left: 6px; }
+
+.btn {
+  padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1px solid transparent; transition: all 0.15s; font-family: var(--font);
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+.btn-primary { background: var(--teal); color: #fff; border-color: var(--teal); }
+.btn-primary:hover { background: var(--teal-dark); }
+.btn-outline { background: var(--white); color: var(--gray-600); border-color: var(--gray-200); }
+.btn-outline:hover { background: var(--gray-50); border-color: var(--gray-300); }
+.btn-ghost { background: transparent; color: var(--gray-500); border-color: transparent; }
+.btn-ghost:hover { background: var(--gray-100); color: var(--gray-700); }
+.btn-danger-ghost { background: transparent; color: #dc2626; border-color: transparent; }
+.btn-danger-ghost:hover { background: #fee2e2; }
+
+/* ── CLIENT HEADER ── */
+.client-header {
+  background: var(--white); border-bottom: 1px solid var(--gray-200);
+  padding: 14px 24px; flex-shrink: 0;
+}
+.client-header-row { display: flex; align-items: flex-start; gap: 12px; }
+.client-header-info { flex: 1; }
+.client-header-name { font-size: 20px; font-weight: 700; color: var(--navy); }
+.client-header-details {
+  display: flex; flex-wrap: wrap; gap: 14px; margin-top: 5px;
+}
+.client-detail {
+  font-size: 12px; color: var(--gray-500); display: flex; align-items: center; gap: 4px;
+}
+.client-detail strong { color: var(--gray-700); }
+.overall-progress { margin-top: 10px; }
+.progress-label {
+  font-size: 11px; color: var(--gray-500); margin-bottom: 4px;
+  display: flex; justify-content: space-between;
+}
+.progress-bar { height: 5px; background: var(--gray-200); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--teal); border-radius: 3px; transition: width 0.4s; }
+
+/* ── TABS ── */
+.phase-tabs {
+  background: var(--white); border-bottom: 1px solid var(--gray-200);
+  display: flex; overflow-x: auto; padding: 0 16px; flex-shrink: 0; gap: 2px;
+}
+.phase-tab {
+  padding: 10px 14px; font-size: 12px; font-weight: 500; color: var(--gray-500);
+  cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent;
+  transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+}
+.phase-tab:hover { color: var(--gray-800); }
+.phase-tab.active { color: var(--teal); border-bottom-color: var(--teal); font-weight: 600; }
+.tab-pill {
+  font-size: 10px; background: var(--gray-100); color: var(--gray-500);
+  padding: 1px 6px; border-radius: 9px; font-weight: 600;
+}
+.phase-tab.active .tab-pill { background: var(--teal-pale); color: var(--teal-dark); }
+
+/* ── CONTENT ── */
+.content-area { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+/* ── MONTH SELECTOR ── */
+.month-bar {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.month-bar-label { font-size: 12px; color: var(--gray-500); font-weight: 500; margin-right: 2px; }
+.month-pill {
+  padding: 4px 8px 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  cursor: pointer; border: 1px solid var(--gray-200); background: var(--white);
+  color: var(--gray-600); transition: all 0.15s; display: inline-flex; align-items: center; gap: 5px;
+}
+.month-pill:hover { border-color: var(--teal); color: var(--teal); }
+.month-pill.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+.pill-remove {
+  font-size: 13px; line-height: 1; opacity: 0.5; cursor: pointer;
+  padding: 0 2px; border-radius: 50%; transition: opacity 0.15s;
+}
+.pill-remove:hover { opacity: 1; }
+.btn-add-month {
+  padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;
+  cursor: pointer; background: var(--gray-50); color: var(--gray-500);
+  border: 1px dashed var(--gray-300); transition: all 0.15s;
+}
+.btn-add-month:hover { background: var(--teal-pale); border-color: var(--teal); color: var(--teal-dark); }
+
+/* ── CATEGORY CARD ── */
+.category-card {
+  background: var(--white); border-radius: 10px; border: 1px solid var(--gray-200);
+  margin-bottom: 14px; overflow: hidden;
+}
+.category-head {
+  padding: 10px 16px; background: var(--gray-50); border-bottom: 1px solid var(--gray-100);
+  display: flex; align-items: center; gap: 10px;
+}
+.category-head-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: var(--gray-600); flex: 1;
+}
+.cat-progress-bar { width: 72px; height: 4px; background: var(--gray-200); border-radius: 2px; }
+.cat-progress-fill { height: 100%; background: var(--teal); border-radius: 2px; transition: width 0.3s; }
+.cat-progress-text { font-size: 11px; color: var(--gray-400); min-width: 36px; text-align: right; }
+
+/* ── TASK ITEM ── */
+.task-item { border-bottom: 1px solid var(--gray-100); }
+.task-item:last-child { border-bottom: none; }
+.task-row {
+  display: flex; align-items: flex-start; padding: 10px 16px; gap: 10px;
+  cursor: pointer; transition: background 0.1s;
+}
+.task-row:hover { background: #fafcfc; }
+.task-check {
+  width: 17px; height: 17px; min-width: 17px; border-radius: 4px;
+  border: 2px solid var(--gray-300); display: flex; align-items: center;
+  justify-content: center; margin-top: 1px; transition: all 0.15s; cursor: pointer;
+}
+.task-check.done { background: var(--teal); border-color: var(--teal); }
+.task-check.done::after { content: '✓'; color: #fff; font-size: 10px; font-weight: 800; }
+.task-body { flex: 1; min-width: 0; }
+.task-label { font-size: 13px; color: var(--gray-700); line-height: 1.45; }
+.task-label.done { color: var(--gray-400); text-decoration: line-through; }
+.subtask-toggle {
+  font-size: 11px; color: var(--gray-400); margin-top: 2px;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 2px;
+  background: none; border: none; font-family: var(--font); padding: 0;
+}
+.subtask-toggle:hover { color: var(--teal); }
+.subtasks { padding: 4px 0 6px 0; display: none; }
+.subtasks.open { display: block; }
+.subtask-line {
+  font-size: 12px; color: var(--gray-500); padding: 2px 0 2px 16px;
+  position: relative; line-height: 1.4;
+}
+.subtask-line::before {
+  content: '·'; position: absolute; left: 6px; color: var(--gray-300); font-size: 14px;
+}
+.subtask-link { color: var(--teal); text-decoration: none; font-size: 11px; }
+.subtask-link:hover { text-decoration: underline; }
+
+/* ── PHASE INFO BANNER ── */
+.phase-banner {
+  background: linear-gradient(135deg, var(--navy-light), var(--navy-mid));
+  border-radius: 10px; padding: 14px 18px; margin-bottom: 18px;
+  display: flex; align-items: flex-start; gap: 12px; border: 1px solid rgba(0,194,160,0.2);
+}
+.phase-banner-icon { font-size: 22px; flex-shrink: 0; }
+.phase-banner-body {}
+.phase-banner-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 3px; }
+.phase-banner-desc { font-size: 12px; color: var(--gray-400); line-height: 1.5; }
+
+/* ── EMPTY / WELCOME ── */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; padding: 40px; gap: 12px; text-align: center;
+}
+.empty-icon { font-size: 52px; opacity: 0.6; }
+.empty-title { font-size: 20px; font-weight: 700; color: var(--gray-600); }
+.empty-body { font-size: 14px; color: var(--gray-400); max-width: 320px; line-height: 1.6; }
+
+/* ── NOTES ── */
+.notes-block {
+  background: var(--white); border-radius: 10px; border: 1px solid var(--gray-200);
+  padding: 14px 16px; margin-top: 16px;
+}
+.notes-block label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: var(--gray-500); display: block; margin-bottom: 7px;
+}
+.notes-block textarea {
+  width: 100%; min-height: 72px; border: 1px solid var(--gray-200); border-radius: 6px;
+  padding: 8px 10px; font-size: 13px; font-family: var(--font); color: var(--gray-700);
+  resize: vertical; outline: none; transition: border-color 0.15s; line-height: 1.5;
+}
+.notes-block textarea:focus { border-color: var(--teal); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  display: none; align-items: center; justify-content: center; z-index: 200;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--white); border-radius: 12px; padding: 24px; width: 420px;
+  max-width: 96vw; box-shadow: 0 24px 64px rgba(0,0,0,0.25); animation: modalIn 0.15s ease;
+}
+@keyframes modalIn { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.modal-title { font-size: 17px; font-weight: 700; color: var(--navy); margin-bottom: 18px; }
+.form-group { margin-bottom: 13px; }
+.form-group label { font-size: 12px; font-weight: 500; color: var(--gray-600); display: block; margin-bottom: 5px; }
+.form-group input, .form-group select {
+  width: 100%; padding: 8px 11px; border: 1px solid var(--gray-200);
+  border-radius: 7px; font-size: 13px; font-family: var(--font); outline: none;
+  transition: border-color 0.15s; color: var(--gray-800); background: var(--white);
+}
+.form-group input:focus, .form-group select:focus { border-color: var(--teal); }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  color: #fff; opacity: 0; transition: opacity 0.25s; pointer-events: none;
+  max-width: 340px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+.toast.show { opacity: 1; }
+.toast.info  { background: var(--gray-700); }
+.toast.error { background: var(--red); }
+.toast.ok    { background: var(--green); }
+
+/* ── SETUP / PASSWORD MODALS ── */
+.gate-overlay {
+  position: fixed; inset: 0; background: var(--navy);
+  display: none; align-items: center; justify-content: center; z-index: 500;
+}
+.gate-overlay.open { display: flex; }
+.gate-box {
+  background: var(--navy-light); border: 1px solid rgba(0,194,160,0.25);
+  border-radius: 14px; padding: 32px 28px; width: 420px; max-width: 95vw;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+}
+.gate-logo { font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+.gate-logo span { color: var(--teal); }
+.gate-sub { font-size: 13px; color: var(--gray-400); margin-bottom: 24px; }
+.gate-field { margin-bottom: 14px; }
+.gate-field label { font-size: 12px; font-weight: 500; color: var(--gray-400); display: block; margin-bottom: 5px; }
+.gate-field input {
+  width: 100%; padding: 9px 12px; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px; font-size: 13px; font-family: var(--font);
+  background: rgba(255,255,255,0.06); color: #fff; outline: none; transition: border-color 0.15s;
+}
+.gate-field input:focus { border-color: var(--teal); }
+.gate-field input::placeholder { color: var(--gray-500); }
+.gate-error { font-size: 12px; color: #f87171; margin-top: 6px; min-height: 16px; }
+.gate-hint { font-size: 11px; color: var(--gray-500); margin-top: 4px; }
+.gate-btn {
+  width: 100%; padding: 10px; background: var(--teal); color: var(--navy);
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 700;
+  cursor: pointer; margin-top: 8px; font-family: var(--font); transition: background 0.15s;
+}
+.gate-btn:hover { background: var(--teal-dark); color: #fff; }
+.gate-reset { font-size: 11px; color: var(--gray-500); text-align: center; margin-top: 12px; cursor: pointer; }
+.gate-reset:hover { color: var(--gray-400); }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gray-300); }
+
+/* ── TEAM GRID ── */
+.team-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+.team-field label { font-size: 11px; color: var(--gray-500); font-weight: 500; display: block; margin-bottom: 4px; }
+.team-field input {
+  width: 100%; padding: 7px 10px; border: 1px solid var(--gray-200);
+  border-radius: 6px; font-size: 13px; font-family: var(--font);
+  outline: none; transition: border-color 0.15s; color: var(--gray-700);
+}
+.team-field input:focus { border-color: var(--teal); }
+
+/* ── RESOURCES ── */
+.resource-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 0;
+  border-bottom: 1px solid var(--gray-100);
+}
+.resource-item:last-child { border-bottom: none; }
+.resource-label { font-size: 13px; font-weight: 500; color: var(--gray-700); min-width: 160px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.resource-url { font-size: 12px; color: var(--teal); text-decoration: none; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.resource-url:hover { text-decoration: underline; }
+.vis-btn {
+  font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600;
+  cursor: pointer; border: none; font-family: var(--font); transition: all 0.15s; white-space: nowrap;
+}
+.vis-btn.pub { background: rgba(0,194,160,0.12); color: var(--teal-dark); }
+.vis-btn.prv { background: var(--gray-100); color: var(--gray-400); }
+.add-res-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.add-res-row input {
+  flex: 1; min-width: 120px; padding: 7px 10px; border: 1px solid var(--gray-200);
+  border-radius: 6px; font-size: 13px; font-family: var(--font); outline: none; transition: border-color 0.15s;
+}
+.add-res-row input:focus { border-color: var(--teal); }
+
+/* ── ACTIVITY LOG ── */
+.activity-feed { max-height: 300px; overflow-y: auto; margin-bottom: 12px; }
+.activity-entry { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--gray-100); }
+.activity-entry:last-child { border-bottom: none; }
+.act-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); flex-shrink: 0; margin-top: 5px; }
+.act-dot.prv { background: var(--gray-300); }
+.act-body { flex: 1; min-width: 0; }
+.act-text { font-size: 13px; color: var(--gray-700); line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.act-meta { font-size: 11px; color: var(--gray-400); margin-top: 3px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.act-tag { font-size: 10px; padding: 1px 6px; border-radius: 8px; font-weight: 600; }
+.act-tag.pub { background: rgba(0,194,160,0.12); color: var(--teal-dark); }
+.act-tag.prv { background: var(--gray-100); color: var(--gray-400); }
+.act-input-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.act-textarea {
+  flex: 1; min-width: 180px; padding: 8px 10px; border: 1px solid var(--gray-200);
+  border-radius: 7px; font-size: 13px; font-family: var(--font); outline: none;
+  resize: none; height: 60px; transition: border-color 0.15s; line-height: 1.4;
+}
+.act-textarea:focus { border-color: var(--teal); }
+.act-options { display: flex; flex-direction: column; gap: 6px; }
+.act-options label { font-size: 11px; color: var(--gray-500); display: flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+
+/* ── TASK NOTES ── */
+.task-note-btn {
+  font-size: 11px; color: var(--gray-300); cursor: pointer;
+  background: none; border: none; padding: 0 4px; transition: color 0.15s;
+  font-family: var(--font); margin-left: 4px;
+}
+.task-note-btn:hover { color: var(--teal); }
+.task-note-btn.has-note { color: var(--teal); }
+.task-note-area { padding: 0 16px 8px 44px; display: none; }
+.task-note-area.open { display: block; }
+.task-note-input {
+  width: 100%; padding: 6px 10px; border: 1px solid var(--gray-200); border-radius: 6px;
+  font-size: 12px; font-family: var(--font); color: var(--gray-700); outline: none;
+  transition: border-color 0.15s; background: var(--gray-50); resize: none; min-height: 34px;
+}
+.task-note-input:focus { border-color: var(--teal); background: var(--white); }
+
+/* ── CLIENT VIEW MODAL ── */
+.cv-modal { max-width: 680px; width: 95vw; max-height: 88vh; overflow-y: auto; padding: 28px; }
+.cv-header { border-bottom: 2px solid var(--teal); padding-bottom: 14px; margin-bottom: 20px; }
+.cv-logo { font-size: 13px; font-weight: 700; color: var(--teal); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+.cv-client-name { font-size: 24px; font-weight: 800; color: var(--navy); }
+.cv-meta { font-size: 13px; color: var(--gray-500); margin-top: 4px; }
+.cv-section { margin-bottom: 22px; }
+.cv-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--gray-500); margin-bottom: 10px; border-bottom: 1px solid var(--gray-200); padding-bottom: 5px; }
+.cv-progress-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.cv-progress-label { font-size: 13px; color: var(--gray-700); min-width: 160px; }
+.cv-bar { flex: 1; height: 6px; background: var(--gray-200); border-radius: 3px; overflow: hidden; }
+.cv-bar-fill { height: 100%; background: var(--teal); border-radius: 3px; }
+.cv-bar-pct { font-size: 12px; color: var(--gray-500); min-width: 36px; text-align: right; }
+.cv-link-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--gray-100); font-size: 13px; }
+.cv-link-row:last-child { border-bottom: none; }
+.cv-link-label { color: var(--gray-700); flex: 1; }
+.cv-link-url { color: var(--teal); font-size: 12px; text-decoration: none; }
+.cv-link-url:hover { text-decoration: underline; }
+.cv-act-entry { padding: 7px 0; border-bottom: 1px solid var(--gray-100); font-size: 13px; color: var(--gray-700); line-height: 1.4; }
+.cv-act-entry:last-child { border-bottom: none; }
+.cv-act-date { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">S</div>
+    <div class="logo-text">Shopi<span>otic</span></div>
+  </div>
+  <div class="sidebar-label">Clients</div>
+  <div class="client-list" id="clientList"></div>
+  <div class="sidebar-footer">
+    <button class="btn-add-client" onclick="openAddClientModal()">+ Add Client</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div class="topbar" id="topbar">
+    <div class="topbar-title">Shopiotic Ops Portal<span class="topbar-subtitle">Shopify SEO Agency</span></div>
+  </div>
+  <div id="contentWrapper" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">📋</div>
+      <div class="empty-title">No client selected</div>
+      <div class="empty-body">Add a client using the button in the sidebar, then select them to manage their SEO campaign phases and tasks.</div>
+    </div>
+    <div id="clientView" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+      <div class="client-header" id="clientHeader"></div>
+      <div class="phase-tabs" id="phaseTabs"></div>
+      <div class="content-area" id="contentArea"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
+
+<!-- SETUP MODAL (first run) -->
+<div class="gate-overlay" id="setupModal">
+  <div class="gate-box">
+    <div class="gate-logo">Shopi<span>otic</span></div>
+    <div class="gate-sub">Connect your Supabase database to get started</div>
+    <div class="gate-field">
+      <label>Supabase Project URL</label>
+      <input id="s_url" placeholder="https://xxxx.supabase.co" autocomplete="off">
+    </div>
+    <div class="gate-field">
+      <label>Supabase Anon Key</label>
+      <input id="s_key" placeholder="eyJhbGciOiJIUzI1NiIs..." autocomplete="off">
+      <div class="gate-hint">Found in Supabase → Settings → API</div>
+    </div>
+    <div class="gate-field">
+      <label>Set a Portal Password</label>
+      <input id="s_pw" type="password" placeholder="Choose a password for your team">
+      <div class="gate-hint">Anyone opening the portal will need this password</div>
+    </div>
+    <div class="gate-error" id="s_err"></div>
+    <button class="gate-btn" onclick="saveSetup()">Save & Connect</button>
+  </div>
+</div>
+
+<!-- PASSWORD MODAL (each session) -->
+<div class="gate-overlay" id="passwordModal">
+  <div class="gate-box">
+    <div class="gate-logo">Shopi<span>otic</span></div>
+    <div class="gate-sub">Enter your portal password to continue</div>
+    <div class="gate-field">
+      <label>Password</label>
+      <input id="pw_input" type="password" placeholder="Portal password" onkeydown="if(event.key==='Enter')submitPassword()">
+    </div>
+    <div class="gate-error" id="pw_err"></div>
+    <button class="gate-btn" onclick="submitPassword()">Enter</button>
+    <div class="gate-reset" onclick="resetSetup()">Reset connection settings</div>
+  </div>
+</div>
+
+<!-- CLIENT VIEW MODAL -->
+<div class="modal-overlay" id="cvModal">
+  <div class="modal cv-modal">
+    <div id="cvContent"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;border-top:1px solid var(--gray-200);padding-top:16px;">
+      <button class="btn btn-outline" onclick="window.print()">🖨️ Print / Save PDF</button>
+      <button class="btn btn-outline" onclick="closeCvModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENT MODAL -->
+<div class="modal-overlay" id="clientModal">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Add New Client</div>
+    <div class="form-group"><label>Client / Store Name</label><input id="f_name" placeholder="e.g. Prolux Materials" autocomplete="off"></div>
+    <div class="form-group"><label>Shopify Store URL</label><input id="f_url" placeholder="e.g. prolux.myshopify.com" autocomplete="off"></div>
+    <div class="form-group"><label>Service Tier</label>
+      <select id="f_tier">
+        <option>Starter</option><option selected>Standard</option><option>Growth</option><option>Enterprise</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Start Date</label><input id="f_start" type="date"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveClientModal()">Save Client</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  TASK DATA
+// ═══════════════════════════════════════════
+
+const TASKS = {
+
+  phase1_onboarding: [
+    { cat: "Admin & Setup", items: [
+      { id:"p1o1", t:"Setup auto billing in HubSpot" },
+      { id:"p1o2", t:"Start a SEMrush technical audit" },
+      { id:"p1o3", t:"Book the 'Sell Me Your Products' call" },
+      { id:"p1o4", t:"Setup and customize the client's Trello board", s:["Invite specialists and the client's point of contact","Drop a message in the general chat"] },
+      { id:"p1o5", t:"Send client the onboarding form", s:["Link: forms.fillout.com/t/cJJzkNCLX4us"] },
+      { id:"p1o6", t:"Send the brand information form", s:["Link: forms.fillout.com/t/fewst8YypVus"] },
+      { id:"p1o7", t:"Send a Shopify access request", s:["Notify the client via email/Slack","Include access to edit home page meta title and description","Tutorial: content-climber-seo.neetorecord.com/watch/b63a176f86e86f999354"] },
+      { id:"p1o8", t:"Log in to Shopify, GA4, and GSC" },
+      { id:"p1o9", t:"Setup an empty position tracking project" },
+    ]},
+    { cat: "Reporting & Docs", items: [
+      { id:"p1o10", t:"Setup reporting in Data Studio", s:["Setup the weekly report in Data Studio","Setup the monthly report in Data Studio","Setup scheduling for both reports","Share the analytics dash with the client","Store the link to the dash in Trello"] },
+      { id:"p1o11", t:"Setup a Google Doc to track theme edits", s:["Store the Doc in Trello in the technical SEO section"] },
+      { id:"p1o12", t:"Setup a phase checklist copy for the client", s:["Acts as a to-do list the client can see work happening","Customize it to the client and their tier","Store in Trello and share with the client"] },
+      { id:"p1o13", t:"Record the client's average YoY revenue and traffic", s:["Store in the Trello Goals card","Record monthly average revenue from organic search"] },
+      { id:"p1o14", t:"Setup a collection page strategy sheet", s:["Use Collection Page Strategy Sheet Template","Name it and store it in Trello"] },
+      { id:"p1o15", t:"Setup a backlink campaign tracker", s:["Use Linkbuilding History Template","Name it and store it in the client's Trello dash"] },
+      { id:"p1o16", t:"Setup a 3 year goal Google Doc for the client", s:["Make reasonable revenue predictions","Detail exactly what will be done to achieve the goal","List 1-3 priority pages to focus on initially","Include a 1 year goal and a 3 month goal","Send to the client and ask for their thoughts"] },
+    ]},
+    { cat: "Research & Strategy", items: [
+      { id:"p1o17", t:"Conduct competitor research", s:["Pay attention to most visited pages","Note commercial page layouts","Build a quick report using AI and send in Trello"] },
+      { id:"p1o18", t:"Scrape the client's website for brand information", s:["Store results in a properly named Google Doc","Store the doc in the Trello Dashboard"] },
+      { id:"p1o19", t:"Have the 'Sell Me Your Products' call", s:["Record the call","Store the recording and transcript in Trello","Book the end of month report call"] },
+      { id:"p1o20", t:"Audit existing collections on the site", s:["Look through existing collections to see if any can be used","If found, add them to the Collection Strategy Sheet","Noindex any cannibal pages that can't be used in the SEO strategy"] },
+      { id:"p1o21", t:"Start keyword research in SEMrush", s:["Identify home page keywords","Identify potential collections","Identify the most lucrative collections","Assign collections month by month starting with most lucrative"] },
+      { id:"p1o22", t:"Complete keyword research for each collection", s:["Export keyword lists into Google Sheets","Add Sheets to the Collection Strategy Sheet","Also complete for the homepage"] },
+      { id:"p1o23", t:"Complete target keyword selection", s:["Select most relevant and lucrative terms","Mark 1-3 keywords in green for high leverage on-page areas","Select a range of keyword difficulties for short and long-term","Also complete for the homepage"] },
+      { id:"p1o24", t:"Perform a backlink gap analysis for each collection", s:["Search target keywords in Google and average backlinks of top 3-5 results","Estimate how many backlinks would be needed, considering domain authority","Add the estimate to each keyword sheet"] },
+      { id:"p1o25", t:"Select 1-3 collections as backlinking targets", s:["Store this list in Trello","Select based on revenue potential, product fit, existing traction, and backlink gaps","These pages need to start ranking and getting sales quickly","Must be setup in Month 1 of Phase 2"] },
+      { id:"p1o26", t:"Setup position tracking in SEMrush", s:["Take keywords for each collection, tag them, and add to the project","Start with just keywords for Month 2","Repeat monthly for new collections"] },
+    ]},
+    { cat: "Backlinks", items: [
+      { id:"p1o27", t:"Define the client's general niches for backlink sites and store in Trello" },
+      { id:"p1o28", t:"Start prospecting for backlink sites (15+ promising sites)", s:["Vet prospects with the 6-step process","Add suitable sites to the database","Add the client name in the notes section","Pull contact details for each site"] },
+      { id:"p1o29", t:"Recover lost links", s:["Look at backlink report in SEMrush to find lost links of value","Reach out to web admins to reinstate for a small fee"] },
+    ]},
+    { cat: "On-Page SEO", items: [
+      { id:"p1o30", t:"Optimize the home page for its target keywords", s:["Optimize the H1 and other headings","Add/optimize FAQs and FAQ schema","Add content optimized for keywords","Optimize any existing content","Optimize the meta title and description"] },
+      { id:"p1o31", t:"Pull the top 10 product pages from GSC", s:["Swap out any based on client suggestions from brand info form","Swap out for keyword opportunities from research","Store these pages in Trello","Notify the client we'll be optimizing these pages"] },
+      { id:"p1o32", t:"Optimize the top 10 product pages", s:["Add keywords to meta title and description, frontloaded","Add target keyword to H1, frontloaded","Optimize description — add target keyword in the first sentence","Add FAQs if opportunities exist, include FAQ Schema"] },
+      { id:"p1o33", t:"Conduct a basic internal linking review", s:["Scope out the link situation across the site","Look through blog articles, home page, menu, footer, and other collections","Remove harmful or misleading links"] },
+      { id:"p1o34", t:"Set up the collection page template", s:["Setup the metafield","Add a spot for content below the grid populated by the metafield"] },
+    ]},
+    { cat: "End of Month", items: [
+      { id:"p1o35", t:"Notify the client once the Technical SEO audit is complete", s:["Share findings and actions taken to fix issues"] },
+      { id:"p1o36", t:"Send the End of Month report", s:["Send via email and in Trello general chat","Include the Data Studio dash","Include a list of everything completed — ask AI to write it upbeat","Include your own introductory paragraph with opinions"] },
+      { id:"p1o37", t:"Take the End of Month report call", s:["Record the call and put in Trello general chat","Run through the monthly Data Studio report","Run position tracking and show wins","Run through the list of work done","Run through what we'll be doing next month","Ask if they're happy and if anything should be done differently","Book the next end of month call"] },
+    ]},
+  ],
+
+  phase1_tech: [
+    { cat: "Setup & Crawl Fixes", items: [
+      { id:"t1", t:"Make a copy of the Technical SEO report doc", s:["Fill out basic client information","Use Technical_SEO_Audit_Template.docx","Remove all inapplicable blocks","Remove internal instructions once done"] },
+      { id:"t2", t:"Review the results of the SEMrush technical audit" },
+      { id:"t3", t:"Fix any 404 pages with 301 redirects" },
+      { id:"t4", t:"Fix the /collections/*/products/* issue", s:["Update the theme changes doc","Videos: content-climber-seo.neetorecord.com/watch/24349752bd0a8f961793"] },
+    ]},
+    { cat: "Robots & Indexing", items: [
+      { id:"t5", t:"Add a custom robots.txt file" },
+      { id:"t6", t:"Update the robots.txt file", s:["Block tagged URLs","Block product type URLs","Block vendor URLs","Block /collections, /collections/all, and /collections/new","Allow AI bots (see code in Trello card)"] },
+      { id:"t7", t:"Add an llms.txt file (WIP)" },
+      { id:"t8", t:"Submit the sitemap to GSC (may already be done)" },
+      { id:"t9", t:"Block filters from creating crawlable collections" },
+    ]},
+    { cat: "Technical Health", items: [
+      { id:"t10", t:"Check for an SSL certificate", s:["Check the HTTPS report in GSC"] },
+      { id:"t11", t:"Check for page speed issues", s:["Measure on: home page, a collection, a blog, and a product page","If issues found, explore options with client — theme upgrade or removing apps"] },
+      { id:"t12", t:"Check GSC core web vitals for technical errors and fix any issues" },
+      { id:"t13", t:"Check if breadcrumbs are setup on the site", s:["Check: collection page, product page, basic page, and blog page","Where missing, add them in the theme with breadcrumb schema"] },
+      { id:"t14", t:"Fix missing and duplicate H1s", s:["Find these in the SEMrush audit"] },
+    ]},
+    { cat: "Schema Markup", items: [
+      { id:"t15", t:"Make sure product schema is setup across the site", s:["Check the GSC product snippets report","Run a couple of products through the rich results test: search.google.com/test/rich-results"] },
+      { id:"t16", t:"Add organization schema", s:["Check if it's setup already","If not, add it to the home page and about us page"] },
+      { id:"t17", t:"Add local business schema", s:["Check if it's setup already","If not, add it to the home page"] },
+      { id:"t18", t:"Verify breadcrumb schema in GSC", s:["Run pages through the rich results test","Fix any issues","Conduct a SERP test to confirm"] },
+      { id:"t19", t:"Verify reviews schema in GSC", s:["Run pages through the rich results test","Fix any issues","Conduct a SERP test to confirm"] },
+      { id:"t20", t:"Add return policy schema", s:["Add to the returns policy page","Check if it exists already before adding"] },
+    ]},
+    { cat: "Audit & Report", items: [
+      { id:"t21", t:"Run pages through the Logeix Page Auditor", s:["Run: product page, collection, blog page, home page","Fix header issues (AI may be helpful)","Tool: logeix.com/audit"] },
+      { id:"t22", t:"Update the theme changes doc with any manual edits made to the theme code" },
+      { id:"t23", t:"Send the Technical SEO findings doc to the client", s:["Send via email and Trello","Remove all inapplicable blocks and internal instructions before sending"] },
+    ]},
+  ],
+
+  // Template — used for both Phase 2 and Phase 3 months
+  phase2_monthly: [
+    { cat: "Backlinks", items: [
+      { id:"bl1", t:"Send emails to potential backlink sites", s:["Use template: Shopiotic Link Outreach Template Emails","Database: Shopiotic Backlink Database","Reply with price negotiation","Make link arrangements once deal is in place","Confirm link is live","Ask for GSC indexing","Pay invoice via PayPal","Update the link history sheet","Send update in Trello","Calculate remaining budget"] },
+      { id:"bl2", t:"Reach out to 5 backlink exchange possibilities", s:["Start from: Shopiotic Backlink Database","Investigate responses and move forward with suitable opportunities"] },
+      { id:"bl3", t:"Prospect for more backlink sites (10+ promising sites)", s:["Vet prospects with the 6-step process","Add suitable sites to the database","Add the client name in the notes section","Pull contact details for each site"] },
+      { id:"bl4", t:"Build tier 2 links for any guest posts", s:["Reach out to contacts for bundles on the database","Use the Tier 2 Article Generator","Make payment and send articles","Send an update in Trello","Calculate remaining link budget"] },
+      { id:"bl5", t:"Recover lost links", s:["Look at SEMrush backlink report for lost links of value","Reach out to web admins to reinstate for a small fee"] },
+    ]},
+    { cat: "Collection Pages", items: [
+      { id:"cp1", t:"Build draft collection pages", s:["Write & Optimize meta titles","Write & Optimize meta descriptions","Write & Optimize H1s","Set collection template to content below the grid","Optimize the URL slug","Populate with products or ask the client"] },
+      { id:"cp2", t:"Write content for each collection", s:["Generate or assign to a writer","Add internal links — lean toward priority pages","Add FAQs","Optimize H2s and H3s for target keywords","Aim for 400-500 words below the grid","Add up to 100 words above the product grid with frontloaded keyword","Focus on client's USPs and product features","Store drafts in Google Docs and add to the Monthly tab in Collection Strategy Sheet","Forward to client for review and approval"] },
+      { id:"cp3", t:"Add the content to the pages and add FAQ schema" },
+      { id:"cp4", t:"Publish the collection pages", s:["Submit to GSC for indexing","Notify the client in Trello general chat"] },
+      { id:"cp5", t:"Add collection keywords to position tracking in SEMrush" },
+    ]},
+    { cat: "Internal Linking", items: [
+      { id:"il1", t:"Build links from blog articles to new collections", s:["Only applies if client has existing blog content","Use descriptive anchor text"] },
+      { id:"il2", t:"Add new collections to the menu", s:["Run past the client before pushing live","Keep UX at top of mind — should aid navigation, not just SEO"] },
+      { id:"il3", t:"Add high level collections to the footer", s:["Run past the client","Only for higher level collections that help navigation"] },
+      { id:"il4", t:"Run a click depth audit", s:["Tool: super-brioche-8f14d9.netlify.app","First run: crawl entire site. Following months: crawl new collection URLs only","Collections more than 2 clicks from home → add internal links","Products over click depth 3 → add to closer collections","Export results to CSV and store in Trello on initial run"] },
+      { id:"il5", t:"Add internal links onto the home page", s:["Keep UX at forefront — should help navigation","Run past client before pushing live","Focus on high level priority collections"] },
+    ]},
+    { cat: "Reporting", items: [
+      { id:"r1", t:"Send the End of Month report", s:["Send via email and Trello general chat","Include the Data Studio dash","Include a list of everything completed — use AI to write it upbeat","Include your own introductory paragraph with opinions"] },
+      { id:"r2", t:"Take the End of Month report call", s:["Record the call and put in Trello general chat","Run through the monthly Data Studio report","Show position tracking wins","Run through the list of work done","Run through what we'll do next month","Ask if they're happy and if anything should change","Book the next end of month call"] },
+    ]},
+  ],
+
+  phase3_setup: [
+    { cat: "Blog Strategy", items: [
+      { id:"p3s1", t:"Setup a blog strategy sheet", s:["Use the template: Content Strategy Sheet Template","Name it descriptively","Store it in Trello"] },
+      { id:"p3s2", t:"Add hub tabs for each collection page", s:["Start with highest priority pages","Add tabs as content opportunities arise","Remember the homepage also functions as a hub"] },
+      { id:"p3s3", t:"Conduct keyword research to find informational keywords", s:["Add keywords to the strategy sheet","If multiple keywords fit the same opportunity, put in same row","Be sure to add to the correct hub","If no obvious hub, add to the traffic winners tab"] },
+      { id:"p3s4", t:"Spy out competitors' most visited blog articles", s:["Add to traffic winners if they don't fit a specific hub","If they fit a hub, add to its tab along with target keywords"] },
+      { id:"p3s5", t:"Do keyword research for listicles, competitor alternatives and comparisons (WIP)" },
+    ]},
+    { cat: "Backlinks", items: [
+      { id:"p3s6", t:"Increase backlink budget if the client's tier dictates it", s:["Use the Deliverable Swapping Calculator: charming-babka-6d354e.netlify.app","Update remaining budget in Trello"] },
+    ]},
+    { cat: "Blog Setup", items: [
+      { id:"p3s7", t:"Setup a blog on the site if the client doesn't have one", s:["Add it to the menu and the footer"] },
+      { id:"p3s8", t:"Add a lead magnet sign-up to the bottom of blogs", s:["Examples: newsletter signup, B2B accounts","Example: proluxmaterials.com/blogs/news/heated-tile-floor-cost"] },
+      { id:"p3s9", t:"Install Dead Simple Product Embed if needed for any blogs", s:["Run past the client — they'll pay the small monthly bill"] },
+    ]},
+  ],
+
+  phase3_monthly: [
+    { cat: "Backlinks", items: [
+      { id:"bl1", t:"Send emails to potential backlink sites", s:["Use template: Shopiotic Link Outreach Template Emails","Database: Shopiotic Backlink Database","Reply with price negotiation","Make link arrangements once deal is in place","Confirm link is live","Ask for GSC indexing","Pay invoice via PayPal","Update the link history sheet","Send update in Trello","Calculate remaining budget"] },
+      { id:"bl2", t:"Reach out to 5 backlink exchange possibilities", s:["Start from: Shopiotic Backlink Database","Investigate and move forward with suitable opportunities"] },
+      { id:"bl3", t:"Prospect for more backlink sites (10+ promising sites)", s:["Vet prospects with the 6-step process","Add suitable sites to the database","Add the client name in the notes section","Pull contact details for each site"] },
+      { id:"bl4", t:"Build tier 2 links for any guest posts", s:["Reach out to contacts for bundles","Use the Tier 2 Article Generator","Make payment and send articles","Send update in Trello","Calculate remaining link budget"] },
+      { id:"bl5", t:"Recover lost links", s:["Look at SEMrush backlink report for lost links of value","Reach out to web admins to reinstate for a small fee"] },
+    ]},
+    { cat: "Blogs", items: [
+      { id:"bg1", t:"Assign monthly blogs to the writer", s:["Focus on opportunities from hubs of priority pages","Notify the writer in Trello","Notify the client which blogs will be written"] },
+      { id:"bg2", t:"Writer writes assigned monthly blog drafts in Google Docs", s:["1000+ words naturally optimized for keywords","H1 with front-loaded keyword","Optimized meta title and description with front-loaded keywords","Suggests a URL slug based on target keyword","50% of H2s/H3s optimized for target keyword","Embed relevant videos (if client has any)","Add comparison tables where necessary","Hero image + 2-4 additional images (if client has any)","FAQs from Google's 'People Also Asked'","Internal links to all relevant collections with optimized anchor text","Internal link to hub collection within first 150 words","Internal links to 3-5 other blogs in same hub (spider web effect)","Table of contents"] },
+      { id:"bg3", t:"Writer sends drafts to specialist and client for review", s:["Send via Trello","Add to the Content Strategy Sheet"] },
+      { id:"bg4", t:"Specialist reviews and makes changes to H1, meta title, description, and URL slug" },
+      { id:"bg5", t:"Writer implements changes and notifies both persons in Trello" },
+      { id:"bg6", t:"Publish in Shopify with confirmation from specialist and client", s:["Add FAQ schema for rich results on SERP","Notify in Trello once blogs are live"] },
+      { id:"bg7", t:"Submit blogs in GSC for faster indexing" },
+    ]},
+    { cat: "Reporting", items: [
+      { id:"r1", t:"Send the End of Month report", s:["Send via email and Trello general chat","Include the Data Studio dash","Include a list of everything completed — use AI to write it upbeat","Include your own introductory paragraph with opinions","Ask for a review if results are good and client seems happy"] },
+      { id:"r2", t:"Take the End of Month report call", s:["Record the call and put in Trello general chat","Run through the monthly Data Studio report","Show position tracking wins","Run through the list of work done","Run through what we'll do next month","Ask if they're happy and if anything should change","Book the next end of month call"] },
+    ]},
+  ],
+
+  recurring: [
+    { cat: "Bi-Yearly (Every 6 Months)", items: [
+      { id:"by1", t:"Conduct an anchor text distribution assessment", s:["Determine how aggressive we can be linking to collection pages vs homepage","Use the anchor filter in the SEMrush backlinks report","Setup a spreadsheet to calculate total exact match anchor percentage vs other types","Update linkbuilder in Trello if strategy adjustments are recommended"] },
+      { id:"by2", t:"Run a SEMrush audit", s:["Fix any 404s","Fix any missing or duplicate H1s"] },
+      { id:"by3", t:"Check all schema reports in GSC and fix any issues", s:["Product snippets, breadcrumbs, FAQs, Reviews"] },
+    ]},
+    { cat: "Yearly (Every 12 Months)", items: [
+      { id:"yr1", t:"Review the one year goal against actual results", s:["Notify the client about progress toward the goal set in Phase 1"] },
+    ]},
+  ],
+};
+
+// ═══════════════════════════════════════════
+//  CONFIG & AUTH
+// ═══════════════════════════════════════════
+
+const CFG_KEY = 'shopiotic_cfg';
+let _sb = null; // Supabase client instance
+
+function getConfig() {
+  try { return JSON.parse(localStorage.getItem(CFG_KEY)) || null; } catch(e) { return null; }
+}
+function setConfig(url, key, password) {
+  localStorage.setItem(CFG_KEY, JSON.stringify({ url, key, password }));
+}
+function initSupabase(url, key) {
+  _sb = window.supabase.createClient(url, key);
+}
+
+// ═══════════════════════════════════════════
+//  STATE & STORAGE
+// ═══════════════════════════════════════════
+
+let S = { clients: [], activeId: null, activeTab: 'overview', p2Month: 2, p3Month: 6 };
+let editingId = null;
+let _saveTimers = {}; // debounce timers per client id
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function getClient() { return S.clients.find(c => c.id === S.activeId) || null; }
+
+async function load() {
+  if (!_sb) return;
+  try {
+    const { data, error } = await _sb
+      .from('shopiotic_clients')
+      .select('id, data')
+      .order('updated_at', { ascending: true });
+    if (error) throw error;
+    S.clients = (data || []).map(row => ({ ...row.data, id: row.id }));
+  } catch(e) {
+    showToast('Failed to load: ' + e.message, 'error');
+  }
+}
+
+// Fire-and-forget save — debounced 400ms to avoid hammering on keystrokes
+function save() {
+  const c = getClient();
+  if (!c || !_sb) return;
+  const id = c.id;
+  clearTimeout(_saveTimers[id]);
+  _saveTimers[id] = setTimeout(() => {
+    _sb.from('shopiotic_clients')
+      .upsert({ id, data: c, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+      .then(({ error }) => { if (error) showToast('Save failed — check connection', 'error'); });
+  }, 400);
+}
+
+async function deleteFromDB(id) {
+  if (!_sb) return;
+  const { error } = await _sb.from('shopiotic_clients').delete().eq('id', id);
+  if (error) showToast('Delete failed: ' + error.message, 'error');
+}
+
+function toggleTask(key) {
+  const c = getClient();
+  if (!c) return;
+  if (c.done[key]) delete c.done[key]; else c.done[key] = true;
+  save(); renderClient(); renderSidebar();
+}
+
+function expandToggle(el) {
+  const sub = el.parentElement.parentElement.nextElementSibling;
+  if (!sub) return;
+  sub.classList.toggle('open');
+  el.textContent = sub.classList.contains('open') ? '▲ hide details' : '▼ show details';
+}
+
+// ═══════════════════════════════════════════
+//  PROGRESS HELPERS
+// ═══════════════════════════════════════════
+
+function taskKey(phaseKey, taskId) { return phaseKey + '_' + taskId; }
+
+function phaseProgress(phaseKey, categories) {
+  const c = getClient(); if (!c) return [0,0];
+  let total = 0, done = 0;
+  for (const cat of categories) {
+    for (const item of cat.items) {
+      total++;
+      if (c.done[taskKey(phaseKey, item.id)]) done++;
+    }
+  }
+  return [done, total];
+}
+
+function monthProgress(prefix, categories) {
+  const c = getClient(); if (!c) return [0,0];
+  let total = 0, done = 0;
+  for (const cat of categories) {
+    for (const item of cat.items) {
+      total++;
+      if (c.done[taskKey(prefix, item.id)]) done++;
+    }
+  }
+  return [done, total];
+}
+
+function overallProgress(client) {
+  // Include p1o, p1t, phase3_setup, recurring + all p2 months + all p3 months
+  let total = 0, done = 0;
+  const countCats = (key, cats) => {
+    for (const cat of cats) for (const item of cat.items) {
+      total++;
+      if (client.done[taskKey(key, item.id)]) done++;
+    }
+  };
+  countCats('p1o', TASKS.phase1_onboarding);
+  countCats('p1t', TASKS.phase1_tech);
+  countCats('p3s', TASKS.phase3_setup);
+  countCats('rec', TASKS.recurring);
+  for (const m of (client.p2months || [])) countCats('p2m' + m, TASKS.phase2_monthly);
+  for (const m of (client.p3months || [])) countCats('p3m' + m, TASKS.phase3_monthly);
+  return [done, total];
+}
+
+// ═══════════════════════════════════════════
+//  RENDER HELPERS
+// ═══════════════════════════════════════════
+
+function pct(d, t) { return t === 0 ? 0 : Math.round(d / t * 100); }
+
+function renderCategories(phaseKey, categories) {
+  const c = getClient(); if (!c) return '';
+  return categories.map(cat => {
+    const items = cat.items;
+    let catDone = 0;
+    const taskHTML = items.map(item => {
+      const key = taskKey(phaseKey, item.id);
+      const done = !!c.done[key];
+      if (done) catDone++;
+      const hasSubs = item.s && item.s.length > 0;
+      const subsHTML = hasSubs ? `
+        <div class="subtasks" id="sub_${phaseKey}_${item.id}">
+          ${item.s.map(s => {
+            const isUrl = s.match(/^(https?:\/\/|[a-z0-9-]+\.[a-z]{2,}\/)/i);
+            const isLabelUrl = s.match(/^([A-Za-z ]+): (.+\..+\/.+)$/);
+            if (isLabelUrl) {
+              const [,label,url] = isLabelUrl;
+              const href = url.startsWith('http') ? url : 'https://' + url;
+              return `<div class="subtask-line">${label}: <a class="subtask-link" href="${href}" target="_blank">${url}</a></div>`;
+            } else if (isUrl) {
+              const href = s.startsWith('http') ? s : 'https://' + s;
+              return `<div class="subtask-line"><a class="subtask-link" href="${href}" target="_blank">${s}</a></div>`;
+            }
+            return `<div class="subtask-line">${s}</div>`;
+          }).join('')}
+        </div>` : '';
+      const noteVal = (c.taskNotes && c.taskNotes[key]) ? c.taskNotes[key] : '';
+      const hasNote = noteVal.length > 0;
+      return `
+        <div class="task-item">
+          <div class="task-row" onclick="toggleTask('${key}')">
+            <div class="task-check ${done ? 'done' : ''}"></div>
+            <div class="task-body">
+              <div style="display:flex;align-items:flex-start;gap:4px;">
+                <div class="task-label ${done ? 'done' : ''}" style="flex:1">${item.t}</div>
+                <button class="task-note-btn ${hasNote ? 'has-note' : ''}" title="${hasNote ? 'View/edit note' : 'Add note'}" onclick="event.stopPropagation();toggleNote('note_${phaseKey}_${item.id}')">📎</button>
+              </div>
+              ${hasSubs ? `<button class="subtask-toggle" onclick="event.stopPropagation();expandToggle(this)">▼ show details</button>` : ''}
+            </div>
+          </div>
+          <div class="task-note-area ${hasNote ? 'open' : ''}" id="note_${phaseKey}_${item.id}">
+            <textarea class="task-note-input" placeholder="Add a note or link for this task…" oninput="saveTaskNote('${key}',this.value)" onkeydown="event.stopPropagation()">${noteVal}</textarea>
+          </div>
+          ${subsHTML}
+        </div>`;
+    }).join('');
+    const p = pct(catDone, items.length);
+    return `
+      <div class="category-card">
+        <div class="category-head">
+          <div class="category-head-title">${cat.cat}</div>
+          <div class="cat-progress-bar"><div class="cat-progress-fill" style="width:${p}%"></div></div>
+          <div class="cat-progress-text">${catDone}/${items.length}</div>
+        </div>
+        ${taskHTML}
+      </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+//  SIDEBAR
+// ═══════════════════════════════════════════
+
+function renderSidebar() {
+  const el = document.getElementById('clientList');
+  if (!S.clients.length) {
+    el.innerHTML = `<div style="padding:12px;font-size:12px;color:var(--gray-500);text-align:center;line-height:1.5;">Add a client to get started</div>`;
+    return;
+  }
+  el.innerHTML = S.clients.map(c => {
+    const [done, total] = overallProgress(c);
+    const p = pct(done, total);
+    const phase = (c.p3months && c.p3months.length) ? 'p3' : (c.p2months && c.p2months.length) ? 'p2' : 'p1';
+    const phaseLabel = phase === 'p3' ? 'Phase 3' : phase === 'p2' ? 'Phase 2' : 'Phase 1';
+    return `
+      <div class="client-item ${c.id === S.activeId ? 'active' : ''}" onclick="selectClient('${c.id}')">
+        <div class="client-item-name">${c.name}</div>
+        <div class="client-item-meta">
+          <span class="phase-badge badge-${phase}">${phaseLabel}</span>
+          <span>${p}% complete</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+//  CLIENT HEADER & TABS
+// ═══════════════════════════════════════════
+
+function renderHeader(c) {
+  const [done, total] = overallProgress(c);
+  const p = pct(done, total);
+  const started = c.startDate ? new Date(c.startDate).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) : 'Not set';
+  document.getElementById('clientHeader').innerHTML = `
+    <div class="client-header-row">
+      <div class="client-header-info" style="flex:1">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="client-header-name">${c.name}</div>
+        </div>
+        <div class="client-header-details">
+          ${c.shopUrl ? `<div class="client-detail">🏪 <strong>${c.shopUrl}</strong></div>` : ''}
+          <div class="client-detail">📦 Tier: <strong>${c.tier}</strong></div>
+          <div class="client-detail">📅 Started: <strong>${started}</strong></div>
+          <div class="client-detail">✅ <strong>${done}/${total}</strong> tasks done</div>
+        </div>
+        <div class="overall-progress" style="max-width:400px;">
+          <div class="progress-label"><span>Overall Progress</span><span>${p}%</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${p}%"></div></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="btn btn-outline btn-sm" onclick="openEditClientModal('${c.id}')">✏️ Edit</button>
+        <button class="btn btn-danger-ghost btn-sm" onclick="deleteClient('${c.id}')">🗑️</button>
+      </div>
+    </div>`;
+}
+
+function renderTabs(c) {
+  const tabs = [
+    { id:'overview', label:'Overview' },
+    { id:'p1o', label:'Phase 1: Onboarding', cats: TASKS.phase1_onboarding },
+    { id:'p1t', label:'Tech SEO Audit', cats: TASKS.phase1_tech },
+    { id:'p2', label:'Phase 2: Dev', monthly: true, months: c.p2months, prefix:'p2m' },
+    { id:'p3s', label:'Phase 3 Setup', cats: TASKS.phase3_setup },
+    { id:'p3', label:'Phase 3: Growth', monthly: true, months: c.p3months, prefix:'p3m' },
+    { id:'rec', label:'Recurring', cats: TASKS.recurring },
+  ];
+  document.getElementById('phaseTabs').innerHTML = tabs.map(tab => {
+    let d=0, t=0;
+    if (tab.cats) { const res = phaseProgress(tab.id, tab.cats); d=res[0]; t=res[1]; }
+    else if (tab.monthly && tab.months) {
+      const tpl = tab.id === 'p2' ? TASKS.phase2_monthly : TASKS.phase3_monthly;
+      for (const m of tab.months) { const res = monthProgress(tab.prefix+m, tpl); d+=res[0]; t+=res[1]; }
+    }
+    return `<div class="phase-tab ${S.activeTab===tab.id?'active':''}" onclick="setTab('${tab.id}')">
+      ${tab.label}
+      ${t>0 ? `<span class="tab-pill">${d}/${t}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+//  CONTENT RENDERING
+// ═══════════════════════════════════════════
+
+function renderContent(c) {
+  const area = document.getElementById('contentArea');
+  migrateClient(c);
+
+  if (S.activeTab === 'overview') {
+    const resHTML = c.resources.length
+      ? c.resources.map(r => `
+          <div class="resource-item">
+            <div class="resource-label" title="${r.label}">${r.label}</div>
+            <a class="resource-url" href="${r.url.startsWith('http') ? r.url : 'https://'+r.url}" target="_blank">${r.url}</a>
+            <button class="vis-btn ${r.pub ? 'pub' : 'prv'}" onclick="toggleResourceVis('${r.id}')">${r.pub ? '👁 Client' : '🔒 Internal'}</button>
+            <button class="btn btn-ghost btn-sm" style="padding:2px 6px;" onclick="removeResource('${r.id}')">🗑️</button>
+          </div>`).join('')
+      : `<div style="font-size:13px;color:var(--gray-400);padding:6px 0;">No resources yet — add links below.</div>`;
+
+    const actHTML = [...c.activity].reverse().map(e => `
+      <div class="activity-entry">
+        <div class="act-dot ${e.pub ? '' : 'prv'}"></div>
+        <div class="act-body">
+          <div class="act-text">${e.text.replace(/</g,'&lt;')}</div>
+          <div class="act-meta">
+            <span>${fmtDate(e.ts)}</span>
+            <span class="act-tag ${e.pub ? 'pub' : 'prv'}">${e.pub ? '👁 client visible' : '🔒 internal'}</span>
+            <button class="btn btn-ghost btn-sm" style="padding:0 5px;font-size:12px;line-height:1;" onclick="removeActivity('${e.id}')">×</button>
+          </div>
+        </div>
+      </div>`).join('') || `<div style="font-size:13px;color:var(--gray-400);padding:6px 0;">No updates yet.</div>`;
+
+    area.innerHTML = `
+      <!-- TEAM -->
+      <div class="category-card" style="margin-bottom:14px;">
+        <div class="category-head"><div class="category-head-title">Team & Contacts</div></div>
+        <div style="padding:14px 16px;">
+          <div class="team-grid">
+            <div class="team-field"><label>SEO Specialist</label><input value="${esc(c.team.specialist)}" oninput="saveTeam('specialist',this.value)" placeholder="Name"></div>
+            <div class="team-field"><label>Specialist Email</label><input value="${esc(c.team.specialistEmail)}" oninput="saveTeam('specialistEmail',this.value)" placeholder="email@example.com"></div>
+            <div class="team-field"><label>Client Contact</label><input value="${esc(c.team.clientContact)}" oninput="saveTeam('clientContact',this.value)" placeholder="Name"></div>
+            <div class="team-field"><label>Contact Email</label><input value="${esc(c.team.clientContactEmail)}" oninput="saveTeam('clientContactEmail',this.value)" placeholder="email@example.com"></div>
+            <div class="team-field"><label>Slack / Comms Handle</label><input value="${esc(c.team.slack)}" oninput="saveTeam('slack',this.value)" placeholder="Slack handle or channel"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESOURCES -->
+      <div class="category-card" style="margin-bottom:14px;">
+        <div class="category-head">
+          <div class="category-head-title">Resources & Links</div>
+          <span style="font-size:11px;color:var(--gray-400);">Toggle 👁 Client to show in client report</span>
+        </div>
+        <div style="padding:12px 16px 16px;">
+          ${resHTML}
+          <div class="add-res-row" style="margin-top:${c.resources.length ? '12px' : '6px'};">
+            <input id="res_label" placeholder="Label  (e.g. Data Studio Dashboard)" onkeydown="if(event.key==='Enter')addResource()">
+            <input id="res_url" placeholder="URL" onkeydown="if(event.key==='Enter')addResource()">
+            <button class="btn btn-primary btn-sm" onclick="addResource()">+ Add</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTIVITY -->
+      <div class="category-card">
+        <div class="category-head">
+          <div class="category-head-title">Activity Log</div>
+          <button class="btn btn-outline btn-sm" onclick="openClientView()">👁 Client Report</button>
+        </div>
+        <div style="padding:12px 16px 16px;">
+          <div class="activity-feed">${actHTML}</div>
+          <div class="act-input-row">
+            <textarea id="act_text" class="act-textarea" placeholder="Add an update or note…"></textarea>
+            <div class="act-options">
+              <label><input type="checkbox" id="act_pub"> Client visible</label>
+              <button class="btn btn-primary btn-sm" onclick="postActivity()">Post</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  if (S.activeTab === 'p1o') {
+    const [d,t] = phaseProgress('p1o', TASKS.phase1_onboarding);
+    area.innerHTML = `
+      <div class="phase-banner">
+        <div class="phase-banner-icon">🚀</div>
+        <div class="phase-banner-body">
+          <div class="phase-banner-title">Phase 1 — Onboarding <span style="color:var(--teal)">(Month 1 · Duration: 1 month)</span></div>
+          <div class="phase-banner-desc">Sets the foundation: billing, access, Trello setup, keyword research, backlink strategy, technical audit, and on-page optimisation.</div>
+        </div>
+      </div>
+      ${renderCategories('p1o', TASKS.phase1_onboarding)}
+      ${renderNotes(c)}`;
+  }
+  else if (S.activeTab === 'p1t') {
+    area.innerHTML = `
+      <div class="phase-banner">
+        <div class="phase-banner-icon">🔧</div>
+        <div class="phase-banner-body">
+          <div class="phase-banner-title">Technical SEO Audit <span style="color:var(--teal)">(Concurrent with Phase 1 · Duration: 1 month)</span></div>
+          <div class="phase-banner-desc">Full technical health check: crawl fixes, robots.txt, schema markup, page speed, breadcrumbs, and site structure.</div>
+        </div>
+      </div>
+      ${renderCategories('p1t', TASKS.phase1_tech)}`;
+  }
+  else if (S.activeTab === 'p2') {
+    const months = c.p2months || [];
+    const activeM = S.p2Month;
+    const prefix = 'p2m' + activeM;
+    const monthBarHTML = months.length ? `
+      <div class="month-bar">
+        <span class="month-bar-label">Month:</span>
+        ${months.map(m => `<div class="month-pill ${m===activeM?'active':''}" onclick="setP2Month(${m})">Month ${m}<span class="pill-remove" onclick="event.stopPropagation();removeP2Month(${m})" title="Remove month">×</span></div>`).join('')}
+        <button class="btn-add-month" onclick="addP2Month()">+ Add Month</button>
+      </div>` : '';
+    const content = months.length
+      ? renderCategories(prefix, TASKS.phase2_monthly)
+      : `<div style="text-align:center;padding:40px;color:var(--gray-400);"><div style="font-size:32px;margin-bottom:8px;">📅</div><div style="font-size:14px;">No months added yet.<br>Click "+ Add Month" to start Month 2.</div><br><button class="btn btn-primary" onclick="addP2Month()">+ Add Month 2</button></div>`;
+    area.innerHTML = `
+      <div class="phase-banner">
+        <div class="phase-banner-icon">🏗️</div>
+        <div class="phase-banner-body">
+          <div class="phase-banner-title">Phase 2 — Development <span style="color:var(--teal)">(Month 2+ · Duration: 1–6+ months)</span></div>
+          <div class="phase-banner-desc">Monthly deliverables: backlinks, collection page builds, internal linking, and end-of-month reporting. Add a new month tab as each month begins.</div>
+        </div>
+      </div>
+      ${monthBarHTML}
+      ${content}`;
+  }
+  else if (S.activeTab === 'p3s') {
+    area.innerHTML = `
+      <div class="phase-banner">
+        <div class="phase-banner-icon">🌱</div>
+        <div class="phase-banner-body">
+          <div class="phase-banner-title">Phase 3 Setup <span style="color:var(--teal)">(One-time at Phase 3 entry)</span></div>
+          <div class="phase-banner-desc">Establishes the blog content strategy, keyword hubs, blog setup on the site, and increases backlink budget where applicable.</div>
+        </div>
+      </div>
+      ${renderCategories('p3s', TASKS.phase3_setup)}`;
+  }
+  else if (S.activeTab === 'p3') {
+    const months = c.p3months || [];
+    const activeM = S.p3Month;
+    const prefix = 'p3m' + activeM;
+    const monthBarHTML = months.length ? `
+      <div class="month-bar">
+        <span class="month-bar-label">Month:</span>
+        ${months.map(m => `<div class="month-pill ${m===activeM?'active':''}" onclick="setP3Month(${m})">Month ${m}<span class="pill-remove" onclick="event.stopPropagation();removeP3Month(${m})" title="Remove month">×</span></div>`).join('')}
+        <button class="btn-add-month" onclick="addP3Month()">+ Add Month</button>
+      </div>` : '';
+    const nextM = months.length ? Math.max(...months) + 1 : 6;
+    const content = months.length
+      ? renderCategories(prefix, TASKS.phase3_monthly)
+      : `<div style="text-align:center;padding:40px;color:var(--gray-400);"><div style="font-size:32px;margin-bottom:8px;">📅</div><div style="font-size:14px;">No months added yet.<br>Growth starts when all collection pages from Phase 2 are complete.</div><br><button class="btn btn-primary" onclick="addP3Month()">+ Add Month ${nextM}</button></div>`;
+    area.innerHTML = `
+      <div class="phase-banner">
+        <div class="phase-banner-icon">📈</div>
+        <div class="phase-banner-body">
+          <div class="phase-banner-title">Phase 3 — Growth <span style="color:var(--teal)">(Month 6+ · Ongoing)</span></div>
+          <div class="phase-banner-desc">Monthly blog content, backlinks, internal linking, and reporting. Builds topical authority through hub-and-spoke content clusters.</div>
+        </div>
+      </div>
+      ${monthBarHTML}
+      ${content}`;
+  }
+  else if (S.activeTab === 'rec') {
+    area.innerHTML = `
+      <div class="phase-banner">
+        <div class="phase-banner-icon">🔁</div>
+        <div class="phase-banner-body">
+          <div class="phase-banner-title">Recurring Tasks</div>
+          <div class="phase-banner-desc">Bi-yearly tasks run in month 6, 12, 18 etc. Yearly tasks run at 12 months and every 12 months thereafter.</div>
+        </div>
+      </div>
+      ${renderCategories('rec', TASKS.recurring)}`;
+  }
+}
+
+function renderNotes(c) {
+  return `<div class="notes-block">
+    <label>Client Notes</label>
+    <textarea placeholder="Add notes about this client…" oninput="saveNotes(this.value)">${c.notes || ''}</textarea>
+  </div>`;
+}
+
+function saveNotes(val) {
+  const c = getClient(); if (!c) return;
+  c.notes = val; save();
+}
+
+// ═══════════════════════════════════════════
+//  CLIENT VIEW
+// ═══════════════════════════════════════════
+
+function renderClient() {
+  const c = getClient();
+  if (!c) { showEmpty(); return; }
+  document.getElementById('emptyState').style.display = 'none';
+  const cv = document.getElementById('clientView');
+  cv.style.display = 'flex';
+  renderHeader(c);
+  renderTabs(c);
+  renderContent(c);
+}
+
+function showEmpty() {
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('clientView').style.display = 'none';
+}
+
+function selectClient(id) {
+  S.activeId = id;
+  S.activeTab = 'overview';
+  // Set default months
+  const c = S.clients.find(x => x.id === id);
+  if (c) {
+    if (c.p2months && c.p2months.length) S.p2Month = c.p2months[0];
+    if (c.p3months && c.p3months.length) S.p3Month = c.p3months[0];
+  }
+  renderSidebar();
+  renderClient();
+}
+
+function setTab(tab) {
+  S.activeTab = tab;
+  const c = getClient();
+  if (tab === 'p2' && c && c.p2months && c.p2months.length) S.p2Month = c.p2months[0];
+  if (tab === 'p3' && c && c.p3months && c.p3months.length) S.p3Month = c.p3months[0];
+  renderTabs(getClient());
+  renderContent(getClient());
+}
+
+function setP2Month(m) { S.p2Month = m; renderContent(getClient()); renderTabs(getClient()); }
+function setP3Month(m) { S.p3Month = m; renderContent(getClient()); renderTabs(getClient()); }
+
+function addP2Month() {
+  const c = getClient(); if (!c) return;
+  if (!c.p2months) c.p2months = [];
+  const next = c.p2months.length ? Math.max(...c.p2months) + 1 : 2;
+  c.p2months.push(next);
+  S.p2Month = next;
+  save(); renderSidebar(); renderClient();
+}
+
+function removeP2Month(m) {
+  const c = getClient(); if (!c || !c.p2months) return;
+  if (!confirm(`Remove Month ${m} and its task data?`)) return;
+  // Delete all saved tasks for this month
+  const prefix = 'p2m' + m + '_';
+  for (const key of Object.keys(c.done)) { if (key.startsWith(prefix)) delete c.done[key]; }
+  c.p2months = c.p2months.filter(x => x !== m);
+  if (S.p2Month === m) S.p2Month = c.p2months.length ? c.p2months[c.p2months.length - 1] : null;
+  save(); renderSidebar(); renderClient();
+}
+
+function addP3Month() {
+  const c = getClient(); if (!c) return;
+  if (!c.p3months) c.p3months = [];
+  const p2Max = (c.p2months && c.p2months.length) ? Math.max(...c.p2months) : 5;
+  const next = c.p3months.length ? Math.max(...c.p3months) + 1 : p2Max + 1;
+  c.p3months.push(next);
+  S.p3Month = next;
+  save(); renderSidebar(); renderClient();
+}
+
+function removeP3Month(m) {
+  const c = getClient(); if (!c || !c.p3months) return;
+  if (!confirm(`Remove Month ${m} and its task data?`)) return;
+  const prefix = 'p3m' + m + '_';
+  for (const key of Object.keys(c.done)) { if (key.startsWith(prefix)) delete c.done[key]; }
+  c.p3months = c.p3months.filter(x => x !== m);
+  if (S.p3Month === m) S.p3Month = c.p3months.length ? c.p3months[c.p3months.length - 1] : null;
+  save(); renderSidebar(); renderClient();
+}
+
+// ═══════════════════════════════════════════
+//  CLIENT CRUD
+// ═══════════════════════════════════════════
+
+function openAddClientModal() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'Add New Client';
+  document.getElementById('f_name').value = '';
+  document.getElementById('f_url').value = '';
+  document.getElementById('f_tier').value = 'Standard';
+  document.getElementById('f_start').value = new Date().toISOString().slice(0,10);
+  document.getElementById('clientModal').classList.add('open');
+  setTimeout(() => document.getElementById('f_name').focus(), 50);
+}
+
+function openEditClientModal(id) {
+  editingId = id;
+  const c = S.clients.find(x => x.id === id);
+  document.getElementById('modalTitle').textContent = 'Edit Client';
+  document.getElementById('f_name').value = c.name;
+  document.getElementById('f_url').value = c.shopUrl || '';
+  document.getElementById('f_tier').value = c.tier || 'Standard';
+  document.getElementById('f_start').value = c.startDate || '';
+  document.getElementById('clientModal').classList.add('open');
+  setTimeout(() => document.getElementById('f_name').focus(), 50);
+}
+
+function closeModal() { document.getElementById('clientModal').classList.remove('open'); }
+
+function saveClientModal() {
+  const name = document.getElementById('f_name').value.trim();
+  if (!name) { document.getElementById('f_name').style.borderColor='var(--red)'; return; }
+  document.getElementById('f_name').style.borderColor='';
+  if (editingId) {
+    const c = S.clients.find(x => x.id === editingId);
+    c.name = name;
+    c.shopUrl = document.getElementById('f_url').value.trim();
+    c.tier = document.getElementById('f_tier').value;
+    c.startDate = document.getElementById('f_start').value;
+  } else {
+    const c = { id: uid(), name, shopUrl: document.getElementById('f_url').value.trim(),
+      tier: document.getElementById('f_tier').value, startDate: document.getElementById('f_start').value,
+      done: {}, notes: '', p2months: [], p3months: [],
+      team: { specialist:'', specialistEmail:'', clientContact:'', clientContactEmail:'', slack:'' },
+      resources: [], activity: [], taskNotes: {} };
+    S.clients.push(c);
+    S.activeId = c.id;
+    S.activeTab = 'overview';
+  }
+  save(); closeModal(); renderSidebar(); renderClient();
+}
+
+function deleteClient(id) {
+  if (!confirm('Delete this client and all their data? This cannot be undone.')) return;
+  deleteFromDB(id); // remove from database
+  S.clients = S.clients.filter(c => c.id !== id);
+  if (S.activeId === id) { S.activeId = S.clients.length ? S.clients[0].id : null; }
+  renderSidebar();
+  if (S.activeId) selectClient(S.activeId); else showEmpty();
+}
+
+// ═══════════════════════════════════════════
+//  OVERVIEW HELPERS
+// ═══════════════════════════════════════════
+
+function migrateClient(c) {
+  if (!c.team) c.team = { specialist:'', specialistEmail:'', clientContact:'', clientContactEmail:'', slack:'' };
+  if (!c.resources) c.resources = [];
+  if (!c.activity) c.activity = [];
+  if (!c.taskNotes) c.taskNotes = {};
+}
+
+function esc(s) { return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function fmtDate(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) + ' · ' +
+    d.toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'});
+}
+
+function saveTeam(field, val) {
+  const c = getClient(); if (!c) return;
+  migrateClient(c); c.team[field] = val; save();
+}
+
+function addResource() {
+  const c = getClient(); if (!c) return;
+  const label = document.getElementById('res_label').value.trim();
+  const url = document.getElementById('res_url').value.trim();
+  if (!label || !url) return;
+  migrateClient(c);
+  c.resources.push({ id: uid(), label, url, pub: false });
+  save(); renderContent(c);
+}
+
+function removeResource(id) {
+  const c = getClient(); if (!c) return;
+  c.resources = c.resources.filter(r => r.id !== id);
+  save(); renderContent(c);
+}
+
+function toggleResourceVis(id) {
+  const c = getClient(); if (!c) return;
+  const r = c.resources.find(r => r.id === id);
+  if (r) { r.pub = !r.pub; save(); renderContent(c); }
+}
+
+function postActivity() {
+  const c = getClient(); if (!c) return;
+  const text = (document.getElementById('act_text').value || '').trim();
+  if (!text) return;
+  migrateClient(c);
+  const pub = document.getElementById('act_pub').checked;
+  c.activity.push({ id: uid(), ts: Date.now(), text, pub });
+  save(); renderContent(c);
+}
+
+function removeActivity(id) {
+  const c = getClient(); if (!c) return;
+  c.activity = c.activity.filter(e => e.id !== id);
+  save(); renderContent(c);
+}
+
+function saveTaskNote(key, val) {
+  const c = getClient(); if (!c) return;
+  migrateClient(c);
+  if (val.trim()) c.taskNotes[key] = val; else delete c.taskNotes[key];
+  save();
+  // Update the note button styling without full re-render
+  const btn = document.querySelector(`[onclick*="toggleNote('note_${key.replace(/'/g,'')}"]`);
+  // just save silently
+}
+
+function toggleNote(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('open');
+  if (el.classList.contains('open')) { const ta = el.querySelector('textarea'); if (ta) ta.focus(); }
+}
+
+function openClientView() {
+  const c = getClient(); if (!c) return;
+  migrateClient(c);
+
+  const phases = [
+    { label: 'Phase 1 Onboarding', key: 'p1o', cats: TASKS.phase1_onboarding },
+    { label: 'Tech SEO Audit', key: 'p1t', cats: TASKS.phase1_tech },
+    { label: 'Phase 3 Setup', key: 'p3s', cats: TASKS.phase3_setup },
+  ];
+  const p2rows = (c.p2months||[]).map(m => ({ label:`Phase 2 – Month ${m}`, key:'p2m'+m, cats: TASKS.phase2_monthly }));
+  const p3rows = (c.p3months||[]).map(m => ({ label:`Phase 3 – Month ${m}`, key:'p3m'+m, cats: TASKS.phase3_monthly }));
+  const allPhases = [...phases, ...p2rows, ...p3rows];
+
+  const progressRows = allPhases.map(ph => {
+    let d=0, t=0;
+    for (const cat of ph.cats) for (const item of cat.items) { t++; if (c.done[taskKey(ph.key, item.id)]) d++; }
+    if (t === 0) return '';
+    const p = pct(d,t);
+    return `<div class="cv-progress-row">
+      <div class="cv-progress-label">${ph.label}</div>
+      <div class="cv-bar"><div class="cv-bar-fill" style="width:${p}%"></div></div>
+      <div class="cv-bar-pct">${p}%</div>
+    </div>`;
+  }).join('');
+
+  const pubResources = c.resources.filter(r => r.pub);
+  const resRows = pubResources.map(r => `
+    <div class="cv-link-row">
+      <div class="cv-link-label">${r.label}</div>
+      <a class="cv-link-url" href="${r.url.startsWith('http') ? r.url : 'https://'+r.url}" target="_blank">${r.url}</a>
+    </div>`).join('') || '<div style="font-size:13px;color:var(--gray-400);">No shared links yet.</div>';
+
+  const pubActivity = [...c.activity].filter(e => e.pub).reverse();
+  const actRows = pubActivity.map(e => `
+    <div class="cv-act-entry">
+      <div>${e.text.replace(/</g,'&lt;')}</div>
+      <div class="cv-act-date">${fmtDate(e.ts)}</div>
+    </div>`).join('') || '<div style="font-size:13px;color:var(--gray-400);">No updates shared yet.</div>';
+
+  const started = c.startDate ? new Date(c.startDate).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : '–';
+  const [totalDone, totalAll] = overallProgress(c);
+
+  document.getElementById('cvContent').innerHTML = `
+    <div class="cv-header">
+      <div class="cv-logo">Shopiotic SEO</div>
+      <div class="cv-client-name">${c.name}</div>
+      <div class="cv-meta">Tier: ${c.tier} &nbsp;·&nbsp; Started: ${started} &nbsp;·&nbsp; ${totalDone}/${totalAll} tasks complete</div>
+    </div>
+    <div class="cv-section">
+      <div class="cv-section-title">Progress Overview</div>
+      ${progressRows || '<div style="font-size:13px;color:var(--gray-400);">No progress data yet.</div>'}
+    </div>
+    <div class="cv-section">
+      <div class="cv-section-title">Resources & Links</div>
+      ${resRows}
+    </div>
+    <div class="cv-section">
+      <div class="cv-section-title">Updates</div>
+      ${actRows}
+    </div>`;
+
+  document.getElementById('cvModal').classList.add('open');
+}
+
+function closeCvModal() { document.getElementById('cvModal').classList.remove('open'); }
+
+// ═══════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════
+
+let _toastTimer;
+function showToast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { t.classList.remove('show'); }, 4000);
+}
+
+// ═══════════════════════════════════════════
+//  SETUP & AUTH
+// ═══════════════════════════════════════════
+
+function saveSetup() {
+  const url = document.getElementById('s_url').value.trim();
+  const key = document.getElementById('s_key').value.trim();
+  const pw  = document.getElementById('s_pw').value.trim();
+  const err = document.getElementById('s_err');
+  if (!url || !key || !pw) { err.textContent = 'All three fields are required.'; return; }
+  if (!url.startsWith('https://')) { err.textContent = 'URL must start with https://'; return; }
+  err.textContent = '';
+  setConfig(url, key, pw);
+  document.getElementById('setupModal').classList.remove('open');
+  sessionStorage.setItem('shopiotic_auth', '1');
+  initSupabase(url, key);
+  load().then(afterLoad);
+}
+
+function submitPassword() {
+  const cfg = getConfig();
+  const entered = document.getElementById('pw_input').value;
+  const err = document.getElementById('pw_err');
+  if (entered === cfg.password) {
+    err.textContent = '';
+    sessionStorage.setItem('shopiotic_auth', '1');
+    document.getElementById('passwordModal').classList.remove('open');
+    initSupabase(cfg.url, cfg.key);
+    load().then(afterLoad);
+  } else {
+    err.textContent = 'Incorrect password.';
+    document.getElementById('pw_input').value = '';
+    document.getElementById('pw_input').focus();
+  }
+}
+
+function resetSetup() {
+  if (!confirm('This will clear your Supabase connection settings. You will need to re-enter them.')) return;
+  localStorage.removeItem(CFG_KEY);
+  sessionStorage.removeItem('shopiotic_auth');
+  document.getElementById('passwordModal').classList.remove('open');
+  document.getElementById('s_url').value = '';
+  document.getElementById('s_key').value = '';
+  document.getElementById('s_pw').value = '';
+  document.getElementById('s_err').textContent = '';
+  document.getElementById('setupModal').classList.add('open');
+}
+
+function afterLoad() {
+  renderSidebar();
+  if (S.clients.length) { S.activeId = S.clients[0].id; renderClient(); }
+  else showEmpty();
+}
+
+// ═══════════════════════════════════════════
+//  KEYBOARD & INIT
+// ═══════════════════════════════════════════
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeModal(); closeCvModal(); }
+});
+document.getElementById('clientModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('clientModal')) closeModal();
+});
+document.getElementById('cvModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('cvModal')) closeCvModal();
+});
+document.getElementById('f_name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveClientModal();
+});
+
+// ── INIT ──
+(async function init() {
+  const cfg = getConfig();
+  if (!cfg || !cfg.url || !cfg.key || !cfg.password) {
+    document.getElementById('setupModal').classList.add('open');
+    return;
+  }
+  if (!sessionStorage.getItem('shopiotic_auth')) {
+    document.getElementById('passwordModal').classList.add('open');
+    setTimeout(() => document.getElementById('pw_input').focus(), 100);
+    return;
+  }
+  initSupabase(cfg.url, cfg.key);
+  await load();
+  afterLoad();
+})();
+</script>
+</body>
+</html>
