@@ -1269,6 +1269,7 @@ function renderHeader(c) {
 function renderTabs(c) {
   const tabs = [
     { id:'overview', label:'Overview' },
+    { id:'analytics', label:'📊 Analytics' },
     { id:'p1o', label:'Phase 1: Onboarding', cats: TASKS.phase1_onboarding },
     { id:'p1t', label:'Tech SEO Audit', cats: TASKS.phase1_tech },
     { id:'p2s', label:'Phase 2 Setup', cats: TASKS.phase2_setup },
@@ -1299,6 +1300,11 @@ function renderContent(c) {
   const area = document.getElementById('contentArea');
   migrateClient(c);
 
+  if (S.activeTab === 'analytics') {
+    area.innerHTML = renderReportCard(c);
+    return;
+  }
+
   if (S.activeTab === 'overview') {
     const resHTML = c.resources.length
       ? c.resources.map(r => `
@@ -1324,9 +1330,6 @@ function renderContent(c) {
       </div>`).join('') || `<div style="font-size:13px;color:var(--gray-400);padding:6px 0;">No updates yet.</div>`;
 
     area.innerHTML = `
-      <!-- ANALYTICS REPORT -->
-      ${renderReportCard(c)}
-
       <!-- TEAM -->
       <div class="category-card" style="margin-bottom:14px;">
         <div class="category-head">
