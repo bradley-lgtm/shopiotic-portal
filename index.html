@@ -85,6 +85,27 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
   cursor: pointer; transition: background 0.15s;
 }
 .btn-add-client:hover { background: var(--teal-dark); color: #fff; }
+.btn-team {
+  width: 100%; padding: 8px 12px; background: rgba(255,255,255,0.07); color: var(--gray-300);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 7px; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background 0.15s; margin-top: 6px;
+}
+.btn-team:hover { background: rgba(255,255,255,0.12); color: #fff; }
+/* ── TEAM MODAL ── */
+.team-modal { width: 580px; max-width: 97vw; max-height: 88vh; display: flex; flex-direction: column; }
+.worker-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--gray-100); }
+.worker-row:last-child { border-bottom: none; }
+.worker-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.worker-info { flex: 1; min-width: 0; }
+.worker-name { font-size: 13px; font-weight: 600; color: var(--gray-700); }
+.worker-email { font-size: 11px; color: var(--gray-400); }
+.worker-clients { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.worker-client-chip { font-size: 11px; padding: 2px 8px; background: var(--teal-pale); color: var(--teal-dark); border-radius: 20px; display: flex; align-items: center; gap: 4px; }
+.worker-client-chip button { background: none; border: none; cursor: pointer; color: var(--gray-400); font-size: 12px; padding: 0; line-height: 1; }
+.worker-client-chip button:hover { color: var(--red); }
+.assign-row { display: flex; gap: 8px; margin-top: 6px; }
+.assign-row select { flex: 1; padding: 6px 10px; border: 1px solid var(--gray-200); border-radius: 6px; font-size: 12px; font-family: var(--font); outline: none; }
+.assign-row select:focus { border-color: var(--teal); }
 
 /* ── MAIN ── */
 #main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -557,7 +578,8 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
   <div class="sidebar-label">Clients</div>
   <div class="client-list" id="clientList"></div>
   <div class="sidebar-footer">
-    <button class="btn-add-client" onclick="openAddClientModal()">+ Add Client</button>
+    <button class="btn-add-client" id="btnAddClient" onclick="openAddClientModal()">+ Add Client</button>
+    <button class="btn-team" id="btnTeam" onclick="openTeamModal()" style="display:none;">👥 Team</button>
   </div>
 </div>
 
@@ -607,6 +629,17 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
     </div>
     <div class="gate-error" id="s_err"></div>
     <button class="gate-btn" onclick="saveSetup()">Save & Connect</button>
+  </div>
+</div>
+
+<!-- TEAM MODAL -->
+<div class="modal-overlay" id="teamModal">
+  <div class="modal team-modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-shrink:0;">
+      <div class="modal-title" style="margin-bottom:0;">👥 Team Management</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeTeamModal()">✕ Close</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;" id="teamModalContent"></div>
   </div>
 </div>
 
@@ -2604,6 +2637,81 @@ function showToast(msg, type = 'info') {
 }
 
 // ═══════════════════════════════════════════
+//  TEAM MANAGEMENT
+// ═══════════════════════════════════════════
+
+async function openTeamModal() {
+  document.getElementById('teamModal').classList.add('open');
+  document.getElementById('teamModalContent').innerHTML = `<div style="padding:20px;text-align:center;color:var(--gray-400);">Loading…</div>`;
+  // Load all workers and their client access
+  const { data: workers } = await _sb.from('profiles').select('*').eq('role', 'worker');
+  const { data: access } = await _sb.from('client_access').select('*');
+  renderTeamModal(workers || [], access || []);
+}
+
+function renderTeamModal(workers, access) {
+  const clientOptions = S.clients.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  if (!workers.length) {
+    document.getElementById('teamModalContent').innerHTML = `
+      <div style="text-align:center;padding:24px;color:var(--gray-400);">
+        <div style="font-size:32px;margin-bottom:8px;">👤</div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:4px;">No workers yet</div>
+        <div style="font-size:12px;">Add workers via Supabase → Authentication → Users, then they'll appear here.</div>
+      </div>`;
+    return;
+  }
+  document.getElementById('teamModalContent').innerHTML = workers.map(w => {
+    const workerAccess = access.filter(a => a.user_id === w.id);
+    const assignedClients = workerAccess.map(a => {
+      const client = S.clients.find(c => c.id === a.client_id);
+      return client ? `<span class="worker-client-chip">${esc(client.name)}<button onclick="revokeAccess('${w.id}','${a.client_id}')" title="Remove">×</button></span>` : '';
+    }).join('');
+    const unassigned = S.clients.filter(c => !workerAccess.find(a => a.client_id === c.id));
+    const unassignedOptions = unassigned.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    const initials = (w.name || w.email).charAt(0).toUpperCase();
+    return `
+      <div class="worker-row">
+        <div class="worker-avatar" style="background:${w.avatar_color||'#7c3aed'}">${initials}</div>
+        <div class="worker-info">
+          <div class="worker-name">${esc(w.name)}</div>
+          <div class="worker-email">${esc(w.email)}</div>
+          <div class="worker-clients" style="margin-top:6px;">
+            ${assignedClients || `<span style="font-size:11px;color:var(--gray-400);">No clients assigned yet</span>`}
+          </div>
+          ${unassigned.length ? `
+          <div class="assign-row">
+            <select id="assign_${w.id}">
+              <option value="">Assign a client…</option>
+              ${unassignedOptions}
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="assignClient('${w.id}')">Assign</button>
+          </div>` : `<div style="font-size:11px;color:var(--gray-400);margin-top:4px;">All clients assigned</div>`}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function assignClient(workerId) {
+  const sel = document.getElementById('assign_' + workerId);
+  const clientId = sel ? sel.value : '';
+  if (!clientId) return;
+  const { error } = await _sb.from('client_access').insert({ user_id: workerId, client_id: clientId });
+  if (error) { showToast('Failed to assign: ' + error.message, 'error'); return; }
+  showToast('Client assigned ✓', 'success');
+  openTeamModal(); // refresh
+}
+
+async function revokeAccess(workerId, clientId) {
+  if (!confirm('Remove this client from the worker?')) return;
+  const { error } = await _sb.from('client_access').delete().eq('user_id', workerId).eq('client_id', clientId);
+  if (error) { showToast('Failed to revoke: ' + error.message, 'error'); return; }
+  showToast('Access removed ✓', 'success');
+  openTeamModal(); // refresh
+}
+
+function closeTeamModal() { document.getElementById('teamModal').classList.remove('open'); }
+
+// ═══════════════════════════════════════════
 //  SETUP & AUTH
 // ═══════════════════════════════════════════
 
@@ -2658,6 +2766,10 @@ function renderUserBadge() {
   nameEl.textContent = u.name;
   roleEl.textContent = u.role;
   badge.style.display = 'flex';
+  // Owner-only UI
+  const isOwner = u.role === 'owner';
+  document.getElementById('btnAddClient').style.display = isOwner ? 'block' : 'none';
+  document.getElementById('btnTeam').style.display = isOwner ? 'block' : 'none';
 }
 
 async function signOut() {
