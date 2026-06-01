@@ -639,6 +639,12 @@ const TASKS = {
     ]},
   ],
 
+  phase2_setup: [
+    { cat: "Setup", items: [
+      { id:"p2s1", t:"Conduct an anchor text distribution assessment", s:["Determine how aggressive we can be with linking to collection pages rather than the homepage","Use the anchor filter in the SEMrush backlinks report","Setup a spreadsheet to calculate total exact match anchor percentage vs other anchor types","Add this document to the Trello dashboard","Add a new tab to the sheet and repeat this process in 6 months time"] },
+    ]},
+  ],
+
   // Template — used for both Phase 2 and Phase 3 months
   phase2_monthly: [
     { cat: "Backlinks", items: [
@@ -684,6 +690,10 @@ const TASKS = {
       { id:"p3s8", t:"Add a lead magnet sign-up to the bottom of blogs", s:["Examples: newsletter signup, B2B accounts","Example: proluxmaterials.com/blogs/news/heated-tile-floor-cost"] },
       { id:"p3s9", t:"Install Dead Simple Product Embed if needed for any blogs", s:["Run past the client — they'll pay the small monthly bill"] },
     ]},
+    { cat: "Collections", items: [
+      { id:"p3s10", t:"Set up a GSC Collection page optimization sheet", s:["Make a copy of the template: GSC Collection Page Optimization Template","Delete the example collection tab","Name it descriptively","Store it in Trello"] },
+      { id:"p3s11", t:"When all collections have been optimized based on GSC data, use the deliverable swapper to update the client's plan", s:["Tool: charming-babka-6d354e.netlify.app","This keeps the plan valuable and increases LTV"] },
+    ]},
   ],
 
   phase3_monthly: [
@@ -696,6 +706,7 @@ const TASKS = {
     ]},
     { cat: "Blogs", items: [
       { id:"bg1", t:"Assign monthly blogs to the writer", s:["Focus on opportunities from hubs of priority pages","Notify the writer in Trello","Notify the client which blogs will be written"] },
+      { id:"bg1b", t:"Have AI write article drafts (WIP)" },
       { id:"bg2", t:"Writer writes assigned monthly blog drafts in Google Docs", s:["1000+ words naturally optimized for keywords","H1 with front-loaded keyword","Optimized meta title and description with front-loaded keywords","Suggests a URL slug based on target keyword","50% of H2s/H3s optimized for target keyword","Embed relevant videos (if client has any)","Add comparison tables where necessary","Hero image + 2-4 additional images (if client has any)","FAQs from Google's 'People Also Asked'","Internal links to all relevant collections with optimized anchor text","Internal link to hub collection within first 150 words","Internal links to 3-5 other blogs in same hub (spider web effect)","Table of contents"] },
       { id:"bg3", t:"Writer sends drafts to specialist and client for review", s:["Send via Trello","Add to the Content Strategy Sheet"] },
       { id:"bg4", t:"Specialist reviews and makes changes to H1, meta title, description, and URL slug" },
@@ -707,6 +718,14 @@ const TASKS = {
       { id:"r1", t:"Send the End of Month report", s:["Send via email and Trello general chat","Include the Data Studio dash","Include a list of everything completed — use AI to write it upbeat","Include your own introductory paragraph with opinions","Ask for a review if results are good and client seems happy"] },
       { id:"r2", t:"Take the End of Month report call", s:["Record the call and put in Trello general chat","Run through the monthly Data Studio report","Show position tracking wins","Run through the list of work done","Run through what we'll do next month","Ask if they're happy and if anything should change","Book the next end of month call"] },
     ]},
+    { cat: "Collections", items: [
+      { id:"gc1", t:"Specialist assigns collections for GSC optimization", s:["Focus on priority collections","Focus on collections that have been published for at least 3 months","First place to look will be the collections built in Month 1 of Phase 2","Add each collection as a tab in the GSC optimization template: GSC Collection Page Optimization Template"] },
+      { id:"gc2", t:"Pull a list of top performing keywords in GSC for specific collections", s:["Filter down to the specific collection page","Set history to the last 6 months","Copy and paste the keywords below the graph into the template","Mark selected keywords in green — most relevant with more clicks and impressions","Be careful not to select keywords that might cause cannibalization"] },
+      { id:"gc3", t:"Send keyword lists to the writer and have them adjust the content", s:["Send in Trello","Notify them which collections they are working on","Avoid keyword stuffing"] },
+      { id:"gc4", t:"Writer notifies the specialist once the work is done", s:["Send in Trello"] },
+      { id:"gc5", t:"Specialist reviews the work and submits collections to GSC for reindexing" },
+      { id:"gc6", t:"Instead of using a writer the specialist could do all of this with AI (WIP)" },
+    ]},
   ],
 
   recurring: [
@@ -717,6 +736,7 @@ const TASKS = {
     ]},
     { cat: "Yearly (Every 12 Months)", items: [
       { id:"yr1", t:"Review the one year goal against actual results", s:["Notify the client about progress toward the goal set in Phase 1"] },
+      { id:"yr2", t:"Set a new yearly goal with the client" },
     ]},
   ],
 };
@@ -790,10 +810,14 @@ function toggleTask(key) {
 }
 
 function expandToggle(el) {
-  const sub = el.parentElement.parentElement.nextElementSibling;
+  const sub = el.closest('.task-item').querySelector('.subtasks');
   if (!sub) return;
   sub.classList.toggle('open');
   el.textContent = sub.classList.contains('open') ? '▲ hide details' : '▼ show details';
+}
+
+function linkify(text) {
+  return text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
 }
 
 // ═══════════════════════════════════════════
@@ -837,6 +861,7 @@ function overallProgress(client) {
   };
   countCats('p1o', TASKS.phase1_onboarding);
   countCats('p1t', TASKS.phase1_tech);
+  countCats('p2s', TASKS.phase2_setup);
   countCats('p3s', TASKS.phase3_setup);
   countCats('rec', TASKS.recurring);
   for (const m of (client.p2months || [])) countCats('p2m' + m, TASKS.phase2_monthly);
@@ -873,7 +898,7 @@ function renderCategories(phaseKey, categories) {
               const href = s.startsWith('http') ? s : 'https://' + s;
               return `<div class="subtask-line"><a class="subtask-link" href="${href}" target="_blank">${s}</a></div>`;
             }
-            return `<div class="subtask-line">${s}</div>`;
+            return `<div class="subtask-line">${linkify(s)}</div>`;
           }).join('')}
         </div>` : '';
       const noteVal = (c.taskNotes && c.taskNotes[key]) ? c.taskNotes[key] : '';
@@ -972,6 +997,7 @@ function renderTabs(c) {
     { id:'overview', label:'Overview' },
     { id:'p1o', label:'Phase 1: Onboarding', cats: TASKS.phase1_onboarding },
     { id:'p1t', label:'Tech SEO Audit', cats: TASKS.phase1_tech },
+    { id:'p2s', label:'Phase 2 Setup', cats: TASKS.phase2_setup },
     { id:'p2', label:'Phase 2: Dev', monthly: true, months: c.p2months, prefix:'p2m' },
     { id:'p3s', label:'Phase 3 Setup', cats: TASKS.phase3_setup },
     { id:'p3', label:'Phase 3: Growth', monthly: true, months: c.p3months, prefix:'p3m' },
@@ -1097,6 +1123,17 @@ function renderContent(c) {
         </div>
       </div>
       ${renderCategories('p1t', TASKS.phase1_tech)}`;
+  }
+  else if (S.activeTab === 'p2s') {
+    area.innerHTML = `
+      <div class="phase-banner">
+        <div class="phase-banner-icon">🔗</div>
+        <div class="phase-banner-body">
+          <div class="phase-banner-title">Phase 2 Setup <span style="color:var(--teal)">(One-time at Phase 2 entry)</span></div>
+          <div class="phase-banner-desc">Anchor text distribution assessment and Phase 2 preparation tasks.</div>
+        </div>
+      </div>
+      ${renderCategories('p2s', TASKS.phase2_setup)}`;
   }
   else if (S.activeTab === 'p2') {
     const months = c.p2months || [];
@@ -1415,6 +1452,7 @@ function openClientView() {
   const phases = [
     { label: 'Phase 1 Onboarding', key: 'p1o', cats: TASKS.phase1_onboarding },
     { label: 'Tech SEO Audit', key: 'p1t', cats: TASKS.phase1_tech },
+    { label: 'Phase 2 Setup', key: 'p2s', cats: TASKS.phase2_setup },
     { label: 'Phase 3 Setup', key: 'p3s', cats: TASKS.phase3_setup },
   ];
   const p2rows = (c.p2months||[]).map(m => ({ label:`Phase 2 – Month ${m}`, key:'p2m'+m, cats: TASKS.phase2_monthly }));
