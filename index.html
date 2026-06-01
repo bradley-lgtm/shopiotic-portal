@@ -617,14 +617,14 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 </div>
 
 <div class="modal-overlay" id="tplModal">
-  <div class="modal" style="width:600px;max-width:97vw;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+  <div class="modal" style="width:460px;max-width:97vw;max-height:90vh;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
       <div class="modal-title" style="margin-bottom:0;">⚙️ Manage Ongoing Template</div>
-      <button class="btn btn-ghost btn-sm" onclick="closeTplModal()">✕ Close</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeTplModal()">✕</button>
     </div>
-    <p style="font-size:12px;color:var(--gray-500);margin:-8px 0 16px;">These are the default quantities and budget applied to every new month going forward. Changes take effect from the current month onwards — past months are unaffected.</p>
-    <div class="tpl-panel" id="tplPanelContent"></div>
-    <div class="modal-actions">
+    <p style="font-size:12px;color:var(--gray-500);margin:0 0 14px;flex-shrink:0;">Default deliverable quantities and budget for every new month going forward. Past months unaffected.</p>
+    <div id="tplPanelContent" style="overflow-y:auto;flex:1;"></div>
+    <div class="modal-actions" style="flex-shrink:0;">
       <button class="btn btn-outline" onclick="closeTplModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveTplModal()">Save Changes</button>
     </div>
@@ -1837,62 +1837,38 @@ function openTplModal(phase) {
   const tierBudget = cfg[phase === 'p2' ? 'p2budget' : 'p3budget'];
   const budgetOverride = td.budgetOverride && td.budgetOverride[budgetKey] != null ? td.budgetOverride[budgetKey] : tierBudget;
 
-  const p2Section = phase === 'p2' ? `
-    <div>
-      <div class="tpl-section-title">📄 Collection Pages / Month</div>
-      ${['cp1','cp2','cp3','cp4','cp5'].map((id, i) => {
-        const labels = ['Build draft collection pages','Write content for each collection','Add content & FAQ schema','Publish collection pages','Add keywords to position tracking'];
-        return `<div class="tpl-row">
-          <div><div class="tpl-row-label">${labels[i]}</div></div>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <input class="tpl-qty-input" id="tpl_qty_${id}" type="number" min="0" value="${getQty(id,'p2collections')}">
-            <button class="tpl-reset" onclick="document.getElementById('tpl_qty_${id}').value=${cfg.p2collections}" title="Reset to tier default">↺</button>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>` : `
-    <div>
-      <div class="tpl-section-title">✍️ Blogs / Month</div>
-      ${['bg1','bg1b','bg2','bg3','bg4','bg5','bg6','bg7'].map((id, i) => {
-        const labels = ['Assign blogs to writer','AI draft blogs (WIP)','Writer writes drafts','Send drafts for review','Specialist reviews','Writer implements changes','Publish blogs','Submit blogs to GSC'];
-        return `<div class="tpl-row">
-          <div><div class="tpl-row-label">${labels[i]}</div></div>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <input class="tpl-qty-input" id="tpl_qty_${id}" type="number" min="0" value="${getQty(id,'p3blogs')}">
-            <button class="tpl-reset" onclick="document.getElementById('tpl_qty_${id}').value=${cfg.p3blogs}" title="Reset to tier default">↺</button>
-          </div>
-        </div>`;
-      }).join('')}
-      <div class="tpl-section-title" style="margin-top:16px;">🔍 GSC Optimisations / Month</div>
-      ${['gc1','gc2','gc3','gc4','gc5','gc6'].map((id, i) => {
-        const labels = ['Assign collections','Pull GSC keywords','Send keywords to writer','Writer notifies specialist','Specialist reviews & reindexes','AI alternative (WIP)'];
-        return `<div class="tpl-row">
-          <div><div class="tpl-row-label">${labels[i]}</div></div>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <input class="tpl-qty-input" id="tpl_qty_${id}" type="number" min="0" value="${getQty(id,'p3gsc')}">
-            <button class="tpl-reset" onclick="document.getElementById('tpl_qty_${id}').value=${cfg.p3gsc}" title="Reset to tier default">↺</button>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`;
-
-  const budgetSection = `
-    <div>
-      <div class="tpl-section-title">💰 Monthly Link Budget</div>
-      <div class="tpl-row">
-        <div>
-          <div class="tpl-row-label">Default monthly budget</div>
-          <div class="tpl-row-sub">Tier default: $${tierBudget}. Applied to every new month going forward.</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-size:14px;color:var(--gray-500);">$</span>
-          <input class="tpl-qty-input" id="tpl_budget" type="number" min="0" value="${budgetOverride}" style="width:100px;">
-          <button class="tpl-reset" onclick="document.getElementById('tpl_budget').value=${tierBudget}" title="Reset to tier default">↺</button>
-        </div>
+  // One quantity row per deliverable type
+  const qtyRow = (label, sub, inputId, currentVal, tierDefault) => `
+    <div class="tpl-row">
+      <div><div class="tpl-row-label">${label}</div><div class="tpl-row-sub">${sub}</div></div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <input class="tpl-qty-input" id="${inputId}" type="number" min="0" value="${currentVal}">
+        <button class="tpl-reset" onclick="document.getElementById('${inputId}').value=${tierDefault}" title="Reset to tier default">↺</button>
       </div>
     </div>`;
 
-  document.getElementById('tplPanelContent').innerHTML = `${p2Section}${budgetSection}`;
+  const p2Section = phase === 'p2' ? `
+    <div class="tpl-section-title">📄 Collection Pages</div>
+    ${qtyRow('Collection pages per month', `Tier default: ${cfg.p2collections}`, 'tpl_qty_cp', getQty('cp1','p2collections'), cfg.p2collections)}
+  ` : `
+    <div class="tpl-section-title">✍️ Blog Content</div>
+    ${qtyRow('Blogs per month', `Tier default: ${cfg.p3blogs}`, 'tpl_qty_bg', getQty('bg1','p3blogs'), cfg.p3blogs)}
+    <div class="tpl-section-title" style="margin-top:16px;">🔍 GSC Collection Optimisations</div>
+    ${qtyRow('Optimisations per month', `Tier default: ${cfg.p3gsc}`, 'tpl_qty_gc', getQty('gc1','p3gsc'), cfg.p3gsc)}
+  `;
+
+  const budgetSection = `
+    <div class="tpl-section-title" style="margin-top:16px;">💰 Monthly Link Budget</div>
+    <div class="tpl-row">
+      <div><div class="tpl-row-label">Default monthly budget</div><div class="tpl-row-sub">Tier default: $${tierBudget}</div></div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:14px;color:var(--gray-500);">$</span>
+        <input class="tpl-qty-input" id="tpl_budget" type="number" min="0" value="${budgetOverride}" style="width:100px;">
+        <button class="tpl-reset" onclick="document.getElementById('tpl_budget').value=${tierBudget}" title="Reset to tier default">↺</button>
+      </div>
+    </div>`;
+
+  document.getElementById('tplPanelContent').innerHTML = p2Section + budgetSection;
   document.getElementById('tplModal').classList.add('open');
 }
 
@@ -1901,22 +1877,25 @@ function saveTplModal() {
   ensureClientCustomData(c);
   const cfg = tierCfg(c);
 
-  const taskIds = _tplPhase === 'p2'
-    ? ['cp1','cp2','cp3','cp4','cp5']
-    : ['bg1','bg1b','bg2','bg3','bg4','bg5','bg6','bg7','gc1','gc2','gc3','gc4','gc5','gc6'];
-
-  const cfgKey = _tplPhase === 'p2' ? 'p2collections' : (id) => id.startsWith('bg') ? 'p3blogs' : 'p3gsc';
-
   if (!c.templateData.taskEdits) c.templateData.taskEdits = {};
-  for (const id of taskIds) {
-    const el = document.getElementById('tpl_qty_' + id);
-    if (!el) continue;
+
+  // Apply single quantity to all tasks in each group
+  const applyQty = (inputId, taskIds) => {
+    const el = document.getElementById(inputId);
+    if (!el) return;
     const val = parseInt(el.value);
-    const key = typeof cfgKey === 'function' ? cfgKey(id) : cfgKey;
-    if (!isNaN(val)) {
+    if (isNaN(val)) return;
+    for (const id of taskIds) {
       if (!c.templateData.taskEdits[id]) c.templateData.taskEdits[id] = {};
       c.templateData.taskEdits[id].qty = val;
     }
+  };
+
+  if (_tplPhase === 'p2') {
+    applyQty('tpl_qty_cp', ['cp1','cp2','cp3','cp4','cp5']);
+  } else {
+    applyQty('tpl_qty_bg', ['bg1','bg1b','bg2','bg3','bg4','bg5','bg6','bg7']);
+    applyQty('tpl_qty_gc', ['gc1','gc2','gc3','gc4','gc5','gc6']);
   }
 
   // Budget
