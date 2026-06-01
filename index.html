@@ -184,7 +184,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 /* ── CATEGORY CARD ── */
 .category-card {
   background: var(--white); border-radius: 10px; border: 1px solid var(--gray-200);
-  margin-bottom: 14px; overflow: hidden;
+  margin-bottom: 14px; overflow: visible;
 }
 .category-head {
   padding: 10px 16px; background: var(--gray-50); border-bottom: 1px solid var(--gray-100);
@@ -1105,7 +1105,7 @@ function renderCategories(phaseKey, categories) {
     }).join('');
     // Render added custom tasks for this category
     const addedMonthTasks = (c.monthData && c.monthData[phaseKey] && c.monthData[phaseKey].addedTasks && c.monthData[phaseKey].addedTasks[cat.cat]) || [];
-    const addedTplTasks = (!isMonthly && c.templateData && c.templateData.addedTasks && c.templateData.addedTasks[cat.cat]) || [];
+    const addedTplTasks = (c.templateData && c.templateData.addedTasks && c.templateData.addedTasks[cat.cat]) || [];
     const allAdded = [...addedTplTasks, ...addedMonthTasks];
     const addedHTML = allAdded.map(item => {
       const key = taskKey(phaseKey, item.id);
@@ -1943,19 +1943,32 @@ function resolveCategories(phaseKey, globalCats, c) {
   return base;
 }
 
-// Is a phaseKey a "past" month (< current active month for its phase)?
+// Is a phaseKey a "past" month? Past = not the latest month in that phase.
 function isMonthPast(phaseKey) {
-  if (phaseKey.startsWith('p2m')) return parseInt(phaseKey.slice(3)) < S.p2Month;
-  if (phaseKey.startsWith('p3m')) return parseInt(phaseKey.slice(3)) < S.p3Month;
+  const c = getClient(); if (!c) return false;
+  if (phaseKey.startsWith('p2m')) {
+    const m = parseInt(phaseKey.slice(3));
+    const max = (c.p2months && c.p2months.length) ? Math.max(...c.p2months) : m;
+    return m < max;
+  }
+  if (phaseKey.startsWith('p3m')) {
+    const m = parseInt(phaseKey.slice(3));
+    const max = (c.p3months && c.p3months.length) ? Math.max(...c.p3months) : m;
+    return m < max;
+  }
   return false;
 }
 
 // Clear snapshots for current + future months so they re-inherit a template change
 function clearFutureSnapshots(c) {
   if (!c.monthData) return;
+  const p2max = (c.p2months && c.p2months.length) ? Math.max(...c.p2months) : 0;
+  const p3max = (c.p3months && c.p3months.length) ? Math.max(...c.p3months) : 0;
   for (const key of Object.keys(c.monthData)) {
-    const past = isMonthPast(key);
-    if (!past) c.monthData[key].snapshot = null;
+    let isPast = false;
+    if (key.startsWith('p2m')) isPast = parseInt(key.slice(3)) < p2max;
+    else if (key.startsWith('p3m')) isPast = parseInt(key.slice(3)) < p3max;
+    if (!isPast) c.monthData[key].snapshot = null;
   }
 }
 
