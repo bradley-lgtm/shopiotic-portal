@@ -294,6 +294,23 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
   background: var(--teal); color: #fff; border-radius: 20px;
   font-size: 11px; font-weight: 700; vertical-align: middle; white-space: nowrap;
 }
+/* ── ANALYTICS REPORT EMBED ── */
+.report-card { background: var(--white); border: 1px solid var(--gray-200); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
+.report-card-header {
+  background: #0f1b2d; display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px; gap: 12px;
+}
+.report-card-title { color: #fff; font-size: 14px; font-weight: 700; letter-spacing: 0.3px; }
+.report-card-actions { display: flex; gap: 8px; align-items: center; }
+.report-embed-placeholder {
+  padding: 32px 20px; text-align: center; color: var(--gray-400);
+}
+.report-embed-input {
+  width: 100%; padding: 9px 12px; border: 1px solid var(--gray-200); border-radius: 7px;
+  font-size: 13px; font-family: var(--font); outline: none; margin-top: 12px;
+  transition: border-color 0.15s; resize: vertical; min-height: 60px;
+}
+.report-embed-input:focus { border-color: var(--teal); }
 .cat-tier-label {
   display: inline-block; margin-left: 8px; padding: 1px 7px;
   background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0;
@@ -1307,6 +1324,9 @@ function renderContent(c) {
       </div>`).join('') || `<div style="font-size:13px;color:var(--gray-400);padding:6px 0;">No updates yet.</div>`;
 
     area.innerHTML = `
+      <!-- ANALYTICS REPORT -->
+      ${renderReportCard(c)}
+
       <!-- TEAM -->
       <div class="category-card" style="margin-bottom:14px;">
         <div class="category-head">
@@ -1468,6 +1488,70 @@ function renderContent(c) {
       </div>
       ${renderCategories('rec', TASKS.recurring)}`;
   }
+}
+
+function extractEmbedUrl(raw) {
+  if (!raw || !raw.trim()) return '';
+  const trimmed = raw.trim();
+  // If it's already a URL
+  if (trimmed.startsWith('http')) return trimmed;
+  // Extract src from iframe code
+  const match = trimmed.match(/src=["']([^"']+)["']/);
+  return match ? match[1] : trimmed;
+}
+
+function renderReportCard(c) {
+  const url = c.reportEmbedUrl || '';
+  const header = `
+    <div class="report-card-header">
+      <div class="report-card-title">📊 Analytics Report — ${esc(c.name)}</div>
+      <div class="report-card-actions">
+        ${url ? `<button class="btn btn-ghost btn-sm" style="color:rgba(255,255,255,0.6);font-size:11px;" onclick="clearReportEmbed()">✕ Remove</button>` : ''}
+        <button class="btn btn-ghost btn-sm" style="color:rgba(255,255,255,0.7);font-size:11px;" onclick="toggleReportInput()">⚙️ ${url ? 'Change' : 'Set Report'}</button>
+      </div>
+    </div>`;
+
+  const inputBlock = `
+    <div id="reportInputBlock" style="display:none;padding:16px;border-bottom:1px solid var(--gray-100);">
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:6px;">Paste the <strong>Embed Code</strong> or <strong>Embed URL</strong> from Looker Studio (File → Embed Report → Copy)</div>
+      <textarea class="report-embed-input" id="reportEmbedInput" placeholder='Paste iframe code or URL…'>${esc(url)}</textarea>
+      <div style="margin-top:8px;display:flex;gap:8px;">
+        <button class="btn btn-primary btn-sm" onclick="saveReportEmbed()">Save</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleReportInput()">Cancel</button>
+      </div>
+    </div>`;
+
+  const body = url
+    ? `<iframe src="${esc(url)}" width="100%" height="660" frameborder="0" style="display:block;" allowfullscreen></iframe>`
+    : `<div class="report-embed-placeholder">
+        <div style="font-size:32px;margin-bottom:8px;">📈</div>
+        <div style="font-size:14px;font-weight:600;color:var(--gray-600);margin-bottom:4px;">No report embedded yet</div>
+        <div style="font-size:12px;margin-bottom:14px;">In Looker Studio, go to <strong>File → Embed Report</strong>, enable embedding, then paste the code here.</div>
+        <button class="btn btn-primary btn-sm" onclick="toggleReportInput()">+ Embed Report</button>
+      </div>`;
+
+  return `<div class="report-card">${header}${inputBlock}${body}</div>`;
+}
+
+function toggleReportInput() {
+  const el = document.getElementById('reportInputBlock');
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  if (el.style.display === 'block') setTimeout(() => document.getElementById('reportEmbedInput').focus(), 50);
+}
+
+function saveReportEmbed() {
+  const c = getClient(); if (!c) return;
+  const raw = document.getElementById('reportEmbedInput').value;
+  c.reportEmbedUrl = extractEmbedUrl(raw);
+  save(); renderContent(c);
+}
+
+function clearReportEmbed() {
+  const c = getClient(); if (!c) return;
+  if (!confirm('Remove the embedded report?')) return;
+  c.reportEmbedUrl = '';
+  save(); renderContent(c);
 }
 
 function renderContactsHTML(c) {
@@ -1635,7 +1719,7 @@ function saveClientModal() {
       tier: document.getElementById('f_tier').value, startDate: document.getElementById('f_start').value,
       done: {}, notes: '', p2months: [], p3months: [],
       team: { specialist:'', specialistEmail:'', clientContact:'', clientContactEmail:'', slack:'' },
-      resources: [], activity: [], taskNotes: {}, links: [], contacts: [] };
+      resources: [], activity: [], taskNotes: {}, links: [], contacts: [], reportEmbedUrl: '' };
     S.clients.push(c);
     S.activeId = c.id;
     S.activeTab = 'overview';
@@ -2337,6 +2421,7 @@ function migrateClient(c) {
   if (!c.taskNotes) c.taskNotes = {};
   if (!c.links) c.links = [];
   if (!c.contacts) c.contacts = [];
+  if (c.reportEmbedUrl === undefined) c.reportEmbedUrl = '';
   ensureClientCustomData(c);
 }
 
