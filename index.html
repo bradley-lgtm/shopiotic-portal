@@ -1061,8 +1061,8 @@ function renderCategories(phaseKey, categories) {
       const noteVal = (c.taskNotes && c.taskNotes[key]) ? c.taskNotes[key] : '';
       const hasNote = noteVal.length > 0;
       const qtyKey = TIER_QTY[item.id];
-      const qty = qtyKey ? cfg[qtyKey] : 0;
-      const qtyBadge = qty > 0 ? `<span class="tier-qty-badge">× ${qty}</span>` : '';
+      const qty = qtyKey ? getEffectiveQty(c, phaseKey, item.id, qtyKey) : 0;
+      const qtyBadge = qty > 0 ? `<span class="tier-qty-badge" style="cursor:pointer;" title="Click to override quantity" onclick="event.stopPropagation();openQtyOverride('${phaseKey}','${item.id}','${qtyKey}','${past||!isMonthly?'month':'template'}')">× ${qty} ✏️</span>` : '';
 
       // ⋮ menu
       const menuId = `tdrop_${phaseKey}_${item.id}`;
@@ -1103,16 +1103,50 @@ function renderCategories(phaseKey, categories) {
           ${subsHTML}
         </div>`;
     }).join('');
-    const p = pct(catDone, items.length);
+    // Render added custom tasks for this category
+    const addedMonthTasks = (c.monthData && c.monthData[phaseKey] && c.monthData[phaseKey].addedTasks && c.monthData[phaseKey].addedTasks[cat.cat]) || [];
+    const addedTplTasks = (!isMonthly && c.templateData && c.templateData.addedTasks && c.templateData.addedTasks[cat.cat]) || [];
+    const allAdded = [...addedTplTasks, ...addedMonthTasks];
+    const addedHTML = allAdded.map(item => {
+      const key = taskKey(phaseKey, item.id);
+      const done = !!c.done[key];
+      if (done) catDone++;
+      const noteVal = (c.taskNotes && c.taskNotes[key]) ? c.taskNotes[key] : '';
+      const hasNote = noteVal.length > 0;
+      return `
+        <div class="task-item">
+          <div class="task-row" onclick="toggleTask('${key}')">
+            <div class="task-check ${done ? 'done' : ''}"></div>
+            <div class="task-body">
+              <div style="display:flex;align-items:flex-start;gap:4px;">
+                <div class="task-label ${done ? 'done' : ''}" style="flex:1">${item.t} <span style="font-size:10px;color:var(--teal);font-weight:600;">CUSTOM</span></div>
+                <button class="task-note-btn ${hasNote ? 'has-note' : ''}" title="${hasNote ? 'View/edit note' : 'Add note'}" onclick="event.stopPropagation();toggleNote('note_${phaseKey}_${item.id}')">📎</button>
+              </div>
+            </div>
+          </div>
+          <div class="task-note-area ${hasNote ? 'open' : ''}" id="note_${phaseKey}_${item.id}">
+            <textarea class="task-note-input" placeholder="Add a note…" oninput="saveTaskNote('${key}',this.value)" onkeydown="event.stopPropagation()">${noteVal}</textarea>
+          </div>
+        </div>`;
+    }).join('');
+
+    const scopeForAdd = (isMonthly && !past) ? 'template' : 'month';
+    const addTaskBtn = `<div style="padding:6px 16px 10px;">
+      <button class="btn btn-ghost btn-sm" style="font-size:12px;color:var(--teal);" onclick="addTask('${phaseKey}','${cat.cat}','${scopeForAdd}')">+ Add task</button>
+    </div>`;
+
+    const totalItems = items.length + allAdded.length;
+    const p = pct(catDone, totalItems);
     const tierLabel = cat.tierMin ? `<span class="cat-tier-label">${cat.tierMin}+</span>` : '';
     return `
       <div class="category-card">
         <div class="category-head">
           <div class="category-head-title">${cat.cat}${tierLabel}</div>
           <div class="cat-progress-bar"><div class="cat-progress-fill" style="width:${p}%"></div></div>
-          <div class="cat-progress-text">${catDone}/${items.length}</div>
+          <div class="cat-progress-text">${catDone}/${totalItems}</div>
         </div>
-        ${taskHTML}
+        ${taskHTML}${addedHTML}
+        ${addTaskBtn}
       </div>`;
   }).join('');
 }
@@ -1572,21 +1606,27 @@ function getMonthsInOrder(c) {
   return [...p2, ...p3];
 }
 
-function calcBudget(c, phaseKey) {
+// Get the effective budget for a phaseKey — checks for per-month override first
+function getEffectiveBudget(c, phaseKey) {
   const cfg = tierCfg(c);
+  const isp2 = phaseKey.startsWith('p2');
+  const tierBase = isp2 ? cfg.p2budget : cfg.p3budget;
+  const override = c.monthData && c.monthData[phaseKey] && c.monthData[phaseKey].budgetOverride;
+  return override != null ? override : tierBase;
+}
+
+function calcBudget(c, phaseKey) {
   const allMonths = getMonthsInOrder(c);
   let carryover = 0;
   for (const mo of allMonths) {
-    const baseBudget = mo.phase === 'p2' ? cfg.p2budget : cfg.p3budget;
+    const baseBudget = getEffectiveBudget(c, mo.key);
     const available = baseBudget + carryover;
     const spent = (c.links || []).filter(l => l.phaseKey === mo.key).reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
     const remaining = available - spent;
     if (mo.key === phaseKey) return { baseBudget, carryover, available, spent, remaining };
     carryover = remaining;
   }
-  // Month not found yet — return base with current carryover
-  const isp2 = phaseKey.startsWith('p2');
-  const baseBudget = isp2 ? cfg.p2budget : cfg.p3budget;
+  const baseBudget = getEffectiveBudget(c, phaseKey);
   const available = baseBudget + carryover;
   const spent = (c.links || []).filter(l => l.phaseKey === phaseKey).reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
   return { baseBudget, carryover, available, spent, remaining: available - spent };
@@ -1598,6 +1638,7 @@ function renderBudgetWidget(c, phaseKey) {
   const carryoverLabel = carryover > 0 ? `+$${carryover.toFixed(0)} carryover` : carryover < 0 ? `$${carryover.toFixed(0)} overdraft` : 'No carryover';
   const carryoverColor = carryover >= 0 ? '#16a34a' : '#dc2626';
   const remClass = remaining >= 0 ? 'surplus' : 'overspent';
+  const hasOverride = c.monthData && c.monthData[phaseKey] && c.monthData[phaseKey].budgetOverride != null;
 
   const linksHTML = links.length ? `
     <div class="links-table" style="margin-top:12px;">
@@ -1606,23 +1647,32 @@ function renderBudgetWidget(c, phaseKey) {
       </div>
       ${links.map(l => {
         const anchorClass = { 'Exact Match':'anchor-exact','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic' }[l.anchorType] || '';
-        return `<div class="link-row">
+        return `<div class="link-row" id="lrow_${l.id}">
           <span style="word-break:break-all;">${linkify(l.url)}</span>
           <span style="word-break:break-all;">${linkify(l.targetUrl)}</span>
-          <span>${l.anchorText}</span>
+          <span>${esc(l.anchorText)}</span>
           <span><span class="anchor-badge ${anchorClass}">${l.anchorType}</span></span>
           <span>$${parseFloat(l.cost||0).toFixed(0)}</span>
           <span>${l.date||''}</span>
-          <span><button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="deleteLink('${l.id}')">🗑️</button></span>
+          <span style="display:flex;gap:3px;">
+            <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="openEditLink('${l.id}','${phaseKey}')">✏️</button>
+            <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="deleteLink('${l.id}')">🗑️</button>
+          </span>
         </div>`;
       }).join('')}
     </div>` : `<div style="font-size:12px;color:var(--gray-400);padding:8px 0 2px;">No links recorded this month yet.</div>`;
 
   return `
     <div class="add-link-form">
-      <div class="add-link-form-title">💰 Link Budget — ${phaseKey.startsWith('p2') ? 'Phase 2' : 'Phase 3'}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div class="add-link-form-title" style="margin-bottom:0;">💰 Link Budget — ${phaseKey.startsWith('p2') ? 'Phase 2' : 'Phase 3'}</div>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="openBudgetOverride('${phaseKey}')">✏️ ${hasOverride ? 'Edit override' : 'Override budget'}</button>
+      </div>
       <div class="budget-widget" style="margin-bottom:12px;">
-        <div class="budget-stat"><span class="budget-stat-label">Base Budget</span><span class="budget-stat-value">$${baseBudget}</span></div>
+        <div class="budget-stat">
+          <span class="budget-stat-label">Base Budget${hasOverride ? ' <span style="color:var(--teal);font-size:10px;">(overridden)</span>' : ''}</span>
+          <span class="budget-stat-value">$${baseBudget}</span>
+        </div>
         <div class="budget-divider"></div>
         <div class="budget-stat"><span class="budget-stat-label">Carryover</span><span class="budget-stat-value" style="color:${carryoverColor};font-size:15px;">${carryoverLabel}</span></div>
         <div class="budget-divider"></div>
@@ -1681,11 +1731,14 @@ function openLinksModal() {
         return `<div class="link-row">
           <span style="word-break:break-all;">${linkify(l.url)}</span>
           <span style="word-break:break-all;">${linkify(l.targetUrl)}</span>
-          <span>${l.anchorText}</span>
+          <span>${esc(l.anchorText)}</span>
           <span><span class="anchor-badge ${anchorClass}">${l.anchorType}</span></span>
           <span>$${parseFloat(l.cost||0).toFixed(0)}</span>
           <span>${l.phaseKey} · ${l.date||''}</span>
-          <span><button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="deleteLink('${l.id}');openLinksModal()">🗑️</button></span>
+          <span style="display:flex;gap:3px;">
+            <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="closeLinksModal();openEditLink('${l.id}','${l.phaseKey}')">✏️</button>
+            <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="deleteLink('${l.id}');openLinksModal()">🗑️</button>
+          </span>
         </div>`;
       }).join('')}
     </div>
@@ -1697,6 +1750,128 @@ function openLinksModal() {
 }
 
 function closeLinksModal() { document.getElementById('linksModal').classList.remove('open'); }
+
+// ── BUDGET OVERRIDE ──
+function openBudgetOverride(phaseKey) {
+  const c = getClient(); if (!c) return;
+  const current = getEffectiveBudget(c, phaseKey);
+  const val = prompt(`Override monthly budget for ${phaseKey} (current: $${current}).\nLeave blank to reset to tier default.`, current);
+  if (val === null) return; // cancelled
+  ensureMonthData(phaseKey, c);
+  if (val.trim() === '') {
+    delete c.monthData[phaseKey].budgetOverride;
+  } else {
+    const num = parseFloat(val);
+    if (isNaN(num) || num < 0) { alert('Please enter a valid number.'); return; }
+    c.monthData[phaseKey].budgetOverride = num;
+  }
+  save(); renderClient();
+}
+
+// ── EDIT LINK ──
+let _editLinkState = null;
+function openEditLink(linkId, phaseKey) {
+  const c = getClient(); if (!c) return;
+  const l = (c.links || []).find(x => x.id === linkId);
+  if (!l) return;
+  _editLinkState = { linkId, phaseKey };
+  // Reuse the edit task modal area — build inline inline edit
+  const html = `
+    <div class="modal-overlay open" id="editLinkModal" style="z-index:400;">
+      <div class="modal edit-task-modal">
+        <div class="modal-title">✏️ Edit Link</div>
+        <div class="add-link-grid" style="margin-bottom:8px;">
+          <input id="el_url" placeholder="Linking site URL" value="${esc(l.url||'')}">
+          <input id="el_target" placeholder="Target URL" value="${esc(l.targetUrl||'')}">
+          <input id="el_anchor" placeholder="Anchor text" value="${esc(l.anchorText||'')}">
+          <select id="el_type">
+            <option value="">Anchor type…</option>
+            ${['Exact Match','Branded','Compound','Generic'].map(t => `<option${l.anchorType===t?' selected':''}>${t}</option>`).join('')}
+          </select>
+          <input id="el_cost" type="number" placeholder="Cost $" value="${l.cost||''}">
+          <input id="el_date" type="date" value="${l.date||''}">
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" onclick="closeEditLinkModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="saveEditLink()">Save</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+function saveEditLink() {
+  if (!_editLinkState) return;
+  const c = getClient(); if (!c) return;
+  const l = (c.links || []).find(x => x.id === _editLinkState.linkId);
+  if (!l) { closeEditLinkModal(); return; }
+  l.url = document.getElementById('el_url').value.trim();
+  l.targetUrl = document.getElementById('el_target').value.trim();
+  l.anchorText = document.getElementById('el_anchor').value.trim();
+  l.anchorType = document.getElementById('el_type').value;
+  l.cost = document.getElementById('el_cost').value;
+  l.date = document.getElementById('el_date').value;
+  save(); closeEditLinkModal(); renderClient();
+}
+function closeEditLinkModal() {
+  const m = document.getElementById('editLinkModal');
+  if (m) m.remove();
+  _editLinkState = null;
+}
+
+// ── QUANTITY OVERRIDE ──
+function openQtyOverride(phaseKey, itemId, qtyKey, scope) {
+  const c = getClient(); if (!c) return;
+  const cfg = tierCfg(c);
+  const current = getEffectiveQty(c, phaseKey, itemId, qtyKey);
+  const label = scope === 'template' ? 'all future months' : `${phaseKey} only`;
+  const val = prompt(`Override quantity for this task (${label}).\nTier default: ${cfg[qtyKey]}. Leave blank to reset.`, current);
+  if (val === null) return;
+  ensureClientCustomData(c);
+  if (scope === 'template') {
+    if (!c.templateData.taskEdits) c.templateData.taskEdits = {};
+    if (!c.templateData.taskEdits[itemId]) c.templateData.taskEdits[itemId] = {};
+    if (val.trim() === '') { delete c.templateData.taskEdits[itemId].qty; }
+    else { c.templateData.taskEdits[itemId].qty = parseInt(val) || cfg[qtyKey]; }
+    clearFutureSnapshots(c);
+  } else {
+    ensureMonthData(phaseKey, c);
+    if (!c.monthData[phaseKey].taskEdits) c.monthData[phaseKey].taskEdits = {};
+    if (!c.monthData[phaseKey].taskEdits[itemId]) c.monthData[phaseKey].taskEdits[itemId] = {};
+    if (val.trim() === '') { delete c.monthData[phaseKey].taskEdits[itemId].qty; }
+    else { c.monthData[phaseKey].taskEdits[itemId].qty = parseInt(val) || cfg[qtyKey]; }
+  }
+  save(); renderClient();
+}
+
+function getEffectiveQty(c, phaseKey, itemId, qtyKey) {
+  // Month override wins, then template override, then tier default
+  const md = c.monthData && c.monthData[phaseKey] && c.monthData[phaseKey].taskEdits && c.monthData[phaseKey].taskEdits[itemId];
+  if (md && md.qty != null) return md.qty;
+  const td = c.templateData && c.templateData.taskEdits && c.templateData.taskEdits[itemId];
+  if (td && td.qty != null) return td.qty;
+  return tierCfg(c)[qtyKey] || 0;
+}
+
+// ── ADD TASK ──
+function addTask(phaseKey, catName, scope) {
+  const title = prompt('New task title:');
+  if (!title || !title.trim()) return;
+  const newTask = { id: 'custom_' + uid(), t: title.trim(), s: [] };
+  const c = getClient(); if (!c) return;
+  ensureClientCustomData(c);
+  if (scope === 'template') {
+    if (!c.templateData.addedTasks) c.templateData.addedTasks = {};
+    if (!c.templateData.addedTasks[catName]) c.templateData.addedTasks[catName] = [];
+    c.templateData.addedTasks[catName].push(newTask);
+    clearFutureSnapshots(c);
+  } else {
+    ensureMonthData(phaseKey, c);
+    if (!c.monthData[phaseKey].addedTasks) c.monthData[phaseKey].addedTasks = {};
+    if (!c.monthData[phaseKey].addedTasks[catName]) c.monthData[phaseKey].addedTasks[catName] = [];
+    c.monthData[phaseKey].addedTasks[catName].push(newTask);
+  }
+  save(); renderClient();
+}
 
 // ═══════════════════════════════════════════
 //  TASK CUSTOMISATION — DATA HELPERS
