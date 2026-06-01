@@ -420,15 +420,30 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 ::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--gray-300); }
 
-/* ── TEAM GRID ── */
-.team-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
-.team-field label { font-size: 11px; color: var(--gray-500); font-weight: 500; display: block; margin-bottom: 4px; }
-.team-field input {
+/* ── TEAM CONTACTS ── */
+.contact-row {
+  display: grid; grid-template-columns: 1fr 1fr 1fr 32px; gap: 8px;
+  align-items: end; padding: 8px 0; border-bottom: 1px solid var(--gray-100);
+}
+.contact-row:last-of-type { border-bottom: none; }
+.contact-row label { font-size: 11px; color: var(--gray-500); font-weight: 500; display: block; margin-bottom: 4px; }
+.contact-row input, .contact-row select {
   width: 100%; padding: 7px 10px; border: 1px solid var(--gray-200);
   border-radius: 6px; font-size: 13px; font-family: var(--font);
   outline: none; transition: border-color 0.15s; color: var(--gray-700);
 }
-.team-field input:focus { border-color: var(--teal); }
+.contact-row input:focus, .contact-row select:focus { border-color: var(--teal); }
+/* ── TEMPLATE PANEL ── */
+.tpl-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.tpl-section-title { font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+.tpl-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--gray-100); gap: 12px; }
+.tpl-row:last-child { border-bottom: none; }
+.tpl-row-label { font-size: 13px; color: var(--gray-700); flex: 1; }
+.tpl-row-sub { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+.tpl-qty-input { width: 80px; padding: 6px 10px; border: 1px solid var(--gray-200); border-radius: 6px; font-size: 14px; font-weight: 700; text-align: center; font-family: var(--font); outline: none; color: var(--navy); }
+.tpl-qty-input:focus { border-color: var(--teal); }
+.tpl-reset { font-size: 11px; color: var(--gray-400); background: none; border: none; cursor: pointer; padding: 2px 4px; }
+.tpl-reset:hover { color: var(--teal); }
 
 /* ── RESOURCES ── */
 .resource-item {
@@ -597,6 +612,21 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;border-top:1px solid var(--gray-200);padding-top:16px;">
       <button class="btn btn-outline" onclick="window.print()">🖨️ Print / Save PDF</button>
       <button class="btn btn-outline" onclick="closeCvModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="tplModal">
+  <div class="modal" style="width:600px;max-width:97vw;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+      <div class="modal-title" style="margin-bottom:0;">⚙️ Manage Ongoing Template</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeTplModal()">✕ Close</button>
+    </div>
+    <p style="font-size:12px;color:var(--gray-500);margin:-8px 0 16px;">These are the default quantities and budget applied to every new month going forward. Changes take effect from the current month onwards — past months are unaffected.</p>
+    <div class="tpl-panel" id="tplPanelContent"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeTplModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTplModal()">Save Changes</button>
     </div>
   </div>
 </div>
@@ -1279,15 +1309,24 @@ function renderContent(c) {
     area.innerHTML = `
       <!-- TEAM -->
       <div class="category-card" style="margin-bottom:14px;">
-        <div class="category-head"><div class="category-head-title">Team & Contacts</div></div>
-        <div style="padding:14px 16px;">
-          <div class="team-grid">
-            <div class="team-field"><label>SEO Specialist</label><input value="${esc(c.team.specialist)}" oninput="saveTeam('specialist',this.value)" placeholder="Name"></div>
-            <div class="team-field"><label>Specialist Email</label><input value="${esc(c.team.specialistEmail)}" oninput="saveTeam('specialistEmail',this.value)" placeholder="email@example.com"></div>
-            <div class="team-field"><label>Client Contact</label><input value="${esc(c.team.clientContact)}" oninput="saveTeam('clientContact',this.value)" placeholder="Name"></div>
-            <div class="team-field"><label>Contact Email</label><input value="${esc(c.team.clientContactEmail)}" oninput="saveTeam('clientContactEmail',this.value)" placeholder="email@example.com"></div>
-            <div class="team-field"><label>Slack / Comms Handle</label><input value="${esc(c.team.slack)}" oninput="saveTeam('slack',this.value)" placeholder="Slack handle or channel"></div>
-          </div>
+        <div class="category-head">
+          <div class="category-head-title">Team & Contacts</div>
+          <button class="btn btn-outline btn-sm" onclick="addContact()">+ Add Contact</button>
+        </div>
+        <div style="padding:8px 16px 14px;">
+          ${(() => {
+            const contacts = c.contacts || [];
+            if (!contacts.length) return `<div style="font-size:13px;color:var(--gray-400);padding:10px 0;">No contacts yet — click + Add Contact to get started.</div>`;
+            return `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:8px;padding:6px 0 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;">
+              <span>Name</span><span>Email</span><span>Role</span><span></span>
+            </div>` + contacts.map((ct, i) => `
+            <div class="contact-row">
+              <div><input value="${esc(ct.name||'')}" placeholder="Name" oninput="saveContact(${i},'name',this.value)"></div>
+              <div><input value="${esc(ct.email||'')}" placeholder="email@example.com" oninput="saveContact(${i},'email',this.value)"></div>
+              <div><input value="${esc(ct.role||'')}" placeholder="e.g. SEO Specialist" oninput="saveContact(${i},'role',this.value)"></div>
+              <button class="btn btn-ghost btn-sm" style="padding:4px 6px;color:var(--gray-400);" onclick="removeContact(${i})" title="Remove">🗑️</button>
+            </div>`).join('');
+          })()}
         </div>
       </div>
 
@@ -1377,12 +1416,15 @@ function renderContent(c) {
       ? renderBudgetWidget(c, prefix) + renderCategories(prefix, resolveCategories(prefix, TASKS.phase2_monthly, c))
       : `<div style="text-align:center;padding:40px;color:var(--gray-400);"><div style="font-size:32px;margin-bottom:8px;">📅</div><div style="font-size:14px;">No months added yet.<br>Click "+ Add Month" to start Month 2.</div><br><button class="btn btn-primary" onclick="addP2Month()">+ Add Month 2</button></div>`;
     area.innerHTML = `
-      <div class="phase-banner">
-        <div class="phase-banner-icon">🏗️</div>
-        <div class="phase-banner-body">
-          <div class="phase-banner-title">Phase 2 — Development <span style="color:var(--teal)">(Month 2+ · Duration: 1–6+ months)</span></div>
-          <div class="phase-banner-desc">Monthly deliverables: backlinks, collection page builds, internal linking, and end-of-month reporting. Add a new month tab as each month begins.</div>
+      <div class="phase-banner" style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div class="phase-banner-icon">🏗️</div>
+          <div class="phase-banner-body">
+            <div class="phase-banner-title">Phase 2 — Development <span style="color:var(--teal)">(Month 2+ · Duration: 1–6+ months)</span></div>
+            <div class="phase-banner-desc">Monthly deliverables: backlinks, collection page builds, internal linking, and end-of-month reporting. Add a new month tab as each month begins.</div>
+          </div>
         </div>
+        <button class="btn btn-outline btn-sm" style="flex-shrink:0;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff;" onclick="openTplModal('p2')">⚙️ Manage Template</button>
       </div>
       ${monthBarHTML}
       ${content}`;
@@ -1414,12 +1456,15 @@ function renderContent(c) {
       ? renderBudgetWidget(c, prefix) + renderCategories(prefix, resolveCategories(prefix, TASKS.phase3_monthly, c))
       : `<div style="text-align:center;padding:40px;color:var(--gray-400);"><div style="font-size:32px;margin-bottom:8px;">📅</div><div style="font-size:14px;">No months added yet.<br>Growth starts when all collection pages from Phase 2 are complete.</div><br><button class="btn btn-primary" onclick="addP3Month()">+ Add Month ${nextM}</button></div>`;
     area.innerHTML = `
-      <div class="phase-banner">
-        <div class="phase-banner-icon">📈</div>
-        <div class="phase-banner-body">
-          <div class="phase-banner-title">Phase 3 — Growth <span style="color:var(--teal)">(Month 6+ · Ongoing)</span></div>
-          <div class="phase-banner-desc">Monthly blog content, backlinks, internal linking, and reporting. Builds topical authority through hub-and-spoke content clusters.</div>
+      <div class="phase-banner" style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div class="phase-banner-icon">📈</div>
+          <div class="phase-banner-body">
+            <div class="phase-banner-title">Phase 3 — Growth <span style="color:var(--teal)">(Month 6+ · Ongoing)</span></div>
+            <div class="phase-banner-desc">Monthly blog content, backlinks, internal linking, and reporting. Builds topical authority through hub-and-spoke content clusters.</div>
+          </div>
         </div>
+        <button class="btn btn-outline btn-sm" style="flex-shrink:0;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff;" onclick="openTplModal('p3')">⚙️ Manage Template</button>
       </div>
       ${monthBarHTML}
       ${content}`;
@@ -1588,7 +1633,7 @@ function saveClientModal() {
       tier: document.getElementById('f_tier').value, startDate: document.getElementById('f_start').value,
       done: {}, notes: '', p2months: [], p3months: [],
       team: { specialist:'', specialistEmail:'', clientContact:'', clientContactEmail:'', slack:'' },
-      resources: [], activity: [], taskNotes: {}, links: [] };
+      resources: [], activity: [], taskNotes: {}, links: [], contacts: [] };
     S.clients.push(c);
     S.activeId = c.id;
     S.activeTab = 'overview';
@@ -1620,8 +1665,14 @@ function getEffectiveBudget(c, phaseKey) {
   const cfg = tierCfg(c);
   const isp2 = phaseKey.startsWith('p2');
   const tierBase = isp2 ? cfg.p2budget : cfg.p3budget;
-  const override = c.monthData && c.monthData[phaseKey] && c.monthData[phaseKey].budgetOverride;
-  return override != null ? override : tierBase;
+  // Month-level override wins first
+  const monthOverride = c.monthData && c.monthData[phaseKey] && c.monthData[phaseKey].budgetOverride;
+  if (monthOverride != null) return monthOverride;
+  // Then template-level override
+  const budgetKey = isp2 ? 'p2budget' : 'p3budget';
+  const tplOverride = c.templateData && c.templateData.budgetOverride && c.templateData.budgetOverride[budgetKey];
+  if (tplOverride != null) return tplOverride;
+  return tierBase;
 }
 
 function calcBudget(c, phaseKey) {
@@ -1759,6 +1810,129 @@ function openLinksModal() {
 }
 
 function closeLinksModal() { document.getElementById('linksModal').classList.remove('open'); }
+
+// ═══════════════════════════════════════════
+//  MANAGE TEMPLATE PANEL
+// ═══════════════════════════════════════════
+
+let _tplPhase = 'p2';
+
+function openTplModal(phase) {
+  _tplPhase = phase;
+  const c = getClient(); if (!c) return;
+  ensureClientCustomData(c);
+  const cfg = tierCfg(c);
+  const td = c.templateData;
+
+  // Quantity overrides stored in templateData.taskEdits per task id
+  const getQty = (id, cfgKey) => {
+    const e = td.taskEdits && td.taskEdits[id];
+    return (e && e.qty != null) ? e.qty : cfg[cfgKey];
+  };
+
+  // Budget override stored in templateData.budgetOverride (p2 or p3)
+  const budgetKey = phase === 'p2' ? 'p2budget' : 'p3budget';
+  const tierBudget = cfg[phase === 'p2' ? 'p2budget' : 'p3budget'];
+  const budgetOverride = td.budgetOverride && td.budgetOverride[budgetKey] != null ? td.budgetOverride[budgetKey] : tierBudget;
+
+  const p2Section = phase === 'p2' ? `
+    <div>
+      <div class="tpl-section-title">📄 Collection Pages / Month</div>
+      ${['cp1','cp2','cp3','cp4','cp5'].map((id, i) => {
+        const labels = ['Build draft collection pages','Write content for each collection','Add content & FAQ schema','Publish collection pages','Add keywords to position tracking'];
+        return `<div class="tpl-row">
+          <div><div class="tpl-row-label">${labels[i]}</div></div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input class="tpl-qty-input" id="tpl_qty_${id}" type="number" min="0" value="${getQty(id,'p2collections')}">
+            <button class="tpl-reset" onclick="document.getElementById('tpl_qty_${id}').value=${cfg.p2collections}" title="Reset to tier default">↺</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : `
+    <div>
+      <div class="tpl-section-title">✍️ Blogs / Month</div>
+      ${['bg1','bg1b','bg2','bg3','bg4','bg5','bg6','bg7'].map((id, i) => {
+        const labels = ['Assign blogs to writer','AI draft blogs (WIP)','Writer writes drafts','Send drafts for review','Specialist reviews','Writer implements changes','Publish blogs','Submit blogs to GSC'];
+        return `<div class="tpl-row">
+          <div><div class="tpl-row-label">${labels[i]}</div></div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input class="tpl-qty-input" id="tpl_qty_${id}" type="number" min="0" value="${getQty(id,'p3blogs')}">
+            <button class="tpl-reset" onclick="document.getElementById('tpl_qty_${id}').value=${cfg.p3blogs}" title="Reset to tier default">↺</button>
+          </div>
+        </div>`;
+      }).join('')}
+      <div class="tpl-section-title" style="margin-top:16px;">🔍 GSC Optimisations / Month</div>
+      ${['gc1','gc2','gc3','gc4','gc5','gc6'].map((id, i) => {
+        const labels = ['Assign collections','Pull GSC keywords','Send keywords to writer','Writer notifies specialist','Specialist reviews & reindexes','AI alternative (WIP)'];
+        return `<div class="tpl-row">
+          <div><div class="tpl-row-label">${labels[i]}</div></div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input class="tpl-qty-input" id="tpl_qty_${id}" type="number" min="0" value="${getQty(id,'p3gsc')}">
+            <button class="tpl-reset" onclick="document.getElementById('tpl_qty_${id}').value=${cfg.p3gsc}" title="Reset to tier default">↺</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  const budgetSection = `
+    <div>
+      <div class="tpl-section-title">💰 Monthly Link Budget</div>
+      <div class="tpl-row">
+        <div>
+          <div class="tpl-row-label">Default monthly budget</div>
+          <div class="tpl-row-sub">Tier default: $${tierBudget}. Applied to every new month going forward.</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:14px;color:var(--gray-500);">$</span>
+          <input class="tpl-qty-input" id="tpl_budget" type="number" min="0" value="${budgetOverride}" style="width:100px;">
+          <button class="tpl-reset" onclick="document.getElementById('tpl_budget').value=${tierBudget}" title="Reset to tier default">↺</button>
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById('tplPanelContent').innerHTML = `${p2Section}${budgetSection}`;
+  document.getElementById('tplModal').classList.add('open');
+}
+
+function saveTplModal() {
+  const c = getClient(); if (!c) return;
+  ensureClientCustomData(c);
+  const cfg = tierCfg(c);
+
+  const taskIds = _tplPhase === 'p2'
+    ? ['cp1','cp2','cp3','cp4','cp5']
+    : ['bg1','bg1b','bg2','bg3','bg4','bg5','bg6','bg7','gc1','gc2','gc3','gc4','gc5','gc6'];
+
+  const cfgKey = _tplPhase === 'p2' ? 'p2collections' : (id) => id.startsWith('bg') ? 'p3blogs' : 'p3gsc';
+
+  if (!c.templateData.taskEdits) c.templateData.taskEdits = {};
+  for (const id of taskIds) {
+    const el = document.getElementById('tpl_qty_' + id);
+    if (!el) continue;
+    const val = parseInt(el.value);
+    const key = typeof cfgKey === 'function' ? cfgKey(id) : cfgKey;
+    if (!isNaN(val)) {
+      if (!c.templateData.taskEdits[id]) c.templateData.taskEdits[id] = {};
+      c.templateData.taskEdits[id].qty = val;
+    }
+  }
+
+  // Budget
+  const budgetEl = document.getElementById('tpl_budget');
+  if (budgetEl) {
+    const bval = parseFloat(budgetEl.value);
+    if (!isNaN(bval)) {
+      if (!c.templateData.budgetOverride) c.templateData.budgetOverride = {};
+      const budgetKey = _tplPhase === 'p2' ? 'p2budget' : 'p3budget';
+      c.templateData.budgetOverride[budgetKey] = bval;
+    }
+  }
+
+  clearFutureSnapshots(c);
+  save(); closeTplModal(); renderClient();
+}
+
+function closeTplModal() { document.getElementById('tplModal').classList.remove('open'); }
 
 // ── BUDGET OVERRIDE ──
 function openBudgetOverride(phaseKey) {
@@ -2165,6 +2339,7 @@ function migrateClient(c) {
   if (!c.activity) c.activity = [];
   if (!c.taskNotes) c.taskNotes = {};
   if (!c.links) c.links = [];
+  if (!c.contacts) c.contacts = [];
   ensureClientCustomData(c);
 }
 
@@ -2179,6 +2354,25 @@ function fmtDate(ts) {
 function saveTeam(field, val) {
   const c = getClient(); if (!c) return;
   migrateClient(c); c.team[field] = val; save();
+}
+
+function addContact() {
+  const c = getClient(); if (!c) return;
+  if (!c.contacts) c.contacts = [];
+  c.contacts.push({ name: '', email: '', role: '' });
+  save(); renderContent(c);
+}
+
+function saveContact(i, field, val) {
+  const c = getClient(); if (!c) return;
+  if (!c.contacts || !c.contacts[i]) return;
+  c.contacts[i][field] = val; save();
+}
+
+function removeContact(i) {
+  const c = getClient(); if (!c) return;
+  c.contacts = (c.contacts || []).filter((_,idx) => idx !== i);
+  save(); renderContent(c);
 }
 
 function addResource() {
