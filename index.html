@@ -216,6 +216,34 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 .task-body { flex: 1; min-width: 0; }
 .task-label { font-size: 13px; color: var(--gray-700); line-height: 1.45; }
 .task-label.done { color: var(--gray-400); text-decoration: line-through; }
+/* ── BUDGET WIDGET ── */
+.budget-widget {
+  background: var(--white); border: 1px solid var(--gray-200); border-radius: 10px;
+  padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: center;
+  gap: 24px; flex-wrap: wrap;
+}
+.budget-widget-title { font-size: 12px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+.budget-stat { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.budget-stat-label { font-size: 11px; color: var(--gray-400); font-weight: 500; }
+.budget-stat-value { font-size: 18px; font-weight: 800; color: var(--navy); }
+.budget-stat-value.overspent { color: #dc2626; }
+.budget-stat-value.surplus { color: #16a34a; }
+.budget-divider { width: 1px; height: 40px; background: var(--gray-200); }
+.add-link-form { background: #f8fafc; border: 1px solid var(--gray-200); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+.add-link-form-title { font-size: 12px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+.add-link-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.add-link-grid input, .add-link-grid select { width: 100%; padding: 7px 10px; border: 1px solid var(--gray-200); border-radius: 6px; font-size: 13px; font-family: var(--font); outline: none; }
+.add-link-grid input:focus, .add-link-grid select:focus { border-color: var(--teal); }
+.link-row { display: grid; grid-template-columns: 2fr 2fr 1.5fr 1fr 0.7fr 0.9fr 32px; gap: 8px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--gray-100); font-size: 12px; }
+.link-row:last-child { border-bottom: none; }
+.link-row-head { font-weight: 700; font-size: 11px; color: var(--gray-500); text-transform: uppercase; background: #f8fafc; border-radius: 6px 6px 0 0; }
+.links-table { border: 1px solid var(--gray-200); border-radius: 8px; overflow: hidden; margin-top: 8px; }
+.anchor-badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.anchor-exact  { background: #fef3c7; color: #b45309; }
+.anchor-branded { background: #dbeafe; color: #1d4ed8; }
+.anchor-compound { background: #f3e8ff; color: #7c3aed; }
+.anchor-generic { background: #f0fdf4; color: #16a34a; }
+
 .tier-qty-badge {
   display: inline-block; margin-left: 7px; padding: 1px 7px;
   background: var(--teal); color: #fff; border-radius: 20px;
@@ -528,6 +556,16 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
   </div>
 </div>
 
+<div class="modal-overlay" id="linksModal">
+  <div class="modal" style="width:860px;max-width:97vw;padding:24px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+      <div class="modal-title" style="margin-bottom:0;">🔗 Backlink History</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeLinksModal()">✕ Close</button>
+    </div>
+    <div id="linksTableWrap" style="overflow-x:auto;"></div>
+  </div>
+</div>
+
 <!-- CLIENT MODAL -->
 <div class="modal-overlay" id="clientModal">
   <div class="modal">
@@ -553,9 +591,9 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 // ═══════════════════════════════════════════
 
 const TIER_CONFIG = {
-  Essentials: { p1collections: 0,  p2collections: 7,  p3blogs: 2, p3gsc: 2 },
-  Growth:     { p1collections: 3,  p2collections: 12, p3blogs: 4, p3gsc: 4 },
-  Scale:      { p1collections: 5,  p2collections: 20, p3blogs: 6, p3gsc: 6 },
+  Essentials: { p1collections: 0,  p2collections: 7,  p3blogs: 2, p3gsc: 2, p2budget: 400,  p3budget: 500  },
+  Growth:     { p1collections: 3,  p2collections: 12, p3blogs: 4, p3gsc: 4, p2budget: 600,  p3budget: 750  },
+  Scale:      { p1collections: 5,  p2collections: 20, p3blogs: 6, p3gsc: 6, p2budget: 900,  p3budget: 1100 },
 };
 
 function tierCfg(client) {
@@ -1026,6 +1064,7 @@ function renderHeader(c) {
         </div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="btn btn-outline btn-sm" onclick="openLinksModal()">🔗 All Links</button>
         <button class="btn btn-outline btn-sm" onclick="openEditClientModal('${c.id}')">✏️ Edit</button>
         <button class="btn btn-danger-ghost btn-sm" onclick="deleteClient('${c.id}')">🗑️</button>
       </div>
@@ -1186,7 +1225,7 @@ function renderContent(c) {
         <button class="btn-add-month" onclick="addP2Month()">+ Add Month</button>
       </div>` : '';
     const content = months.length
-      ? renderCategories(prefix, TASKS.phase2_monthly)
+      ? renderBudgetWidget(c, prefix) + renderCategories(prefix, TASKS.phase2_monthly)
       : `<div style="text-align:center;padding:40px;color:var(--gray-400);"><div style="font-size:32px;margin-bottom:8px;">📅</div><div style="font-size:14px;">No months added yet.<br>Click "+ Add Month" to start Month 2.</div><br><button class="btn btn-primary" onclick="addP2Month()">+ Add Month 2</button></div>`;
     area.innerHTML = `
       <div class="phase-banner">
@@ -1222,7 +1261,7 @@ function renderContent(c) {
       </div>` : '';
     const nextM = months.length ? Math.max(...months) + 1 : 6;
     const content = months.length
-      ? renderCategories(prefix, TASKS.phase3_monthly)
+      ? renderBudgetWidget(c, prefix) + renderCategories(prefix, TASKS.phase3_monthly)
       : `<div style="text-align:center;padding:40px;color:var(--gray-400);"><div style="font-size:32px;margin-bottom:8px;">📅</div><div style="font-size:14px;">No months added yet.<br>Growth starts when all collection pages from Phase 2 are complete.</div><br><button class="btn btn-primary" onclick="addP3Month()">+ Add Month ${nextM}</button></div>`;
     area.innerHTML = `
       <div class="phase-banner">
@@ -1389,7 +1428,7 @@ function saveClientModal() {
       tier: document.getElementById('f_tier').value, startDate: document.getElementById('f_start').value,
       done: {}, notes: '', p2months: [], p3months: [],
       team: { specialist:'', specialistEmail:'', clientContact:'', clientContactEmail:'', slack:'' },
-      resources: [], activity: [], taskNotes: {} };
+      resources: [], activity: [], taskNotes: {}, links: [] };
     S.clients.push(c);
     S.activeId = c.id;
     S.activeTab = 'overview';
@@ -1405,6 +1444,142 @@ function deleteClient(id) {
   renderSidebar();
   if (S.activeId) selectClient(S.activeId); else showEmpty();
 }
+
+// ═══════════════════════════════════════════
+//  BACKLINK BUDGET HELPERS
+// ═══════════════════════════════════════════
+
+function getMonthsInOrder(c) {
+  const p2 = (c.p2months || []).slice().sort((a,b)=>a-b).map(m => ({ key: 'p2m'+m, phase: 'p2', m }));
+  const p3 = (c.p3months || []).slice().sort((a,b)=>a-b).map(m => ({ key: 'p3m'+m, phase: 'p3', m }));
+  return [...p2, ...p3];
+}
+
+function calcBudget(c, phaseKey) {
+  const cfg = tierCfg(c);
+  const allMonths = getMonthsInOrder(c);
+  let carryover = 0;
+  for (const mo of allMonths) {
+    const baseBudget = mo.phase === 'p2' ? cfg.p2budget : cfg.p3budget;
+    const available = baseBudget + carryover;
+    const spent = (c.links || []).filter(l => l.phaseKey === mo.key).reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    const remaining = available - spent;
+    if (mo.key === phaseKey) return { baseBudget, carryover, available, spent, remaining };
+    carryover = remaining;
+  }
+  // Month not found yet — return base with current carryover
+  const isp2 = phaseKey.startsWith('p2');
+  const baseBudget = isp2 ? cfg.p2budget : cfg.p3budget;
+  const available = baseBudget + carryover;
+  const spent = (c.links || []).filter(l => l.phaseKey === phaseKey).reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+  return { baseBudget, carryover, available, spent, remaining: available - spent };
+}
+
+function renderBudgetWidget(c, phaseKey) {
+  const { baseBudget, carryover, available, spent, remaining } = calcBudget(c, phaseKey);
+  const links = (c.links || []).filter(l => l.phaseKey === phaseKey);
+  const carryoverLabel = carryover > 0 ? `+$${carryover.toFixed(0)} carryover` : carryover < 0 ? `$${carryover.toFixed(0)} overdraft` : 'No carryover';
+  const carryoverColor = carryover >= 0 ? '#16a34a' : '#dc2626';
+  const remClass = remaining >= 0 ? 'surplus' : 'overspent';
+
+  const linksHTML = links.length ? `
+    <div class="links-table" style="margin-top:12px;">
+      <div class="link-row link-row-head">
+        <span>URL</span><span>Target URL</span><span>Anchor Text</span><span>Type</span><span>Cost</span><span>Date</span><span></span>
+      </div>
+      ${links.map(l => {
+        const anchorClass = { 'Exact Match':'anchor-exact','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic' }[l.anchorType] || '';
+        return `<div class="link-row">
+          <span style="word-break:break-all;">${linkify(l.url)}</span>
+          <span style="word-break:break-all;">${linkify(l.targetUrl)}</span>
+          <span>${l.anchorText}</span>
+          <span><span class="anchor-badge ${anchorClass}">${l.anchorType}</span></span>
+          <span>$${parseFloat(l.cost||0).toFixed(0)}</span>
+          <span>${l.date||''}</span>
+          <span><button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="deleteLink('${l.id}')">🗑️</button></span>
+        </div>`;
+      }).join('')}
+    </div>` : `<div style="font-size:12px;color:var(--gray-400);padding:8px 0 2px;">No links recorded this month yet.</div>`;
+
+  return `
+    <div class="add-link-form">
+      <div class="add-link-form-title">💰 Link Budget — ${phaseKey.startsWith('p2') ? 'Phase 2' : 'Phase 3'}</div>
+      <div class="budget-widget" style="margin-bottom:12px;">
+        <div class="budget-stat"><span class="budget-stat-label">Base Budget</span><span class="budget-stat-value">$${baseBudget}</span></div>
+        <div class="budget-divider"></div>
+        <div class="budget-stat"><span class="budget-stat-label">Carryover</span><span class="budget-stat-value" style="color:${carryoverColor};font-size:15px;">${carryoverLabel}</span></div>
+        <div class="budget-divider"></div>
+        <div class="budget-stat"><span class="budget-stat-label">Available</span><span class="budget-stat-value">$${available.toFixed(0)}</span></div>
+        <div class="budget-divider"></div>
+        <div class="budget-stat"><span class="budget-stat-label">Spent</span><span class="budget-stat-value">$${spent.toFixed(0)}</span></div>
+        <div class="budget-divider"></div>
+        <div class="budget-stat"><span class="budget-stat-label">Remaining</span><span class="budget-stat-value ${remClass}">$${remaining.toFixed(0)}</span></div>
+      </div>
+      <div class="add-link-grid">
+        <input id="lk_url_${phaseKey}" placeholder="Linking site URL (e.g. example.com/blog/post)">
+        <input id="lk_target_${phaseKey}" placeholder="Target URL (e.g. yourstore.com/collections/x)">
+        <input id="lk_anchor_${phaseKey}" placeholder="Anchor text">
+        <select id="lk_type_${phaseKey}">
+          <option value="">Anchor type…</option>
+          <option>Exact Match</option><option>Branded</option><option>Compound</option><option>Generic</option>
+        </select>
+        <input id="lk_cost_${phaseKey}" type="number" placeholder="Cost $" min="0">
+        <input id="lk_date_${phaseKey}" type="date" value="${new Date().toISOString().slice(0,10)}">
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="addLink('${phaseKey}')">+ Add Link</button>
+      ${linksHTML}
+    </div>`;
+}
+
+function addLink(phaseKey) {
+  const c = getClient(); if (!c) return;
+  const url = document.getElementById('lk_url_'+phaseKey).value.trim();
+  const targetUrl = document.getElementById('lk_target_'+phaseKey).value.trim();
+  const anchorText = document.getElementById('lk_anchor_'+phaseKey).value.trim();
+  const anchorType = document.getElementById('lk_type_'+phaseKey).value;
+  const cost = document.getElementById('lk_cost_'+phaseKey).value;
+  const date = document.getElementById('lk_date_'+phaseKey).value;
+  if (!url || !anchorType) { alert('URL and anchor type are required.'); return; }
+  if (!c.links) c.links = [];
+  c.links.push({ id: uid(), url, targetUrl, anchorText, anchorType, cost, date, phaseKey });
+  save(); renderClient();
+}
+
+function deleteLink(id) {
+  const c = getClient(); if (!c) return;
+  c.links = (c.links || []).filter(l => l.id !== id);
+  save(); renderClient();
+}
+
+function openLinksModal() {
+  const c = getClient(); if (!c) return;
+  const links = (c.links || []).slice().sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  const html = links.length ? `
+    <div class="links-table">
+      <div class="link-row link-row-head">
+        <span>URL</span><span>Target URL</span><span>Anchor Text</span><span>Type</span><span>Cost</span><span>Month</span><span></span>
+      </div>
+      ${links.map(l => {
+        const anchorClass = { 'Exact Match':'anchor-exact','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic' }[l.anchorType] || '';
+        return `<div class="link-row">
+          <span style="word-break:break-all;">${linkify(l.url)}</span>
+          <span style="word-break:break-all;">${linkify(l.targetUrl)}</span>
+          <span>${l.anchorText}</span>
+          <span><span class="anchor-badge ${anchorClass}">${l.anchorType}</span></span>
+          <span>$${parseFloat(l.cost||0).toFixed(0)}</span>
+          <span>${l.phaseKey} · ${l.date||''}</span>
+          <span><button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="deleteLink('${l.id}');openLinksModal()">🗑️</button></span>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="margin-top:12px;font-size:13px;color:var(--gray-500);">
+      Total spent: <strong>$${links.reduce((s,l)=>s+(parseFloat(l.cost)||0),0).toFixed(0)}</strong> across ${links.length} link${links.length===1?'':'s'}
+    </div>` : `<div style="padding:24px;text-align:center;color:var(--gray-400);">No backlinks recorded yet.</div>`;
+  document.getElementById('linksTableWrap').innerHTML = html;
+  document.getElementById('linksModal').classList.add('open');
+}
+
+function closeLinksModal() { document.getElementById('linksModal').classList.remove('open'); }
 
 // ═══════════════════════════════════════════
 //  OVERVIEW HELPERS
