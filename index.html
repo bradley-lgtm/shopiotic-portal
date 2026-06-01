@@ -1113,26 +1113,23 @@ function renderCategories(phaseKey, categories) {
       if (done) catDone++;
       const noteVal = (c.taskNotes && c.taskNotes[key]) ? c.taskNotes[key] : '';
       const hasNote = noteVal.length > 0;
-      const menuId = `tdrop_${phaseKey}_${item.id}`;
       const isTemplateTask = addedTplTasks.includes(item);
-      const menuHTML = `
-        <div class="task-menu-wrap">
-          <button class="task-menu-btn" onclick="event.stopPropagation();openTaskMenu('${phaseKey}','${item.id}',this)" title="Options">⋮</button>
-          <div class="task-menu-dropdown" id="${menuId}">
-            <div class="task-menu-scope">This task</div>
-            <button class="task-menu-item" onclick="event.stopPropagation();openEditTask('${phaseKey}','${item.id}','month')">✏️ Edit task</button>
-            <button class="task-menu-item danger" onclick="event.stopPropagation();deleteCustomTask('${phaseKey}','${item.id}','${cat.cat}',${isTemplateTask})">🗑️ Delete task</button>
-          </div>
-        </div>`;
       return `
         <div class="task-item">
           <div class="task-row" onclick="toggleTask('${key}')">
             <div class="task-check ${done ? 'done' : ''}"></div>
             <div class="task-body">
               <div style="display:flex;align-items:flex-start;gap:4px;">
-                <div class="task-label ${done ? 'done' : ''}" style="flex:1">${item.t} <span style="font-size:10px;color:var(--teal);font-weight:600;">CUSTOM</span></div>
+                <div class="task-label ${done ? 'done' : ''}" style="flex:1">${esc(item.t)} <span style="font-size:10px;color:var(--teal);font-weight:600;">CUSTOM</span></div>
                 <button class="task-note-btn ${hasNote ? 'has-note' : ''}" title="${hasNote ? 'View/edit note' : 'Add note'}" onclick="event.stopPropagation();toggleNote('note_${phaseKey}_${item.id}')">📎</button>
-                ${menuHTML}
+                <div class="task-menu-wrap">
+                  <button class="task-menu-btn" onclick="event.stopPropagation();openTaskMenu('${phaseKey}','${item.id}',this)" title="Options">⋮</button>
+                  <div class="task-menu-dropdown" id="tdrop_${phaseKey}_${item.id}">
+                    <div class="task-menu-scope">This task</div>
+                    <button class="task-menu-item" onclick="event.stopPropagation();openEditTask('${phaseKey}','${item.id}','month')">✏️ Edit task</button>
+                    <button class="task-menu-item danger" onclick="event.stopPropagation();deleteCustomTask('${phaseKey}','${item.id}','${cat.cat}',${isTemplateTask})">🗑️ Delete task</button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
