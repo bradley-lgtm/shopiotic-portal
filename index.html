@@ -222,17 +222,10 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
   background: none; border: none; font-family: var(--font); padding: 0;
 }
 .subtask-toggle:hover { color: var(--teal); }
-.subtasks { padding: 4px 0 6px 0; display: none; }
-.subtasks.open { display: block; }
-.subtask-line {
-  font-size: 12px; color: var(--gray-500); padding: 2px 0 2px 16px;
-  position: relative; line-height: 1.4;
-}
-.subtask-line::before {
-  content: '·'; position: absolute; left: 6px; color: var(--gray-300); font-size: 14px;
-}
-.subtask-link { color: var(--teal); text-decoration: none; font-size: 11px; }
-.subtask-link:hover { text-decoration: underline; }
+.subtasks { display:none; padding: 8px 16px 8px 36px; }
+.subtasks.open { display:block; }
+.subtask-detail { font-size:13px; color:#555; padding:3px 0; line-height:1.5; }
+.subtask-detail a { color:#2563eb; text-decoration:underline; }
 
 /* ── PHASE INFO BANNER ── */
 .phase-banner {
@@ -887,19 +880,7 @@ function renderCategories(phaseKey, categories) {
       const hasSubs = item.s && item.s.length > 0;
       const subsHTML = hasSubs ? `
         <div class="subtasks" id="sub_${phaseKey}_${item.id}">
-          ${item.s.map(s => {
-            const isUrl = s.match(/^(https?:\/\/|[a-z0-9-]+\.[a-z]{2,}\/)/i);
-            const isLabelUrl = s.match(/^([A-Za-z ]+): (.+\..+\/.+)$/);
-            if (isLabelUrl) {
-              const [,label,url] = isLabelUrl;
-              const href = url.startsWith('http') ? url : 'https://' + url;
-              return `<div class="subtask-line">${label}: <a class="subtask-link" href="${href}" target="_blank">${url}</a></div>`;
-            } else if (isUrl) {
-              const href = s.startsWith('http') ? s : 'https://' + s;
-              return `<div class="subtask-line"><a class="subtask-link" href="${href}" target="_blank">${s}</a></div>`;
-            }
-            return `<div class="subtask-line">${linkify(s)}</div>`;
-          }).join('')}
+          ${item.s.map(d => `<div class="subtask-detail">${linkify(d)}</div>`).join('')}
         </div>` : '';
       const noteVal = (c.taskNotes && c.taskNotes[key]) ? c.taskNotes[key] : '';
       const hasNote = noteVal.length > 0;
