@@ -1667,13 +1667,20 @@ function getEffectiveBudget(c, phaseKey) {
   const cfg = tierCfg(c);
   const isp2 = phaseKey.startsWith('p2');
   const tierBase = isp2 ? cfg.p2budget : cfg.p3budget;
-  // Month-level override wins first
+  // Month-level override always wins regardless of past/present
   const monthOverride = c.monthData && c.monthData[phaseKey] && c.monthData[phaseKey].budgetOverride;
   if (monthOverride != null) return monthOverride;
-  // Then template-level override
-  const budgetKey = isp2 ? 'p2budget' : 'p3budget';
-  const tplOverride = c.templateData && c.templateData.budgetOverride && c.templateData.budgetOverride[budgetKey];
-  if (tplOverride != null) return tplOverride;
+  // Template override only applies to current/future months — never rewrites past months
+  const monthNum = parseInt(phaseKey.slice(3));
+  const maxMonth = isp2
+    ? (c.p2months && c.p2months.length ? Math.max(...c.p2months) : 0)
+    : (c.p3months && c.p3months.length ? Math.max(...c.p3months) : 0);
+  const isPast = monthNum < maxMonth;
+  if (!isPast) {
+    const budgetKey = isp2 ? 'p2budget' : 'p3budget';
+    const tplOverride = c.templateData && c.templateData.budgetOverride && c.templateData.budgetOverride[budgetKey];
+    if (tplOverride != null) return tplOverride;
+  }
   return tierBase;
 }
 
@@ -2008,11 +2015,20 @@ function openQtyOverride(phaseKey, itemId, qtyKey, scope) {
 }
 
 function getEffectiveQty(c, phaseKey, itemId, qtyKey) {
-  // Month override wins, then template override, then tier default
+  // Month override always wins
   const md = c.monthData && c.monthData[phaseKey] && c.monthData[phaseKey].taskEdits && c.monthData[phaseKey].taskEdits[itemId];
   if (md && md.qty != null) return md.qty;
-  const td = c.templateData && c.templateData.taskEdits && c.templateData.taskEdits[itemId];
-  if (td && td.qty != null) return td.qty;
+  // Template override only applies to current/future months
+  const isp2 = phaseKey.startsWith('p2m');
+  const monthNum = parseInt(phaseKey.slice(3));
+  const maxMonth = isp2
+    ? (c.p2months && c.p2months.length ? Math.max(...c.p2months) : 0)
+    : (c.p3months && c.p3months.length ? Math.max(...c.p3months) : 0);
+  const isPast = monthNum < maxMonth;
+  if (!isPast) {
+    const td = c.templateData && c.templateData.taskEdits && c.templateData.taskEdits[itemId];
+    if (td && td.qty != null) return td.qty;
+  }
   return tierCfg(c)[qtyKey] || 0;
 }
 
