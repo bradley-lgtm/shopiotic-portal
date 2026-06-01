@@ -810,7 +810,10 @@ function expandToggle(el) {
 }
 
 function linkify(text) {
-  return text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+  return text.replace(/(https?:\/\/[^\s<]+|(?<![\/\w])(?:www\.)?(?:[a-zA-Z0-9-]+\.(?:com|org|net|io|co|uk|gov|edu)(?:\/[^\s<]*)?))(?=[^a-zA-Z]|$)/g, function(url) {
+    const href = url.startsWith('http') ? url : 'https://' + url;
+    return `<a href="${href}" target="_blank" rel="noopener">${url}</a>`;
+  });
 }
 
 // ═══════════════════════════════════════════
