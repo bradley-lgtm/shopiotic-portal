@@ -216,6 +216,16 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 .task-body { flex: 1; min-width: 0; }
 .task-label { font-size: 13px; color: var(--gray-700); line-height: 1.45; }
 .task-label.done { color: var(--gray-400); text-decoration: line-through; }
+.tier-qty-badge {
+  display: inline-block; margin-left: 7px; padding: 1px 7px;
+  background: var(--teal); color: #fff; border-radius: 20px;
+  font-size: 11px; font-weight: 700; vertical-align: middle; white-space: nowrap;
+}
+.cat-tier-label {
+  display: inline-block; margin-left: 8px; padding: 1px 7px;
+  background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0;
+  border-radius: 20px; font-size: 11px; font-weight: 600; vertical-align: middle;
+}
 .subtask-toggle {
   font-size: 11px; color: var(--gray-400); margin-top: 2px;
   cursor: pointer; display: inline-flex; align-items: center; gap: 2px;
@@ -526,7 +536,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
     <div class="form-group"><label>Shopify Store URL</label><input id="f_url" placeholder="e.g. prolux.myshopify.com" autocomplete="off"></div>
     <div class="form-group"><label>Service Tier</label>
       <select id="f_tier">
-        <option>Starter</option><option selected>Standard</option><option>Growth</option><option>Enterprise</option>
+        <option selected>Essentials</option><option>Growth</option><option>Scale</option>
       </select>
     </div>
     <div class="form-group"><label>Start Date</label><input id="f_start" type="date"></div>
@@ -538,6 +548,20 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 </div>
 
 <script>
+// ═══════════════════════════════════════════
+//  TIER CONFIG
+// ═══════════════════════════════════════════
+
+const TIER_CONFIG = {
+  Essentials: { p1collections: 0,  p2collections: 7,  p3blogs: 2, p3gsc: 2 },
+  Growth:     { p1collections: 3,  p2collections: 12, p3blogs: 4, p3gsc: 4 },
+  Scale:      { p1collections: 5,  p2collections: 20, p3blogs: 6, p3gsc: 6 },
+};
+
+function tierCfg(client) {
+  return TIER_CONFIG[client && client.tier] || TIER_CONFIG.Essentials;
+}
+
 // ═══════════════════════════════════════════
 //  TASK DATA
 // ═══════════════════════════════════════════
@@ -588,6 +612,13 @@ const TASKS = {
       { id:"p1o32", t:"Optimize the top 10 product pages", s:["Add keywords to meta title and description, frontloaded","Add target keyword to H1, frontloaded","Optimize description — add target keyword in the first sentence","Add FAQs if opportunities exist, include FAQ Schema"] },
       { id:"p1o33", t:"Conduct a basic internal linking review", s:["Scope out the link situation across the site","Look through blog articles, home page, menu, footer, and other collections","Remove harmful or misleading links"] },
       { id:"p1o34", t:"Set up the collection page template", s:["Setup the metafield","Add a spot for content below the grid populated by the metafield"] },
+    ]},
+    { cat: "Collection Pages", tierMin: "Growth", items: [
+      { id:"p1cp1", t:"Build draft collection pages", s:["Write & Optimize meta titles","Write & Optimize meta descriptions","Write & Optimize H1s","Set collection template to content below the grid","Optimize the URL slug","Populate with products or ask the client"] },
+      { id:"p1cp2", t:"Write content for each collection", s:["Generate or assign to a writer","Add internal links — lean toward priority pages","Add FAQs","Optimize H2s and H3s for target keywords","Aim for 400-500 words below the grid","Add up to 100 words above the product grid with frontloaded keyword","Focus on client's USPs and product features","Store drafts in Google Docs and add to the Monthly tab in Collection Strategy Sheet","Forward to client for review and approval"] },
+      { id:"p1cp3", t:"Add the content to the pages and add FAQ schema" },
+      { id:"p1cp4", t:"Publish the collection pages", s:["Submit to GSC for indexing","Notify the client in Trello general chat"] },
+      { id:"p1cp5", t:"Add collection keywords to position tracking in SEMrush" },
     ]},
     { cat: "End of Month", items: [
       { id:"p1o35", t:"Notify the client once the Technical SEO audit is complete", s:["Share findings and actions taken to fix issues"] },
@@ -849,10 +880,14 @@ function monthProgress(prefix, categories) {
 function overallProgress(client) {
   // Include p1o, p1t, phase3_setup, recurring + all p2 months + all p3 months
   let total = 0, done = 0;
+  const clientTierIdx = TIER_ORDER.indexOf(client.tier);
   const countCats = (key, cats) => {
-    for (const cat of cats) for (const item of cat.items) {
-      total++;
-      if (client.done[taskKey(key, item.id)]) done++;
+    for (const cat of cats) {
+      if (cat.tierMin && TIER_ORDER.indexOf(cat.tierMin) > clientTierIdx) continue;
+      for (const item of cat.items) {
+        total++;
+        if (client.done[taskKey(key, item.id)]) done++;
+      }
     }
   };
   countCats('p1o', TASKS.phase1_onboarding);
@@ -871,9 +906,25 @@ function overallProgress(client) {
 
 function pct(d, t) { return t === 0 ? 0 : Math.round(d / t * 100); }
 
+// Which task ID prefixes carry a tier quantity badge, and which TIER_CONFIG key to use
+const TIER_QTY = {
+  cp1:'p2collections', cp2:'p2collections', cp3:'p2collections', cp4:'p2collections', cp5:'p2collections',
+  p1cp1:'p1collections', p1cp2:'p1collections', p1cp3:'p1collections', p1cp4:'p1collections', p1cp5:'p1collections',
+  bg1:'p3blogs', bg1b:'p3blogs', bg2:'p3blogs', bg3:'p3blogs', bg4:'p3blogs', bg5:'p3blogs', bg6:'p3blogs', bg7:'p3blogs',
+  gc1:'p3gsc', gc2:'p3gsc', gc3:'p3gsc', gc4:'p3gsc', gc5:'p3gsc', gc6:'p3gsc',
+};
+
+const TIER_ORDER = ['Essentials','Growth','Scale'];
+
 function renderCategories(phaseKey, categories) {
   const c = getClient(); if (!c) return '';
-  return categories.map(cat => {
+  const cfg = tierCfg(c);
+  const clientTierIdx = TIER_ORDER.indexOf(c.tier);
+  return categories.filter(cat => {
+    // Hide categories gated to a higher tier than this client
+    if (!cat.tierMin) return true;
+    return TIER_ORDER.indexOf(cat.tierMin) <= clientTierIdx;
+  }).map(cat => {
     const items = cat.items;
     let catDone = 0;
     const taskHTML = items.map(item => {
@@ -887,13 +938,17 @@ function renderCategories(phaseKey, categories) {
         </div>` : '';
       const noteVal = (c.taskNotes && c.taskNotes[key]) ? c.taskNotes[key] : '';
       const hasNote = noteVal.length > 0;
+      // Quantity badge for tier-sensitive tasks
+      const qtyKey = TIER_QTY[item.id];
+      const qty = qtyKey ? cfg[qtyKey] : 0;
+      const qtyBadge = qty > 0 ? `<span class="tier-qty-badge">× ${qty}</span>` : '';
       return `
         <div class="task-item">
           <div class="task-row" onclick="toggleTask('${key}')">
             <div class="task-check ${done ? 'done' : ''}"></div>
             <div class="task-body">
               <div style="display:flex;align-items:flex-start;gap:4px;">
-                <div class="task-label ${done ? 'done' : ''}" style="flex:1">${item.t}</div>
+                <div class="task-label ${done ? 'done' : ''}" style="flex:1">${item.t}${qtyBadge}</div>
                 <button class="task-note-btn ${hasNote ? 'has-note' : ''}" title="${hasNote ? 'View/edit note' : 'Add note'}" onclick="event.stopPropagation();toggleNote('note_${phaseKey}_${item.id}')">📎</button>
               </div>
               ${hasSubs ? `<button class="subtask-toggle" onclick="event.stopPropagation();expandToggle(this)">▼ show details</button>` : ''}
@@ -906,10 +961,11 @@ function renderCategories(phaseKey, categories) {
         </div>`;
     }).join('');
     const p = pct(catDone, items.length);
+    const tierLabel = cat.tierMin ? `<span class="cat-tier-label">${cat.tierMin}+</span>` : '';
     return `
       <div class="category-card">
         <div class="category-head">
-          <div class="category-head-title">${cat.cat}</div>
+          <div class="category-head-title">${cat.cat}${tierLabel}</div>
           <div class="cat-progress-bar"><div class="cat-progress-fill" style="width:${p}%"></div></div>
           <div class="cat-progress-text">${catDone}/${items.length}</div>
         </div>
@@ -960,7 +1016,7 @@ function renderHeader(c) {
         </div>
         <div class="client-header-details">
           ${c.shopUrl ? `<div class="client-detail">🏪 <strong>${c.shopUrl}</strong></div>` : ''}
-          <div class="client-detail">📦 Tier: <strong>${c.tier}</strong></div>
+          <div class="client-detail">📦 Plan: <strong>${c.tier || 'Essentials'}</strong> <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:1px 7px;margin-left:4px;" onclick="openEditClientModal('${c.id}')">Change Plan</button></div>
           <div class="client-detail">📅 Started: <strong>${started}</strong></div>
           <div class="client-detail">✅ <strong>${done}/${total}</strong> tasks done</div>
         </div>
@@ -1298,7 +1354,7 @@ function openAddClientModal() {
   document.getElementById('modalTitle').textContent = 'Add New Client';
   document.getElementById('f_name').value = '';
   document.getElementById('f_url').value = '';
-  document.getElementById('f_tier').value = 'Standard';
+  document.getElementById('f_tier').value = 'Essentials';
   document.getElementById('f_start').value = new Date().toISOString().slice(0,10);
   document.getElementById('clientModal').classList.add('open');
   setTimeout(() => document.getElementById('f_name').focus(), 50);
@@ -1310,7 +1366,7 @@ function openEditClientModal(id) {
   document.getElementById('modalTitle').textContent = 'Edit Client';
   document.getElementById('f_name').value = c.name;
   document.getElementById('f_url').value = c.shopUrl || '';
-  document.getElementById('f_tier').value = c.tier || 'Standard';
+  document.getElementById('f_tier').value = c.tier || 'Essentials';
   document.getElementById('f_start').value = c.startDate || '';
   document.getElementById('clientModal').classList.add('open');
   setTimeout(() => document.getElementById('f_name').focus(), 50);
