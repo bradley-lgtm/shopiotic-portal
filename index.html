@@ -565,6 +565,14 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 <div id="main">
   <div class="topbar" id="topbar">
     <div class="topbar-title">Shopiotic Ops Portal<span class="topbar-subtitle">Shopify SEO Agency</span></div>
+    <div id="userBadge" style="display:none;align-items:center;gap:10px;">
+      <div id="userAvatar" style="width:30px;height:30px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;"></div>
+      <div style="display:flex;flex-direction:column;line-height:1.2;">
+        <span id="userName" style="font-size:13px;font-weight:600;color:var(--gray-700);"></span>
+        <span id="userRole" style="font-size:11px;color:var(--gray-400);text-transform:capitalize;"></span>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="font-size:12px;" onclick="signOut()">Sign out</button>
+    </div>
   </div>
   <div id="contentWrapper" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
     <div class="empty-state" id="emptyState">
@@ -597,27 +605,26 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
       <input id="s_key" placeholder="eyJhbGciOiJIUzI1NiIs..." autocomplete="off">
       <div class="gate-hint">Found in Supabase → Settings → API</div>
     </div>
-    <div class="gate-field">
-      <label>Set a Portal Password</label>
-      <input id="s_pw" type="password" placeholder="Choose a password for your team">
-      <div class="gate-hint">Anyone opening the portal will need this password</div>
-    </div>
     <div class="gate-error" id="s_err"></div>
     <button class="gate-btn" onclick="saveSetup()">Save & Connect</button>
   </div>
 </div>
 
-<!-- PASSWORD MODAL (each session) -->
-<div class="gate-overlay" id="passwordModal">
+<!-- LOGIN MODAL -->
+<div class="gate-overlay" id="loginModal">
   <div class="gate-box">
     <div class="gate-logo">Shopi<span>otic</span></div>
-    <div class="gate-sub">Enter your portal password to continue</div>
+    <div class="gate-sub">Sign in to your account</div>
+    <div class="gate-field">
+      <label>Email</label>
+      <input id="login_email" type="email" placeholder="you@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('login_pw').focus()">
+    </div>
     <div class="gate-field">
       <label>Password</label>
-      <input id="pw_input" type="password" placeholder="Portal password" onkeydown="if(event.key==='Enter')submitPassword()">
+      <input id="login_pw" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')signIn()">
     </div>
-    <div class="gate-error" id="pw_err"></div>
-    <button class="gate-btn" onclick="submitPassword()">Enter</button>
+    <div class="gate-error" id="login_err"></div>
+    <button class="gate-btn" id="login_btn" onclick="signIn()">Sign In</button>
     <div class="gate-reset" onclick="resetSetup()">Reset connection settings</div>
   </div>
 </div>
@@ -926,8 +933,8 @@ let _sb = null; // Supabase client instance
 function getConfig() {
   try { return JSON.parse(localStorage.getItem(CFG_KEY)) || null; } catch(e) { return null; }
 }
-function setConfig(url, key, password) {
-  localStorage.setItem(CFG_KEY, JSON.stringify({ url, key, password }));
+function setConfig(url, key) {
+  localStorage.setItem(CFG_KEY, JSON.stringify({ url, key }));
 }
 function initSupabase(url, key) {
   _sb = window.supabase.createClient(url, key);
@@ -937,7 +944,7 @@ function initSupabase(url, key) {
 //  STATE & STORAGE
 // ═══════════════════════════════════════════
 
-let S = { clients: [], activeId: null, activeTab: 'overview', p2Month: 2, p3Month: 6 };
+let S = { clients: [], activeId: null, activeTab: 'overview', p2Month: 2, p3Month: 6, currentUser: null };
 let editingId = null;
 let _saveTimers = {}; // debounce timers per client id
 
@@ -2603,43 +2610,75 @@ function showToast(msg, type = 'info') {
 function saveSetup() {
   const url = document.getElementById('s_url').value.trim();
   const key = document.getElementById('s_key').value.trim();
-  const pw  = document.getElementById('s_pw').value.trim();
   const err = document.getElementById('s_err');
-  if (!url || !key || !pw) { err.textContent = 'All three fields are required.'; return; }
+  if (!url || !key) { err.textContent = 'Both fields are required.'; return; }
   if (!url.startsWith('https://')) { err.textContent = 'URL must start with https://'; return; }
   err.textContent = '';
-  setConfig(url, key, pw);
+  setConfig(url, key);
   document.getElementById('setupModal').classList.remove('open');
-  sessionStorage.setItem('shopiotic_auth', '1');
   initSupabase(url, key);
-  load().then(afterLoad);
+  document.getElementById('loginModal').classList.add('open');
+  setTimeout(() => document.getElementById('login_email').focus(), 100);
 }
 
-function submitPassword() {
-  const cfg = getConfig();
-  const entered = document.getElementById('pw_input').value;
-  const err = document.getElementById('pw_err');
-  if (entered === cfg.password) {
-    err.textContent = '';
-    sessionStorage.setItem('shopiotic_auth', '1');
-    document.getElementById('passwordModal').classList.remove('open');
-    initSupabase(cfg.url, cfg.key);
-    load().then(afterLoad);
-  } else {
-    err.textContent = 'Incorrect password.';
-    document.getElementById('pw_input').value = '';
-    document.getElementById('pw_input').focus();
-  }
+async function signIn() {
+  const email = document.getElementById('login_email').value.trim();
+  const pw = document.getElementById('login_pw').value;
+  const err = document.getElementById('login_err');
+  const btn = document.getElementById('login_btn');
+  if (!email || !pw) { err.textContent = 'Email and password are required.'; return; }
+  err.textContent = '';
+  btn.textContent = 'Signing in…';
+  btn.disabled = true;
+  const { data, error } = await _sb.auth.signInWithPassword({ email, password: pw });
+  btn.textContent = 'Sign In';
+  btn.disabled = false;
+  if (error) { err.textContent = error.message; return; }
+  document.getElementById('loginModal').classList.remove('open');
+  await onSignedIn(data.user);
+}
+
+async function onSignedIn(user) {
+  // Load profile
+  const { data: profile } = await _sb.from('profiles').select('*').eq('id', user.id).single();
+  S.currentUser = { id: user.id, email: user.email, name: profile?.name || user.email, role: profile?.role || 'worker', color: profile?.avatar_color || '#7c3aed' };
+  renderUserBadge();
+  await load();
+  afterLoad();
+}
+
+function renderUserBadge() {
+  const u = S.currentUser; if (!u) return;
+  const badge = document.getElementById('userBadge');
+  const avatar = document.getElementById('userAvatar');
+  const nameEl = document.getElementById('userName');
+  const roleEl = document.getElementById('userRole');
+  avatar.textContent = u.name.charAt(0).toUpperCase();
+  avatar.style.background = u.color;
+  nameEl.textContent = u.name;
+  roleEl.textContent = u.role;
+  badge.style.display = 'flex';
+}
+
+async function signOut() {
+  await _sb.auth.signOut();
+  S.currentUser = null;
+  S.clients = [];
+  S.activeId = null;
+  document.getElementById('userBadge').style.display = 'none';
+  showEmpty();
+  document.getElementById('loginModal').classList.add('open');
+  document.getElementById('login_pw').value = '';
+  document.getElementById('login_err').textContent = '';
+  setTimeout(() => document.getElementById('login_email').focus(), 100);
 }
 
 function resetSetup() {
   if (!confirm('This will clear your Supabase connection settings. You will need to re-enter them.')) return;
   localStorage.removeItem(CFG_KEY);
-  sessionStorage.removeItem('shopiotic_auth');
-  document.getElementById('passwordModal').classList.remove('open');
+  document.getElementById('loginModal').classList.remove('open');
   document.getElementById('s_url').value = '';
   document.getElementById('s_key').value = '';
-  document.getElementById('s_pw').value = '';
   document.getElementById('s_err').textContent = '';
   document.getElementById('setupModal').classList.add('open');
 }
@@ -2670,18 +2709,19 @@ document.getElementById('f_name').addEventListener('keydown', e => {
 // ── INIT ──
 (async function init() {
   const cfg = getConfig();
-  if (!cfg || !cfg.url || !cfg.key || !cfg.password) {
+  if (!cfg || !cfg.url || !cfg.key) {
     document.getElementById('setupModal').classList.add('open');
     return;
   }
-  if (!sessionStorage.getItem('shopiotic_auth')) {
-    document.getElementById('passwordModal').classList.add('open');
-    setTimeout(() => document.getElementById('pw_input').focus(), 100);
-    return;
-  }
   initSupabase(cfg.url, cfg.key);
-  await load();
-  afterLoad();
+  // Check for existing Supabase session
+  const { data: { session } } = await _sb.auth.getSession();
+  if (session) {
+    await onSignedIn(session.user);
+  } else {
+    document.getElementById('loginModal').classList.add('open');
+    setTimeout(() => document.getElementById('login_email').focus(), 100);
+  }
 })();
 </script>
 </body>
