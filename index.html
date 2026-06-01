@@ -1314,19 +1314,7 @@ function renderContent(c) {
           <button class="btn btn-outline btn-sm" onclick="addContact()">+ Add Contact</button>
         </div>
         <div style="padding:8px 16px 14px;">
-          ${(() => {
-            const contacts = c.contacts || [];
-            if (!contacts.length) return `<div style="font-size:13px;color:var(--gray-400);padding:10px 0;">No contacts yet — click + Add Contact to get started.</div>`;
-            return `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:8px;padding:6px 0 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;">
-              <span>Name</span><span>Email</span><span>Role</span><span></span>
-            </div>` + contacts.map((ct, i) => `
-            <div class="contact-row">
-              <div><input value="${esc(ct.name||'')}" placeholder="Name" oninput="saveContact(${i},'name',this.value)"></div>
-              <div><input value="${esc(ct.email||'')}" placeholder="email@example.com" oninput="saveContact(${i},'email',this.value)"></div>
-              <div><input value="${esc(ct.role||'')}" placeholder="e.g. SEO Specialist" oninput="saveContact(${i},'role',this.value)"></div>
-              <button class="btn btn-ghost btn-sm" style="padding:4px 6px;color:var(--gray-400);" onclick="removeContact(${i})" title="Remove">🗑️</button>
-            </div>`).join('');
-          })()}
+          ${renderContactsHTML(c)}
         </div>
       </div>
 
@@ -1480,6 +1468,20 @@ function renderContent(c) {
       </div>
       ${renderCategories('rec', TASKS.recurring)}`;
   }
+}
+
+function renderContactsHTML(c) {
+  const contacts = c.contacts || [];
+  if (!contacts.length) return `<div style="font-size:13px;color:var(--gray-400);padding:10px 0;">No contacts yet — click "+ Add Contact" to get started.</div>`;
+  const header = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:8px;padding:6px 0 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;"><span>Name</span><span>Email</span><span>Role</span><span></span></div>`;
+  const rows = contacts.map((ct, i) => `
+    <div class="contact-row">
+      <div><input value="${esc(ct.name||'')}" placeholder="Name" oninput="saveContact(${i},'name',this.value)"></div>
+      <div><input value="${esc(ct.email||'')}" placeholder="email@example.com" oninput="saveContact(${i},'email',this.value)"></div>
+      <div><input value="${esc(ct.role||'')}" placeholder="e.g. SEO Specialist" oninput="saveContact(${i},'role',this.value)"></div>
+      <button class="btn btn-ghost btn-sm" style="padding:4px 6px;color:var(--gray-400);" onclick="removeContact(${i})" title="Remove">🗑️</button>
+    </div>`).join('');
+  return header + rows;
 }
 
 function renderNotes(c) {
