@@ -206,6 +206,51 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
   cursor: pointer; transition: background 0.1s;
 }
 .task-row:hover { background: #fafcfc; }
+/* ── 3-DOT MENU ── */
+.task-menu-wrap { position: relative; flex-shrink: 0; }
+.task-menu-btn {
+  background: none; border: none; cursor: pointer; padding: 2px 5px;
+  font-size: 16px; color: var(--gray-300); line-height: 1; border-radius: 4px;
+  transition: color 0.15s, background 0.15s; margin-top: -1px;
+}
+.task-menu-btn:hover { color: var(--gray-600); background: var(--gray-100); }
+.task-menu-dropdown {
+  position: absolute; right: 0; top: 100%; z-index: 300;
+  background: var(--white); border: 1px solid var(--gray-200);
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  min-width: 200px; padding: 4px; display: none;
+}
+.task-menu-dropdown.open { display: block; }
+.task-menu-item {
+  display: block; width: 100%; text-align: left; padding: 8px 12px;
+  font-size: 13px; color: var(--gray-700); background: none; border: none;
+  cursor: pointer; border-radius: 5px; font-family: var(--font);
+}
+.task-menu-item:hover { background: var(--gray-100); }
+.task-menu-item.danger { color: #dc2626; }
+.task-menu-item.danger:hover { background: #fef2f2; }
+.task-menu-item.disabled { color: var(--gray-300); cursor: not-allowed; }
+.task-menu-item.disabled:hover { background: none; }
+.task-menu-divider { height: 1px; background: var(--gray-100); margin: 4px 0; }
+.task-menu-scope { font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--gray-400); padding: 6px 12px 2px; }
+/* ── EDIT TASK MODAL ── */
+.edit-task-modal { width: 520px; }
+.edit-field-label { font-size: 12px; font-weight: 600; color: var(--gray-500); margin-bottom: 5px; display: block; }
+.edit-field-input { width: 100%; padding: 8px 11px; border: 1px solid var(--gray-200);
+  border-radius: 7px; font-size: 13px; font-family: var(--font); outline: none;
+  color: var(--gray-800); margin-bottom: 12px; }
+.edit-field-input:focus { border-color: var(--teal); }
+.edit-detail-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: flex-start; }
+.edit-detail-row input { flex: 1; padding: 7px 10px; border: 1px solid var(--gray-200);
+  border-radius: 6px; font-size: 13px; font-family: var(--font); outline: none; }
+.edit-detail-row input:focus { border-color: var(--teal); }
+.edit-detail-row button { padding: 7px 10px; background: none; border: 1px solid var(--gray-200);
+  border-radius: 6px; cursor: pointer; color: var(--gray-400); font-size: 13px; }
+.edit-detail-row button:hover { color: #dc2626; border-color: #fca5a5; }
+.scope-banner { padding: 8px 12px; border-radius: 7px; font-size: 12px; margin-bottom: 16px; }
+.scope-banner.month { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.scope-banner.template { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
 .task-check {
   width: 17px; height: 17px; min-width: 17px; border-radius: 4px;
   border: 2px solid var(--gray-300); display: flex; align-items: center;
@@ -552,6 +597,26 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;border-top:1px solid var(--gray-200);padding-top:16px;">
       <button class="btn btn-outline" onclick="window.print()">🖨️ Print / Save PDF</button>
       <button class="btn btn-outline" onclick="closeCvModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editTaskModal">
+  <div class="modal edit-task-modal">
+    <div class="modal-title" id="editTaskModalTitle">Edit Task</div>
+    <div id="editTaskScopeBanner" class="scope-banner month"></div>
+    <div>
+      <label class="edit-field-label">Task Title</label>
+      <input id="et_title" class="edit-field-input" placeholder="Task title">
+    </div>
+    <div>
+      <label class="edit-field-label">Detail Lines <span style="font-weight:400;color:var(--gray-400)">(one per row — URLs become clickable links)</span></label>
+      <div id="et_details_list"></div>
+      <button class="btn btn-outline btn-sm" style="margin-top:4px;" onclick="etAddDetail()">+ Add detail</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeEditTaskModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditTask()">Save</button>
     </div>
   </div>
 </div>
@@ -958,8 +1023,27 @@ function renderCategories(phaseKey, categories) {
   const c = getClient(); if (!c) return '';
   const cfg = tierCfg(c);
   const clientTierIdx = TIER_ORDER.indexOf(c.tier);
-  return categories.filter(cat => {
-    // Hide categories gated to a higher tier than this client
+  const isMonthly = phaseKey.startsWith('p2m') || phaseKey.startsWith('p3m');
+  const past = isMonthly && isMonthPast(phaseKey);
+
+  // For static phases (p1o, p1t, p2s, p3s, rec), apply month-only overrides here
+  let resolvedCats = categories;
+  if (!isMonthly) {
+    const md = c.monthData && c.monthData[phaseKey];
+    if (md) {
+      resolvedCats = categories.map(cat => ({
+        ...cat,
+        items: cat.items
+          .filter(item => !(md.deletedTasks || []).includes(item.id))
+          .map(item => {
+            const edit = (md.taskEdits || {})[item.id];
+            return edit ? { ...item, ...edit } : item;
+          })
+      }));
+    }
+  }
+
+  return resolvedCats.filter(cat => {
     if (!cat.tierMin) return true;
     return TIER_ORDER.indexOf(cat.tierMin) <= clientTierIdx;
   }).map(cat => {
@@ -976,10 +1060,30 @@ function renderCategories(phaseKey, categories) {
         </div>` : '';
       const noteVal = (c.taskNotes && c.taskNotes[key]) ? c.taskNotes[key] : '';
       const hasNote = noteVal.length > 0;
-      // Quantity badge for tier-sensitive tasks
       const qtyKey = TIER_QTY[item.id];
       const qty = qtyKey ? cfg[qtyKey] : 0;
       const qtyBadge = qty > 0 ? `<span class="tier-qty-badge">× ${qty}</span>` : '';
+
+      // ⋮ menu
+      const menuId = `tdrop_${phaseKey}_${item.id}`;
+      const templateDisabled = past ? 'disabled' : '';
+      const templateTitle = past ? ' title="Cannot edit template from a past month"' : '';
+      const menuHTML = `
+        <div class="task-menu-wrap">
+          <button class="task-menu-btn" onclick="event.stopPropagation();openTaskMenu('${phaseKey}','${item.id}',this)" title="Options">⋮</button>
+          <div class="task-menu-dropdown" id="${menuId}">
+            <div class="task-menu-scope">This month only</div>
+            <button class="task-menu-item" onclick="event.stopPropagation();openEditTask('${phaseKey}','${item.id}','month')">✏️ Edit task</button>
+            <button class="task-menu-item danger" onclick="event.stopPropagation();deleteTask('${phaseKey}','${item.id}','month')">🗑️ Delete task</button>
+            ${isMonthly ? `
+            <div class="task-menu-divider"></div>
+            <div class="task-menu-scope">All future months</div>
+            <button class="task-menu-item ${templateDisabled}" ${templateTitle} onclick="event.stopPropagation();${past ? '' : `openEditTask('${phaseKey}','${item.id}','template')`}">✏️ Edit task</button>
+            <button class="task-menu-item danger ${templateDisabled}" ${templateTitle} onclick="event.stopPropagation();${past ? '' : `deleteTask('${phaseKey}','${item.id}','template')`}">🗑️ Delete task</button>
+            ` : ''}
+          </div>
+        </div>`;
+
       return `
         <div class="task-item">
           <div class="task-row" onclick="toggleTask('${key}')">
@@ -988,6 +1092,7 @@ function renderCategories(phaseKey, categories) {
               <div style="display:flex;align-items:flex-start;gap:4px;">
                 <div class="task-label ${done ? 'done' : ''}" style="flex:1">${item.t}${qtyBadge}</div>
                 <button class="task-note-btn ${hasNote ? 'has-note' : ''}" title="${hasNote ? 'View/edit note' : 'Add note'}" onclick="event.stopPropagation();toggleNote('note_${phaseKey}_${item.id}')">📎</button>
+                ${menuHTML}
               </div>
               ${hasSubs ? `<button class="subtask-toggle" onclick="event.stopPropagation();expandToggle(this)">▼ show details</button>` : ''}
             </div>
@@ -1224,8 +1329,9 @@ function renderContent(c) {
         ${months.map(m => `<div class="month-pill ${m===activeM?'active':''}" onclick="setP2Month(${m})">Month ${m}<span class="pill-remove" onclick="event.stopPropagation();removeP2Month(${m})" title="Remove month">×</span></div>`).join('')}
         <button class="btn-add-month" onclick="addP2Month()">+ Add Month</button>
       </div>` : '';
+    if (months.length) { migrateClient(c); ensureSnapshot(prefix, c); }
     const content = months.length
-      ? renderBudgetWidget(c, prefix) + renderCategories(prefix, TASKS.phase2_monthly)
+      ? renderBudgetWidget(c, prefix) + renderCategories(prefix, resolveCategories(prefix, TASKS.phase2_monthly, c))
       : `<div style="text-align:center;padding:40px;color:var(--gray-400);"><div style="font-size:32px;margin-bottom:8px;">📅</div><div style="font-size:14px;">No months added yet.<br>Click "+ Add Month" to start Month 2.</div><br><button class="btn btn-primary" onclick="addP2Month()">+ Add Month 2</button></div>`;
     area.innerHTML = `
       <div class="phase-banner">
@@ -1260,8 +1366,9 @@ function renderContent(c) {
         <button class="btn-add-month" onclick="addP3Month()">+ Add Month</button>
       </div>` : '';
     const nextM = months.length ? Math.max(...months) + 1 : 6;
+    if (months.length) { migrateClient(c); ensureSnapshot(prefix, c); }
     const content = months.length
-      ? renderBudgetWidget(c, prefix) + renderCategories(prefix, TASKS.phase3_monthly)
+      ? renderBudgetWidget(c, prefix) + renderCategories(prefix, resolveCategories(prefix, TASKS.phase3_monthly, c))
       : `<div style="text-align:center;padding:40px;color:var(--gray-400);"><div style="font-size:32px;margin-bottom:8px;">📅</div><div style="font-size:14px;">No months added yet.<br>Growth starts when all collection pages from Phase 2 are complete.</div><br><button class="btn btn-primary" onclick="addP3Month()">+ Add Month ${nextM}</button></div>`;
     area.innerHTML = `
       <div class="phase-banner">
@@ -1341,8 +1448,18 @@ function setTab(tab) {
   renderContent(getClient());
 }
 
-function setP2Month(m) { S.p2Month = m; renderContent(getClient()); renderTabs(getClient()); }
-function setP3Month(m) { S.p3Month = m; renderContent(getClient()); renderTabs(getClient()); }
+function setP2Month(m) {
+  S.p2Month = m;
+  const c = getClient();
+  if (c) { migrateClient(c); ensureSnapshot('p2m'+m, c); }
+  renderContent(c); renderTabs(c);
+}
+function setP3Month(m) {
+  S.p3Month = m;
+  const c = getClient();
+  if (c) { migrateClient(c); ensureSnapshot('p3m'+m, c); }
+  renderContent(c); renderTabs(c);
+}
 
 function addP2Month() {
   const c = getClient(); if (!c) return;
@@ -1582,6 +1699,247 @@ function openLinksModal() {
 function closeLinksModal() { document.getElementById('linksModal').classList.remove('open'); }
 
 // ═══════════════════════════════════════════
+//  TASK CUSTOMISATION — DATA HELPERS
+// ═══════════════════════════════════════════
+
+function ensureClientCustomData(c) {
+  if (!c.templateData) c.templateData = { taskEdits: {}, deletedTasks: [], addedTasks: {} };
+  if (!c.monthData) c.monthData = {};
+}
+
+function ensureMonthData(phaseKey, c) {
+  ensureClientCustomData(c);
+  if (!c.monthData[phaseKey]) c.monthData[phaseKey] = { snapshot: null, taskEdits: {}, deletedTasks: [] };
+}
+
+// Take a snapshot of the current template-resolved categories for a phaseKey (called on first visit)
+function ensureSnapshot(phaseKey, c) {
+  ensureMonthData(phaseKey, c);
+  if (!c.monthData[phaseKey].snapshot) {
+    const isP2 = phaseKey.startsWith('p2m');
+    const isP3 = phaseKey.startsWith('p3m');
+    if (!isP2 && !isP3) return;
+    const globalCats = isP2 ? TASKS.phase2_monthly : TASKS.phase3_monthly;
+    c.monthData[phaseKey].snapshot = JSON.parse(JSON.stringify(
+      applyTemplateData(globalCats, c.templateData)
+    ));
+    save();
+  }
+}
+
+// Apply client-level template overrides to a categories array — returns new array
+function applyTemplateData(cats, td) {
+  if (!td) return cats;
+  return cats.map(cat => ({
+    ...cat,
+    items: cat.items
+      .filter(item => !(td.deletedTasks || []).includes(item.id))
+      .map(item => {
+        const edit = (td.taskEdits || {})[item.id];
+        if (!edit) return item;
+        return { ...item, ...(edit.t !== undefined ? { t: edit.t } : {}), ...(edit.s !== undefined ? { s: edit.s } : {}) };
+      })
+  }));
+}
+
+// Resolve the final categories for a phaseKey for rendering
+function resolveCategories(phaseKey, globalCats, c) {
+  ensureClientCustomData(c);
+  let base;
+  const md = c.monthData && c.monthData[phaseKey];
+  if (md && md.snapshot) {
+    base = md.snapshot;
+  } else {
+    base = applyTemplateData(globalCats, c.templateData);
+  }
+  // Apply month-level overrides on top
+  if (md) {
+    base = base.map(cat => ({
+      ...cat,
+      items: cat.items
+        .filter(item => !(md.deletedTasks || []).includes(item.id))
+        .map(item => {
+          const edit = (md.taskEdits || {})[item.id];
+          if (!edit) return item;
+          return { ...item, ...(edit.t !== undefined ? { t: edit.t } : {}), ...(edit.s !== undefined ? { s: edit.s } : {}) };
+        })
+    }));
+  }
+  return base;
+}
+
+// Is a phaseKey a "past" month (< current active month for its phase)?
+function isMonthPast(phaseKey) {
+  if (phaseKey.startsWith('p2m')) return parseInt(phaseKey.slice(3)) < S.p2Month;
+  if (phaseKey.startsWith('p3m')) return parseInt(phaseKey.slice(3)) < S.p3Month;
+  return false;
+}
+
+// Clear snapshots for current + future months so they re-inherit a template change
+function clearFutureSnapshots(c) {
+  if (!c.monthData) return;
+  for (const key of Object.keys(c.monthData)) {
+    const past = isMonthPast(key);
+    if (!past) c.monthData[key].snapshot = null;
+  }
+}
+
+// ═══════════════════════════════════════════
+//  TASK CUSTOMISATION — EDIT/DELETE UI
+// ═══════════════════════════════════════════
+
+let _editState = null; // { phaseKey, taskId, scope, originalTask }
+
+function openTaskMenu(phaseKey, taskId, btnEl) {
+  // Close any open menus first
+  document.querySelectorAll('.task-menu-dropdown.open').forEach(d => d.classList.remove('open'));
+  const drop = document.getElementById('tdrop_' + phaseKey + '_' + taskId);
+  if (!drop) return;
+  drop.classList.add('open');
+  // Close on outside click
+  setTimeout(() => {
+    const handler = (e) => {
+      if (!drop.contains(e.target) && e.target !== btnEl) {
+        drop.classList.remove('open');
+        document.removeEventListener('click', handler);
+      }
+    };
+    document.addEventListener('click', handler);
+  }, 0);
+}
+
+function openEditTask(phaseKey, taskId, scope) {
+  document.querySelectorAll('.task-menu-dropdown.open').forEach(d => d.classList.remove('open'));
+  const c = getClient(); if (!c) return;
+
+  // Find the task in resolved categories
+  const task = findResolvedTask(phaseKey, taskId, c);
+  if (!task) return;
+
+  _editState = { phaseKey, taskId, scope, originalTask: task };
+
+  const scopeLabel = scope === 'template'
+    ? '⚠️ This change applies to the current month and all future months'
+    : '📌 This change applies to this month only';
+  const scopeClass = scope === 'template' ? 'template' : 'month';
+
+  document.getElementById('editTaskModalTitle').textContent = scope === 'template' ? 'Edit Task — All Future Months' : 'Edit Task — This Month Only';
+  document.getElementById('editTaskScopeBanner').className = `scope-banner ${scopeClass}`;
+  document.getElementById('editTaskScopeBanner').textContent = scopeLabel;
+  document.getElementById('et_title').value = task.t || '';
+
+  // Build detail rows
+  const detailList = document.getElementById('et_details_list');
+  const details = task.s || [];
+  detailList.innerHTML = details.map((d, i) => `
+    <div class="edit-detail-row" id="edr_${i}">
+      <input value="${esc(d)}" placeholder="Detail line…">
+      <button onclick="etRemoveDetail(${i})" title="Remove">✕</button>
+    </div>`).join('');
+
+  document.getElementById('editTaskModal').classList.add('open');
+  setTimeout(() => document.getElementById('et_title').focus(), 50);
+}
+
+function etAddDetail() {
+  const list = document.getElementById('et_details_list');
+  const i = list.children.length;
+  const row = document.createElement('div');
+  row.className = 'edit-detail-row';
+  row.id = 'edr_' + i;
+  row.innerHTML = `<input placeholder="Detail line…"><button onclick="etRemoveDetail(${i})" title="Remove">✕</button>`;
+  list.appendChild(row);
+  row.querySelector('input').focus();
+}
+
+function etRemoveDetail(i) {
+  const row = document.getElementById('edr_' + i);
+  if (row) row.remove();
+}
+
+function saveEditTask() {
+  if (!_editState) return;
+  const c = getClient(); if (!c) return;
+  const { phaseKey, taskId, scope } = _editState;
+
+  const title = document.getElementById('et_title').value.trim();
+  const detailRows = document.getElementById('et_details_list').querySelectorAll('.edit-detail-row input');
+  const details = [...detailRows].map(i => i.value.trim()).filter(Boolean);
+
+  const edit = { t: title, s: details.length ? details : undefined };
+
+  ensureClientCustomData(c);
+
+  if (scope === 'template') {
+    if (!c.templateData.taskEdits) c.templateData.taskEdits = {};
+    c.templateData.taskEdits[taskId] = edit;
+    clearFutureSnapshots(c);
+  } else {
+    ensureMonthData(phaseKey, c);
+    if (!c.monthData[phaseKey].taskEdits) c.monthData[phaseKey].taskEdits = {};
+    c.monthData[phaseKey].taskEdits[taskId] = edit;
+  }
+
+  save(); closeEditTaskModal(); renderClient();
+}
+
+function closeEditTaskModal() {
+  document.getElementById('editTaskModal').classList.remove('open');
+  _editState = null;
+}
+
+function deleteTask(phaseKey, taskId, scope) {
+  document.querySelectorAll('.task-menu-dropdown.open').forEach(d => d.classList.remove('open'));
+  const c = getClient(); if (!c) return;
+  const task = findResolvedTask(phaseKey, taskId, c);
+  const label = task ? task.t : taskId;
+  const msg = scope === 'template'
+    ? `Delete "${label}" from the current month and all future months?`
+    : `Delete "${label}" from this month only?`;
+  if (!confirm(msg)) return;
+
+  ensureClientCustomData(c);
+  if (scope === 'template') {
+    if (!c.templateData.deletedTasks) c.templateData.deletedTasks = [];
+    if (!c.templateData.deletedTasks.includes(taskId)) c.templateData.deletedTasks.push(taskId);
+    clearFutureSnapshots(c);
+  } else {
+    ensureMonthData(phaseKey, c);
+    if (!c.monthData[phaseKey].deletedTasks) c.monthData[phaseKey].deletedTasks = [];
+    if (!c.monthData[phaseKey].deletedTasks.includes(taskId)) c.monthData[phaseKey].deletedTasks.push(taskId);
+  }
+  save(); renderClient();
+}
+
+function findResolvedTask(phaseKey, taskId, c) {
+  const isP2 = phaseKey.startsWith('p2m');
+  const isP3 = phaseKey.startsWith('p3m');
+  let cats;
+  if (isP2 || isP3) {
+    cats = resolveCategories(phaseKey, isP2 ? TASKS.phase2_monthly : TASKS.phase3_monthly, c);
+  } else {
+    // Phase 1, p3s, p2s, rec — use global TASKS directly with month overrides
+    const map = { p1o: TASKS.phase1_onboarding, p1t: TASKS.phase1_tech, p2s: TASKS.phase2_setup, p3s: TASKS.phase3_setup, rec: TASKS.recurring };
+    cats = map[phaseKey] || [];
+    // Apply month-only overrides
+    const md = c.monthData && c.monthData[phaseKey];
+    if (md) {
+      cats = cats.map(cat => ({
+        ...cat,
+        items: cat.items
+          .filter(item => !(md.deletedTasks || []).includes(item.id))
+          .map(item => {
+            const edit = (md.taskEdits || {})[item.id];
+            return edit ? { ...item, ...edit } : item;
+          })
+      }));
+    }
+  }
+  for (const cat of cats) for (const item of cat.items) if (item.id === taskId) return item;
+  return null;
+}
+
+// ═══════════════════════════════════════════
 //  OVERVIEW HELPERS
 // ═══════════════════════════════════════════
 
@@ -1590,6 +1948,8 @@ function migrateClient(c) {
   if (!c.resources) c.resources = [];
   if (!c.activity) c.activity = [];
   if (!c.taskNotes) c.taskNotes = {};
+  if (!c.links) c.links = [];
+  ensureClientCustomData(c);
 }
 
 function esc(s) { return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
