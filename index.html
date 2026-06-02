@@ -960,6 +960,10 @@ const TASKS = {
 //  CONFIG & AUTH
 // ═══════════════════════════════════════════
 
+// ── Supabase credentials (safe to expose — protected by RLS) ──
+const SUPABASE_URL = 'https://hxqwfjqvrghnvduldfss.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_baxuVo0vpTrXpDGAGlMItQ_7FqSt9Fl';
+
 const CFG_KEY = 'shopiotic_cfg';
 let _sb = null; // Supabase client instance
 
@@ -1300,7 +1304,8 @@ function renderHeader(c) {
         </div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0;">
-        <button class="btn btn-outline btn-sm" onclick="openLinksModal()">🔗 All Links</button>
+        <button class="btn btn-outline btn-sm" onclick="copyClientPortalLink('${c.id}')">🔗 Client Portal</button>
+        <button class="btn btn-outline btn-sm" onclick="openLinksModal()">⛓ All Links</button>
         <button class="btn btn-outline btn-sm" onclick="openEditClientModal('${c.id}')">✏️ Edit</button>
         <button class="btn btn-danger-ghost btn-sm" onclick="deleteClient('${c.id}')">🗑️</button>
       </div>
@@ -1763,7 +1768,7 @@ function saveClientModal() {
       tier: document.getElementById('f_tier').value, startDate: document.getElementById('f_start').value,
       done: {}, notes: '', p2months: [], p3months: [],
       team: { specialist:'', specialistEmail:'', clientContact:'', clientContactEmail:'', slack:'' },
-      resources: [], activity: [], taskNotes: {}, links: [], contacts: [], reportEmbedUrl: '' };
+      resources: [], activity: [], taskNotes: {}, links: [], contacts: [], reportEmbedUrl: '', shareToken: uid() };
     S.clients.push(c);
     S.activeId = c.id;
     S.activeTab = 'overview';
@@ -2466,6 +2471,7 @@ function migrateClient(c) {
   if (!c.links) c.links = [];
   if (!c.contacts) c.contacts = [];
   if (c.reportEmbedUrl === undefined) c.reportEmbedUrl = '';
+  if (!c.shareToken) { c.shareToken = uid(); save(); }
   ensureClientCustomData(c);
 }
 
@@ -2634,6 +2640,151 @@ function showToast(msg, type = 'info') {
   t.className = 'toast ' + type + ' show';
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => { t.classList.remove('show'); }, 4000);
+}
+
+// ═══════════════════════════════════════════
+//  CLIENT PORTAL
+// ═══════════════════════════════════════════
+
+function copyClientPortalLink(clientId) {
+  const c = S.clients.find(x => x.id === clientId); if (!c) return;
+  if (!c.shareToken) { c.shareToken = uid(); save(); }
+  const url = `${window.location.origin}${window.location.pathname}?token=${c.shareToken}`;
+  navigator.clipboard.writeText(url).then(() => showToast('Client portal link copied to clipboard ✓', 'success'));
+}
+
+async function loadClientPortal(token) {
+  // Hide the main app UI entirely
+  document.getElementById('sidebar').style.display = 'none';
+  document.getElementById('main').style.display = 'none';
+
+  // Fetch client data via the secure RPC function (no auth needed)
+  const { data, error } = await _sb.rpc('get_portal_client', { p_token: token });
+  if (error || !data) {
+    document.body.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0d0d0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+        <div style="text-align:center;color:#9191a8;">
+          <div style="font-size:48px;margin-bottom:16px;">🔒</div>
+          <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:8px;">Invalid or expired link</div>
+          <div style="font-size:14px;">Please contact your Shopiotic specialist for a new link.</div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const c = data;
+  renderClientPortal(c);
+}
+
+function renderClientPortal(c) {
+  // Calculate overall progress
+  migrateClient(c);
+  const [done, total] = overallProgress(c);
+  const pct_overall = total === 0 ? 0 : Math.round(done / total * 100);
+
+  // Phase progress
+  const phases = [
+    { label: 'Phase 1 Onboarding', key: 'p1o', cats: TASKS.phase1_onboarding },
+    { label: 'Tech SEO Audit', key: 'p1t', cats: TASKS.phase1_tech },
+    { label: 'Phase 3 Setup', key: 'p3s', cats: TASKS.phase3_setup },
+  ];
+  const p2rows = (c.p2months||[]).map(m => ({ label:`Phase 2 – Month ${m}`, key:'p2m'+m, cats: TASKS.phase2_monthly }));
+  const p3rows = (c.p3months||[]).map(m => ({ label:`Phase 3 – Month ${m}`, key:'p3m'+m, cats: TASKS.phase3_monthly }));
+  const allPhases = [...phases, ...p2rows, ...p3rows];
+
+  const phaseRows = allPhases.map(ph => {
+    let d = 0, t = 0;
+    for (const cat of ph.cats) {
+      if (cat.tierMin && TIER_ORDER.indexOf(cat.tierMin) > TIER_ORDER.indexOf(c.tier||'Essentials')) continue;
+      for (const item of cat.items) { t++; if (c.done && c.done[taskKey(ph.key, item.id)]) d++; }
+    }
+    if (t === 0) return '';
+    const p = Math.round(d / t * 100);
+    return `
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+          <span style="color:#334155;font-weight:500;">${ph.label}</span>
+          <span style="color:#7c3aed;font-weight:700;">${p}%</span>
+        </div>
+        <div style="height:6px;background:#e2e2ea;border-radius:3px;overflow:hidden;">
+          <div style="height:100%;width:${p}%;background:#7c3aed;border-radius:3px;transition:width 0.4s;"></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Client-visible activity
+  const activity = [...(c.activity||[])].reverse().filter(e => e.pub);
+  const actHTML = activity.length ? activity.map(e => `
+    <div style="padding:10px 0;border-bottom:1px solid #f1f1f5;">
+      <div style="font-size:13px;color:#334155;line-height:1.5;">${e.text.replace(/</g,'&lt;')}</div>
+      <div style="font-size:11px;color:#9191a8;margin-top:3px;">${new Date(e.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+    </div>`).join('') : `<div style="font-size:13px;color:#9191a8;padding:8px 0;">No updates yet.</div>`;
+
+  // Client-visible resources
+  const resources = (c.resources||[]).filter(r => r.pub);
+  const resHTML = resources.length ? resources.map(r => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f1f5;">
+      <span style="font-size:13px;color:#334155;flex:1;font-weight:500;">${esc(r.label)}</span>
+      <a href="${r.url.startsWith('http')?r.url:'https://'+r.url}" target="_blank" style="font-size:12px;color:#7c3aed;text-decoration:none;">${r.url}</a>
+    </div>`).join('') : `<div style="font-size:13px;color:#9191a8;padding:8px 0;">No resources shared yet.</div>`;
+
+  // Report embed
+  const reportHTML = c.reportEmbedUrl ? `
+    <div style="background:#fff;border:1px solid #e2e2ea;border-radius:12px;overflow:hidden;margin-bottom:24px;">
+      <div style="background:#0d0d0f;padding:14px 20px;display:flex;align-items:center;gap:10px;">
+        <span style="color:#fff;font-size:14px;font-weight:700;">📊 Analytics Report</span>
+      </div>
+      <iframe src="${esc(c.reportEmbedUrl)}" width="100%" height="600" frameborder="0" style="display:block;" allowfullscreen></iframe>
+    </div>` : '';
+
+  const started = c.startDate ? new Date(c.startDate).toLocaleDateString('en-US',{month:'long',year:'numeric'}) : '';
+
+  document.body.style.background = '#f9f9fb';
+  document.body.innerHTML = `
+    <div style="min-height:100vh;background:#f9f9fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+      <!-- Header -->
+      <div style="background:#0d0d0f;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-0.3px;">Shopi<span style="color:#7c3aed;">otic</span></div>
+        <div style="font-size:12px;color:#64647a;">Shopify SEO Agency</div>
+      </div>
+      <!-- Client banner -->
+      <div style="background:linear-gradient(135deg,#1a1128 0%,#0d0d0f 100%);padding:28px 32px;border-bottom:1px solid rgba(124,58,237,0.2);">
+        <div style="max-width:900px;margin:0 auto;">
+          <div style="font-size:24px;font-weight:800;color:#fff;margin-bottom:4px;">${esc(c.name)}</div>
+          <div style="font-size:13px;color:#9191a8;">${c.shopUrl||''} ${started ? '· Started '+started : ''} · Plan: ${c.tier||'Essentials'}</div>
+          <div style="margin-top:20px;">
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:#c8c8d6;margin-bottom:6px;">
+              <span>Overall Campaign Progress</span><span style="color:#7c3aed;font-weight:700;">${pct_overall}%</span>
+            </div>
+            <div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;">
+              <div style="height:100%;width:${pct_overall}%;background:#7c3aed;border-radius:4px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Content -->
+      <div style="max-width:900px;margin:0 auto;padding:32px 24px;">
+        ${reportHTML}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+          <!-- Phase progress -->
+          <div style="background:#fff;border:1px solid #e2e2ea;border-radius:12px;padding:20px;">
+            <div style="font-size:12px;font-weight:700;color:#64647a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:16px;">Campaign Phases</div>
+            ${phaseRows || '<div style="font-size:13px;color:#9191a8;">No phases started yet.</div>'}
+          </div>
+          <!-- Activity log -->
+          <div style="background:#fff;border:1px solid #e2e2ea;border-radius:12px;padding:20px;">
+            <div style="font-size:12px;font-weight:700;color:#64647a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:16px;">Latest Updates</div>
+            ${actHTML}
+          </div>
+        </div>
+        <!-- Resources -->
+        <div style="background:#fff;border:1px solid #e2e2ea;border-radius:12px;padding:20px;margin-bottom:32px;">
+          <div style="font-size:12px;font-weight:700;color:#64647a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Resources & Links</div>
+          ${resHTML}
+        </div>
+        <div style="text-align:center;font-size:12px;color:#9191a8;">Powered by Shopiotic · Shopify SEO Agency</div>
+      </div>
+    </div>`;
 }
 
 // ═══════════════════════════════════════════
@@ -2821,13 +2972,19 @@ document.getElementById('f_name').addEventListener('keydown', e => {
 
 // ── INIT ──
 (async function init() {
-  const cfg = getConfig();
-  if (!cfg || !cfg.url || !cfg.key) {
-    document.getElementById('setupModal').classList.add('open');
+  // Always init with hardcoded credentials
+  initSupabase(SUPABASE_URL, SUPABASE_KEY);
+  setConfig(SUPABASE_URL, SUPABASE_KEY);
+
+  // Check for client portal token in URL
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+  if (token) {
+    await loadClientPortal(token);
     return;
   }
-  initSupabase(cfg.url, cfg.key);
-  // Check for existing Supabase session
+
+  // Normal worker/owner flow — check for existing session
   const { data: { session } } = await _sb.auth.getSession();
   if (session) {
     await onSignedIn(session.user);
