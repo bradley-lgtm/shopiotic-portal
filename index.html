@@ -2650,7 +2650,34 @@ function copyClientPortalLink(clientId) {
   const c = S.clients.find(x => x.id === clientId); if (!c) return;
   if (!c.shareToken) { c.shareToken = uid(); save(); }
   const url = `${window.location.origin}${window.location.pathname}?token=${c.shareToken}`;
-  navigator.clipboard.writeText(url).then(() => showToast('Client portal link copied to clipboard ✓', 'success'));
+
+  // Show modal with the link so user can copy manually if clipboard fails
+  const existing = document.getElementById('portalLinkModal');
+  if (existing) existing.remove();
+
+  const div = document.createElement('div');
+  div.id = 'portalLinkModal';
+  div.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:500;';
+  div.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:24px;width:520px;max-width:95vw;box-shadow:0 24px 64px rgba(0,0,0,0.25);">
+      <div style="font-size:17px;font-weight:700;color:#1a1a2e;margin-bottom:6px;">🔗 Client Portal Link</div>
+      <div style="font-size:13px;color:#64647a;margin-bottom:14px;">Share this link with <strong>${esc(c.name)}</strong>. Anyone with this link can view their portal.</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="portalLinkInput" value="${url}" readonly style="flex:1;padding:8px 11px;border:1px solid #e2e2ea;border-radius:7px;font-size:12px;font-family:monospace;color:#334155;outline:none;background:#f9f9fb;">
+        <button onclick="
+          const inp = document.getElementById('portalLinkInput');
+          inp.select(); document.execCommand('copy');
+          this.textContent='Copied!'; this.style.background='#059669';
+          setTimeout(()=>{this.textContent='Copy';this.style.background='';},2000);
+        " style="padding:8px 14px;background:#7c3aed;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;">Copy</button>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
+        <a href="${url}" target="_blank" style="padding:7px 14px;background:none;border:1px solid #e2e2ea;border-radius:7px;font-size:13px;color:#334155;text-decoration:none;cursor:pointer;">Preview →</a>
+        <button onclick="document.getElementById('portalLinkModal').remove()" style="padding:7px 14px;background:none;border:1px solid #e2e2ea;border-radius:7px;font-size:13px;color:#334155;cursor:pointer;">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(div);
+  div.addEventListener('click', e => { if (e.target === div) div.remove(); });
 }
 
 async function loadClientPortal(token) {
