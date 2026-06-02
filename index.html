@@ -1421,12 +1421,13 @@ function renderHeader(c) {
           <div class="progress-bar"><div class="progress-fill" style="width:${p}%"></div></div>
         </div>
       </div>
-      ${S.isClientPortal ? '' : `<div style="display:flex;gap:6px;flex-shrink:0;">
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="btn btn-outline btn-sm" onclick="openLinksModal()">🔗 All Links</button>
+        ${S.isClientPortal ? '' : `
         <button class="btn btn-outline btn-sm" onclick="copyClientPortalLink('${c.id}')">🔗 Client Portal</button>
-        <button class="btn btn-outline btn-sm" onclick="openLinksModal()">⛓ All Links</button>
         <button class="btn btn-outline btn-sm" onclick="openEditClientModal('${c.id}')">✏️ Edit</button>
-        <button class="btn btn-danger-ghost btn-sm" onclick="deleteClient('${c.id}')">🗑️</button>
-      </div>`}
+        <button class="btn btn-danger-ghost btn-sm" onclick="deleteClient('${c.id}')">🗑️</button>`}
+      </div>
     </div>`;
 }
 
@@ -2063,10 +2064,10 @@ function openLinksModal() {
           <span><span class="anchor-badge ${anchorClass}">${l.anchorType}</span></span>
           <span>$${parseFloat(l.cost||0).toFixed(0)}</span>
           <span>${l.phaseKey} · ${l.date||''}</span>
-          <span style="display:flex;gap:3px;">
+          ${S.isClientPortal ? '<span></span>' : `<span style="display:flex;gap:3px;">
             <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="closeLinksModal();openEditLink('${l.id}','${l.phaseKey}')">✏️</button>
             <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="deleteLink('${l.id}');openLinksModal()">🗑️</button>
-          </span>
+          </span>`}
         </div>`;
       }).join('')}
     </div>
