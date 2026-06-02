@@ -1471,7 +1471,9 @@ function renderHeader(c) {
             ${navItems.map(n => {
               const isActive = n.id === 'chat_client_nav'
                 ? (S.activeTab === 'chat' && S._chatSubTab === 'client')
-                : S.activeTab === n.id;
+                : n.id === 'chat'
+                  ? (S.activeTab === 'chat' && S._chatSubTab !== 'client')
+                  : S.activeTab === n.id;
               return `<button onclick="setTab('${n.id}')" style="padding:5px 12px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid ${isActive?'var(--teal)':'var(--gray-200)'};background:${isActive?'var(--teal-pale)':'var(--white)'};color:${isActive?'var(--teal-dark)':'var(--gray-500)'};cursor:pointer;font-family:var(--font);transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;">${n.icon} ${n.label}</button>`;
             }).join('')}
           </div>
@@ -1844,6 +1846,7 @@ function selectClient(id) {
 
 function setTab(tab) {
   if (tab === 'chat_client_nav') { S._chatSubTab = 'client'; tab = 'chat'; }
+  else if (tab === 'chat') { S._chatSubTab = 'team'; }
   S.activeTab = tab;
   const c = getClient();
   if (tab === 'p2' && c && c.p2months && c.p2months.length) S.p2Month = c.p2months[0];
