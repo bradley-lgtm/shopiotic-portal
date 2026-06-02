@@ -1587,8 +1587,8 @@ function renderContent(c) {
     const monthBarHTML = months.length ? `
       <div class="month-bar">
         <span class="month-bar-label">Month:</span>
-        ${months.map(m => `<div class="month-pill ${m===activeM?'active':''}" onclick="setP2Month(${m})">Month ${m}<span class="pill-remove" onclick="event.stopPropagation();removeP2Month(${m})" title="Remove month">×</span></div>`).join('')}
-        <button class="btn-add-month" onclick="addP2Month()">+ Add Month</button>
+        ${months.map(m => `<div class="month-pill ${m===activeM?'active':''}" onclick="setP2Month(${m})">Month ${m}${S.isClientPortal?'':'<span class="pill-remove" onclick="event.stopPropagation();removeP2Month('+m+')" title="Remove month">×</span>'}</div>`).join('')}
+        ${S.isClientPortal ? '' : '<button class="btn-add-month" onclick="addP2Month()">+ Add Month</button>'}
       </div>` : '';
     if (months.length) { migrateClient(c); ensureSnapshot(prefix, c); }
     const content = months.length
@@ -1626,8 +1626,8 @@ function renderContent(c) {
     const monthBarHTML = months.length ? `
       <div class="month-bar">
         <span class="month-bar-label">Month:</span>
-        ${months.map(m => `<div class="month-pill ${m===activeM?'active':''}" onclick="setP3Month(${m})">Month ${m}<span class="pill-remove" onclick="event.stopPropagation();removeP3Month(${m})" title="Remove month">×</span></div>`).join('')}
-        <button class="btn-add-month" onclick="addP3Month()">+ Add Month</button>
+        ${months.map(m => `<div class="month-pill ${m===activeM?'active':''}" onclick="setP3Month(${m})">Month ${m}${S.isClientPortal?'':'<span class="pill-remove" onclick="event.stopPropagation();removeP3Month('+m+')" title="Remove month">×</span>'}</div>`).join('')}
+        ${S.isClientPortal ? '' : '<button class="btn-add-month" onclick="addP3Month()">+ Add Month</button>'}
       </div>` : '';
     const nextM = months.length ? Math.max(...months) + 1 : 6;
     if (months.length) { migrateClient(c); ensureSnapshot(prefix, c); }
