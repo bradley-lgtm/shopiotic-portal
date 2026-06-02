@@ -3029,10 +3029,13 @@ function renderClientPortal(c) {
 //  CHAT
 // ═══════════════════════════════════════════
 
-let _chatSub = null; // active realtime subscription
-let _chatMessages = []; // cached messages for current channel
+let _chatSub = null;
+let _chatMessages = [];
 let _chatChannel = null;
 let _chatClientId = null;
+let _chatTotal = 0;
+let _chatOffset = 0;
+const CHAT_PAGE = 50;
 
 function renderChatPage(c, activeChannel) {
   const isTeam = activeChannel === 'team';
@@ -3073,8 +3076,11 @@ function renderMessages(messages, channel) {
     el.innerHTML = `<div class="chat-empty"><div class="chat-empty-icon">${channel==='team'?'💬':'📢'}</div>No messages yet. Say something!</div>`;
     return;
   }
+  const hasEarlier = !S.isClientPortal && _chatOffset > 0;
+  const loadBtn = hasEarlier ? `<div style="text-align:center;padding:8px 0 16px;"><button onclick="loadEarlierMessages()" style="font-size:12px;color:var(--gray-400);background:none;border:1px solid var(--gray-200);border-radius:20px;padding:5px 14px;cursor:pointer;font-family:var(--font);">⬆ Load earlier messages</button></div>` : '';
+  const prevScrollHeight = el.scrollHeight;
   const myId = S.currentUser ? S.currentUser.id : null;
-  el.innerHTML = messages.map(m => {
+  el.innerHTML = loadBtn + messages.map(m => {
     const isMe = m.user_id === myId || (!m.user_id && m.sender_name === (S.currentUser ? S.currentUser.name : ''));
     const initials = (m.sender_name||'?').charAt(0).toUpperCase();
     const color = m.sender_color || '#7c3aed';
@@ -3117,10 +3123,15 @@ async function initChat(clientId, channel) {
     const { data } = await _sb.rpc('get_client_messages', { p_token: token });
     _chatMessages = data || [];
   } else {
-    const { data } = await _sb.from('messages')
-      .select('*').eq('client_id', clientId).eq('channel', channel)
-      .order('created_at', { ascending: true });
-    _chatMessages = data || [];
+    const PAGE = 50;
+    const { data, count } = await _sb.from('messages')
+      .select('*', { count: 'exact' })
+      .eq('client_id', clientId).eq('channel', channel)
+      .order('created_at', { ascending: false })
+      .limit(PAGE);
+    _chatMessages = (data || []).reverse();
+    _chatTotal = count || 0;
+    _chatOffset = Math.max(0, _chatTotal - PAGE);
   }
   renderMessages(_chatMessages, channel);
 
@@ -3208,11 +3219,30 @@ async function sendMessage(channel) {
 }
 
 // Clean up realtime when switching clients or tabs
+async function loadEarlierMessages() {
+  if (!_chatClientId || _chatOffset <= 0) return;
+  const newOffset = Math.max(0, _chatOffset - CHAT_PAGE);
+  const { data } = await _sb.from('messages')
+    .select('*')
+    .eq('client_id', _chatClientId).eq('channel', _chatChannel)
+    .order('created_at', { ascending: true })
+    .range(newOffset, _chatOffset - 1);
+  _chatOffset = newOffset;
+  _chatMessages = [...(data || []), ..._chatMessages];
+  const el = document.getElementById('chatMessages_' + _chatChannel);
+  const prevHeight = el ? el.scrollHeight : 0;
+  renderMessages(_chatMessages, _chatChannel);
+  // Maintain scroll position after prepending
+  if (el) el.scrollTop = el.scrollHeight - prevHeight;
+}
+
 function cleanupChat() {
   if (_chatSub) { _chatSub.unsubscribe(); _chatSub = null; }
   _chatMessages = [];
   _chatChannel = null;
   _chatClientId = null;
+  _chatTotal = 0;
+  _chatOffset = 0;
 }
 
 // ═══════════════════════════════════════════
