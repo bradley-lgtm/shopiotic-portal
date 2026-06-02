@@ -3562,9 +3562,17 @@ async function openInviteModal(clientId) {
   document.getElementById('inviteContent').innerHTML = `
     <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px;">Share this link with your client for <strong>${esc(c.name)}</strong>. It expires in 30 days and can only be used once.</p>
     <div class="invite-url-box">${inviteUrl}</div>
-    <button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="
-      navigator.clipboard.writeText('${inviteUrl}').then(()=>showToast('Invite link copied ✓','success'));
-    ">Copy Link</button>`;
+    <button class="btn btn-primary" id="copyInviteBtn" style="margin-top:10px;width:100%;" onclick="
+      navigator.clipboard.writeText('${inviteUrl}').then(() => {
+        const btn = document.getElementById('copyInviteBtn');
+        btn.textContent = '✅ Link Copied!';
+        btn.style.background = 'linear-gradient(135deg,#10b981,#059669)';
+        setTimeout(() => {
+          btn.textContent = '📋 Copy Invite Link';
+          btn.style.background = '';
+        }, 2500);
+      });
+    ">📋 Copy Invite Link</button>`;
 }
 
 function closeInviteModal() { document.getElementById('inviteModal').classList.remove('open'); }
