@@ -546,6 +546,37 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 .chat-empty { text-align:center; color:var(--gray-400); padding:40px 0; font-size:13px; }
 .chat-empty-icon { font-size:36px; margin-bottom:10px; opacity:0.5; }
 
+/* ── MENTION AUTOCOMPLETE ── */
+.mention-dropdown {
+  position: absolute; bottom: 100%; left: 0; right: 0; margin-bottom: 4px;
+  background: var(--white); border: 1px solid var(--gray-200); border-radius: 10px;
+  box-shadow: var(--shadow-md); max-height: 200px; overflow-y: auto; z-index: 400;
+}
+.mention-item {
+  display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+  cursor: pointer; transition: background 0.1s; font-size: 13px;
+}
+.mention-item:hover, .mention-item.active { background: var(--gray-50); }
+.mention-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.mention-name { font-weight: 600; color: var(--gray-700); }
+.mention-role { font-size: 11px; color: var(--gray-400); margin-left: 4px; }
+.mention-paused { font-size: 11px; margin-left: 4px; }
+
+/* ── SETTINGS PAGE ── */
+.settings-section { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm); border: 1px solid var(--gray-200); margin-bottom: 16px; overflow: hidden; }
+.settings-section-head { padding: 14px 20px; border-bottom: 1px solid var(--gray-100); background: var(--gray-50); }
+.settings-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--gray-500); }
+.settings-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--gray-100); gap: 16px; }
+.settings-row:last-child { border-bottom: none; }
+.settings-row-label { font-size: 13px; color: var(--gray-700); font-weight: 500; }
+.settings-row-sub { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+.settings-input { padding: 7px 11px; border: 1px solid var(--gray-200); border-radius: 7px; font-size: 13px; font-family: var(--font); outline: none; color: var(--gray-800); transition: border-color 0.15s; }
+.settings-input:focus { border-color: var(--teal); }
+.notif-permission-modal { max-width: 420px; }
+
+/* ── INVITE MODAL ── */
+.invite-url-box { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--gray-600); font-family: monospace; word-break: break-all; margin: 8px 0; }
+
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -673,6 +704,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
   <div class="sidebar-footer">
     <button class="btn-add-client" id="btnAddClient" onclick="openAddClientModal()">+ Add Client</button>
     <button class="btn-team" id="btnTeam" onclick="openTeamModal()" style="display:none;">👥 Team</button>
+    <button class="btn-team" onclick="openSettings()" style="margin-top:4px;">⚙️ Settings</button>
   </div>
 </div>
 
@@ -737,6 +769,62 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
       <button class="btn btn-ghost btn-sm" onclick="closeTeamModal()">✕ Close</button>
     </div>
     <div style="overflow-y:auto;flex:1;" id="teamModalContent"></div>
+  </div>
+</div>
+
+<!-- NOTIFICATION PERMISSION MODAL -->
+<div class="modal-overlay" id="notifPermModal">
+  <div class="modal notif-permission-modal">
+    <div style="text-align:center;margin-bottom:16px;">
+      <div style="font-size:40px;margin-bottom:8px;">🔔</div>
+      <div class="modal-title" style="margin-bottom:6px;">Enable Notifications</div>
+      <p style="font-size:13px;color:var(--gray-500);line-height:1.6;">We'll notify you when someone <strong>@mentions you</strong> in a client chat. No spam — only direct mentions.</p>
+    </div>
+    <div style="background:var(--teal-pale);border:1px solid #ddd6fe;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--gray-600);line-height:1.5;">
+      ℹ️ Your browser will ask for permission next. Click <strong>Allow</strong> to enable notifications — you can turn them off anytime in Settings.
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="dismissNotifPerm()">Not now</button>
+      <button class="btn btn-primary" onclick="requestNotifPermission()">Enable Notifications</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENT INVITE MODAL -->
+<div class="modal-overlay" id="inviteModal">
+  <div class="modal" style="width:480px;">
+    <div class="modal-title">🔗 Invite Client</div>
+    <div id="inviteContent"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeInviteModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENT SIGNUP MODAL -->
+<div class="gate-overlay" id="clientSignupModal">
+  <div class="gate-box">
+    <img src="logo-white.png" alt="Shopiotic" style="height:36px;width:auto;object-fit:contain;margin-bottom:4px;">
+    <div class="gate-sub" id="clientSignupSub">You've been invited to your client portal</div>
+    <div class="gate-field">
+      <label>First Name</label>
+      <input id="cs_first" placeholder="First name" autocomplete="given-name">
+    </div>
+    <div class="gate-field">
+      <label>Last Name</label>
+      <input id="cs_last" placeholder="Last name" autocomplete="family-name">
+    </div>
+    <div class="gate-field">
+      <label>Email</label>
+      <input id="cs_email" type="email" placeholder="your@email.com" autocomplete="email">
+    </div>
+    <div class="gate-field">
+      <label>Password</label>
+      <input id="cs_pw" type="password" placeholder="Choose a password" autocomplete="new-password">
+    </div>
+    <div class="gate-error" id="cs_err"></div>
+    <button class="gate-btn" onclick="submitClientSignup()">Create Account & Access Portal</button>
+    <div class="gate-reset" onclick="showLoginFromSignup()">Already have an account? Sign in</div>
   </div>
 </div>
 
@@ -1506,6 +1594,7 @@ function renderHeader(c) {
       <div style="display:flex;gap:6px;flex-shrink:0;align-self:flex-start;">
         <button class="btn btn-outline btn-sm" onclick="openLinksModal()">🔗 All Links</button>
         ${S.isClientPortal ? '' : `
+        <button class="btn btn-outline btn-sm" onclick="openInviteModal('${c.id}')">✉️ Invite Client</button>
         <button class="btn btn-outline btn-sm" onclick="copyClientPortalLink('${c.id}')">🔗 Client Portal</button>
         <button class="btn btn-outline btn-sm" onclick="openEditClientModal('${c.id}')">✏️ Edit</button>
         <button class="btn btn-danger-ghost btn-sm" onclick="deleteClient('${c.id}')">🗑️</button>`}
@@ -3112,12 +3201,15 @@ function renderMessages(messages, channel) {
     const time = new Date(m.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
     const date = new Date(m.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'});
     const text = formatChatText(m.text);
+    // Check if sender has notifications paused
+    const senderMember = _mentionState.members ? _mentionState.members.find(p => p.id === m.user_id) : null;
+    const senderPaused = senderMember?.notifications_paused_until && new Date(senderMember.notifications_paused_until) > new Date();
     return `
       <div class="chat-msg ${isMe?'mine':''}">
         <div class="chat-avatar" style="background:${color}">${initials}</div>
         <div class="chat-bubble-wrap">
           <div class="chat-meta">
-            <span class="chat-sender">${esc(m.sender_name||'Unknown')}</span>
+            <span class="chat-sender">${esc(m.sender_name||'Unknown')}${senderPaused ? ' <span title="Notifications paused">🔕</span>' : ''}</span>
             <span>${date} · ${time}</span>
           </div>
           <div class="chat-bubble">${text}</div>
@@ -3160,6 +3252,12 @@ async function initChat(clientId, channel) {
   }
   renderMessages(_chatMessages, channel);
 
+  // Wire up @mention autocomplete
+  setTimeout(() => {
+    const input = document.getElementById('chatInput_' + channel);
+    if (input) setupMentionAutocomplete(input, channel);
+  }, 100);
+
   // Subscribe to realtime (authenticated users only)
   if (!S.isClientPortal) {
     _chatSub = _sb.channel(`chat_${clientId}_${channel}`)
@@ -3177,6 +3275,16 @@ async function initChat(clientId, channel) {
           if (exists) {
             _chatMessages = _chatMessages.map(m => m === exists ? payload.new : m);
           } else {
+          // Show desktop notification if current user is mentioned
+          if (S.currentUser && payload.new.mentions && payload.new.mentions.includes(S.currentUser.id)) {
+            const clientName = getClient()?.name || 'a client';
+            showDesktopNotif(
+              `@${S.currentUser.firstName || S.currentUser.name} mentioned in ${clientName}`,
+              payload.new.sender_name + ': ' + payload.new.text.slice(0, 80),
+              _chatClientId,
+              _chatChannel
+            );
+          }
             _chatMessages.push(payload.new);
           }
           renderMessages(_chatMessages, _chatChannel);
@@ -3226,6 +3334,7 @@ async function sendMessage(channel) {
     _chatMessages.push(optimistic);
     renderMessages(_chatMessages, channel);
 
+    const mentionedIds = parseMentions(text, _mentionState.members || []);
     const { error } = await _sb.from('messages').insert({
       client_id: c.id,
       user_id: u.id,
@@ -3233,6 +3342,7 @@ async function sendMessage(channel) {
       sender_color: u.color,
       text,
       channel,
+      mentions: mentionedIds,
     });
     if (error) {
       // Remove optimistic message on failure
@@ -3268,6 +3378,373 @@ function cleanupChat() {
   _chatClientId = null;
   _chatTotal = 0;
   _chatOffset = 0;
+}
+
+// ═══════════════════════════════════════════
+//  NOTIFICATIONS
+// ═══════════════════════════════════════════
+
+function isNotifPaused() {
+  const u = S.currentUser; if (!u) return false;
+  if (!u.notifPausedUntil) return false;
+  return new Date(u.notifPausedUntil) > new Date();
+}
+
+function maybeShowNotifPrompt() {
+  if (localStorage.getItem('notif_asked')) return;
+  if (Notification.permission === 'granted' || Notification.permission === 'denied') return;
+  document.getElementById('notifPermModal').classList.add('open');
+}
+
+function dismissNotifPerm() {
+  localStorage.setItem('notif_asked', '1');
+  document.getElementById('notifPermModal').classList.remove('open');
+}
+
+async function requestNotifPermission() {
+  localStorage.setItem('notif_asked', '1');
+  document.getElementById('notifPermModal').classList.remove('open');
+  const result = await Notification.requestPermission();
+  if (result === 'granted') {
+    showToast('Notifications enabled ✓', 'success');
+    if (S.currentUser) {
+      await _sb.from('profiles').update({ push_enabled: true }).eq('id', S.currentUser.id);
+      S.currentUser.pushEnabled = true;
+    }
+  }
+}
+
+function showDesktopNotif(title, body, clientId, channel) {
+  if (Notification.permission !== 'granted') return;
+  if (isNotifPaused()) return;
+  const n = new Notification(title, {
+    body,
+    icon: 'logo-dark.png',
+    badge: 'logo-dark.png',
+    tag: `chat_${clientId}_${channel}`,
+  });
+  n.onclick = () => {
+    window.focus();
+    // Navigate to the right client and chat
+    const c = S.clients.find(x => x.id === clientId);
+    if (c) {
+      S.activeId = clientId;
+      S._chatSubTab = channel;
+      setTab('chat');
+      renderSidebar();
+    }
+    n.close();
+  };
+}
+
+async function pauseNotifications(durationMs) {
+  const until = durationMs === 0 ? '2099-01-01T00:00:00Z' : new Date(Date.now() + durationMs).toISOString();
+  await _sb.from('profiles').update({ notifications_paused_until: until }).eq('id', S.currentUser.id);
+  S.currentUser.notifPausedUntil = until;
+  renderUserBadge();
+  showToast('Notifications paused ✓', 'success');
+}
+
+async function resumeNotifications() {
+  await _sb.from('profiles').update({ notifications_paused_until: null }).eq('id', S.currentUser.id);
+  S.currentUser.notifPausedUntil = null;
+  renderUserBadge();
+  showToast('Notifications resumed ✓', 'success');
+}
+
+// ═══════════════════════════════════════════
+//  SETTINGS PAGE
+// ═══════════════════════════════════════════
+
+function openSettings() {
+  const u = S.currentUser; if (!u) return;
+  const isPaused = isNotifPaused();
+  const notifStatus = Notification.permission === 'granted' ? '✅ Enabled' : Notification.permission === 'denied' ? '❌ Blocked in browser' : '⚠️ Not yet enabled';
+
+  const existing = document.getElementById('settingsModal');
+  if (existing) existing.remove();
+
+  const div = document.createElement('div');
+  div.id = 'settingsModal';
+  div.className = 'modal-overlay open';
+  div.style.zIndex = '300';
+  div.innerHTML = `
+    <div class="modal" style="width:520px;max-width:97vw;max-height:90vh;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-shrink:0;">
+        <div class="modal-title" style="margin-bottom:0;">⚙️ Settings</div>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('settingsModal').remove()">✕</button>
+      </div>
+      <div style="overflow-y:auto;flex:1;">
+        <!-- Profile -->
+        <div class="settings-section">
+          <div class="settings-section-head"><div class="settings-section-title">Profile</div></div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">First Name</div></div>
+            <input class="settings-input" id="set_first" value="${esc(u.firstName||'')}" placeholder="First name">
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Last Name</div></div>
+            <input class="settings-input" id="set_last" value="${esc(u.lastName||'')}" placeholder="Last name">
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Email</div><div class="settings-row-sub">${esc(u.email)}</div></div>
+          </div>
+          <div class="settings-row">
+            <div></div>
+            <button class="btn btn-primary btn-sm" onclick="saveProfileSettings()">Save Profile</button>
+          </div>
+        </div>
+        <!-- Notifications -->
+        <div class="settings-section">
+          <div class="settings-section-head"><div class="settings-section-title">Notifications</div></div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Desktop Notifications</div><div class="settings-row-sub">${notifStatus}</div></div>
+            ${Notification.permission !== 'granted' && Notification.permission !== 'denied' ? `<button class="btn btn-primary btn-sm" onclick="requestNotifPermission()">Enable</button>` : ''}
+            ${Notification.permission === 'denied' ? `<span style="font-size:11px;color:var(--gray-400);">Enable in browser settings</span>` : ''}
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Pause Notifications</div><div class="settings-row-sub">${isPaused ? `Paused until ${new Date(u.notifPausedUntil).toLocaleString()}` : 'Currently active'}</div></div>
+            ${isPaused
+              ? `<button class="btn btn-outline btn-sm" onclick="resumeNotifications();document.getElementById('settingsModal').remove();">Resume</button>`
+              : `<select id="pauseDuration" class="settings-input" style="width:auto;">
+                  <option value="">Pause for…</option>
+                  <option value="3600000">1 hour</option>
+                  <option value="14400000">4 hours</option>
+                  <option value="86400000">24 hours</option>
+                  <option value="604800000">1 week</option>
+                  <option value="0">Indefinitely</option>
+                </select>
+                <button class="btn btn-outline btn-sm" onclick="const v=document.getElementById('pauseDuration').value;if(v!=='')pauseNotifications(parseInt(v)).then(()=>document.getElementById('settingsModal').remove());">Pause</button>`
+            }
+          </div>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(div);
+  div.addEventListener('click', e => { if (e.target === div) div.remove(); });
+}
+
+async function saveProfileSettings() {
+  const first = document.getElementById('set_first').value.trim();
+  const last = document.getElementById('set_last').value.trim();
+  if (!first) { showToast('First name is required', 'error'); return; }
+  const fullName = (first + ' ' + last).trim();
+  const { error } = await _sb.from('profiles').update({ first_name: first, last_name: last, name: fullName }).eq('id', S.currentUser.id);
+  if (error) { showToast('Failed to save: ' + error.message, 'error'); return; }
+  S.currentUser.firstName = first;
+  S.currentUser.lastName = last;
+  S.currentUser.name = fullName;
+  renderUserBadge();
+  showToast('Profile saved ✓', 'success');
+  document.getElementById('settingsModal').remove();
+}
+
+// ═══════════════════════════════════════════
+//  CLIENT INVITE SYSTEM
+// ═══════════════════════════════════════════
+
+async function openInviteModal(clientId) {
+  const c = S.clients.find(x => x.id === clientId); if (!c) return;
+  document.getElementById('inviteContent').innerHTML = `<div style="text-align:center;padding:12px;color:var(--gray-400);">Generating invite link…</div>`;
+  document.getElementById('inviteModal').classList.add('open');
+
+  const { data, error } = await _sb.from('client_invites').insert({
+    client_id: clientId,
+    created_by: S.currentUser.id
+  }).select().single();
+
+  if (error || !data) {
+    document.getElementById('inviteContent').innerHTML = `<div style="color:var(--red);">Failed to create invite: ${error?.message}</div>`;
+    return;
+  }
+
+  const inviteUrl = `${window.location.origin}${window.location.pathname}?invite=${data.token}`;
+  document.getElementById('inviteContent').innerHTML = `
+    <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px;">Share this link with your client for <strong>${esc(c.name)}</strong>. It expires in 30 days and can only be used once.</p>
+    <div class="invite-url-box">${inviteUrl}</div>
+    <button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="
+      navigator.clipboard.writeText('${inviteUrl}').then(()=>showToast('Invite link copied ✓','success'));
+    ">Copy Link</button>`;
+}
+
+function closeInviteModal() { document.getElementById('inviteModal').classList.remove('open'); }
+
+async function checkInviteToken() {
+  const params = new URLSearchParams(window.location.search);
+  const inviteToken = params.get('invite');
+  if (!inviteToken) return false;
+  // Show signup form
+  document.getElementById('clientSignupSub').textContent = 'Create your account to access your portal';
+  document.getElementById('clientSignupModal').classList.add('open');
+  // Store token for after signup
+  window._pendingInviteToken = inviteToken;
+  return true;
+}
+
+async function submitClientSignup() {
+  const first = document.getElementById('cs_first').value.trim();
+  const last = document.getElementById('cs_last').value.trim();
+  const email = document.getElementById('cs_email').value.trim();
+  const pw = document.getElementById('cs_pw').value;
+  const err = document.getElementById('cs_err');
+
+  if (!first || !email || !pw) { err.textContent = 'First name, email and password are required.'; return; }
+  err.textContent = '';
+
+  const { data, error } = await _sb.auth.signUp({
+    email, password: pw,
+    options: { data: { first_name: first, last_name: last, role: 'client' } }
+  });
+
+  if (error) { err.textContent = error.message; return; }
+
+  // Use the invite to link this user to the client
+  if (window._pendingInviteToken) {
+    await _sb.rpc('use_client_invite', { p_token: window._pendingInviteToken, p_user_id: data.user.id });
+  }
+
+  document.getElementById('clientSignupModal').classList.remove('open');
+  showToast('Account created! Signing you in…', 'success');
+  // Sign in automatically
+  const { data: signInData } = await _sb.auth.signInWithPassword({ email, password: pw });
+  if (signInData?.user) {
+    await onSignedIn(signInData.user);
+    // Remove invite param from URL
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+}
+
+function showLoginFromSignup() {
+  document.getElementById('clientSignupModal').classList.remove('open');
+  document.getElementById('loginModal').classList.add('open');
+}
+
+// ═══════════════════════════════════════════
+//  @MENTION AUTOCOMPLETE
+// ═══════════════════════════════════════════
+
+let _mentionState = { active: false, query: '', start: 0, members: [] };
+
+async function loadChatMembers(clientId) {
+  // Load all profiles who have access to this client
+  const { data: access } = await _sb.from('client_access').select('user_id').eq('client_id', clientId);
+  const userIds = (access || []).map(a => a.user_id);
+  // Always include owner
+  const { data: owner } = await _sb.from('profiles').select('*').eq('role', 'owner');
+  const { data: members } = userIds.length ? await _sb.from('profiles').select('*').in('id', userIds) : { data: [] };
+  const all = [...(owner || []), ...(members || [])];
+  // Deduplicate by id
+  const seen = new Set();
+  return all.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+}
+
+function getMentionTag(profile) {
+  const first = profile.first_name || profile.name.split(' ')[0] || '';
+  const last = profile.last_name || profile.name.split(' ')[1] || '';
+  return (first + last).replace(/\s/g, '') || profile.name.replace(/\s/g, '');
+}
+
+function setupMentionAutocomplete(inputEl, channel) {
+  const wrap = inputEl.closest('.chat-input-area') || inputEl.parentElement;
+
+  inputEl.addEventListener('input', async () => {
+    const val = inputEl.value;
+    const cursor = inputEl.selectionStart;
+    // Find @ before cursor
+    const textBefore = val.slice(0, cursor);
+    const atMatch = textBefore.match(/@(\w*)$/);
+
+    removeMentionDropdown();
+
+    if (!atMatch) { _mentionState.active = false; return; }
+
+    const query = atMatch[1].toLowerCase();
+    _mentionState = { active: true, query, start: textBefore.length - atMatch[0].length };
+
+    const c = getClient(); if (!c) return;
+    if (!_mentionState.members.length) {
+      _mentionState.members = await loadChatMembers(c.id);
+    }
+
+    const matches = _mentionState.members.filter(m => {
+      const tag = getMentionTag(m).toLowerCase();
+      const name = (m.name || '').toLowerCase();
+      return tag.startsWith(query) || name.startsWith(query);
+    }).slice(0, 6);
+
+    if (!matches.length) { removeMentionDropdown(); return; }
+
+    const drop = document.createElement('div');
+    drop.id = 'mentionDrop';
+    drop.className = 'mention-dropdown';
+    drop.innerHTML = matches.map((m, i) => {
+      const tag = getMentionTag(m);
+      const isPaused = m.notifications_paused_until && new Date(m.notifications_paused_until) > new Date();
+      return `<div class="mention-item ${i===0?'active':''}" data-tag="${tag}" data-id="${m.id}" onclick="insertMention('${tag}', '${m.id}', '${channel}')">
+        <div class="mention-avatar" style="background:${m.avatar_color||'#7c3aed'}">${(m.first_name||m.name||'?').charAt(0).toUpperCase()}</div>
+        <span class="mention-name">@${tag}</span>
+        <span class="mention-role">${m.role}</span>
+        ${isPaused ? '<span class="mention-paused" title="Notifications paused">🔕</span>' : ''}
+      </div>`;
+    }).join('');
+
+    // Position relative to input wrap
+    const inputRect = inputEl.getBoundingClientRect();
+    wrap.style.position = 'relative';
+    wrap.appendChild(drop);
+  });
+
+  inputEl.addEventListener('keydown', e => {
+    const drop = document.getElementById('mentionDrop');
+    if (!drop) return;
+    const items = drop.querySelectorAll('.mention-item');
+    const active = drop.querySelector('.mention-item.active');
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const idx = [...items].indexOf(active);
+      const next = e.key === 'ArrowDown' ? Math.min(idx+1, items.length-1) : Math.max(idx-1, 0);
+      items.forEach(x => x.classList.remove('active'));
+      items[next].classList.add('active');
+    } else if (e.key === 'Enter' && active) {
+      e.preventDefault();
+      active.click();
+    } else if (e.key === 'Escape') {
+      removeMentionDropdown();
+    }
+  });
+
+  inputEl.addEventListener('blur', () => setTimeout(removeMentionDropdown, 150));
+}
+
+function removeMentionDropdown() {
+  const d = document.getElementById('mentionDrop');
+  if (d) d.remove();
+}
+
+function insertMention(tag, userId, channel) {
+  removeMentionDropdown();
+  const input = document.getElementById('chatInput_' + channel);
+  if (!input) return;
+  const val = input.value;
+  const before = val.slice(0, _mentionState.start);
+  const after = val.slice(input.selectionStart);
+  input.value = before + '@' + tag + ' ' + after;
+  input.focus();
+  const newPos = before.length + tag.length + 2;
+  input.setSelectionRange(newPos, newPos);
+  _mentionState.active = false;
+}
+
+function parseMentions(text, members) {
+  const mentioned = [];
+  const regex = /@(\w+)/g;
+  let m;
+  while ((m = regex.exec(text)) !== null) {
+    const tag = m[1].toLowerCase();
+    const member = members.find(p => getMentionTag(p).toLowerCase() === tag);
+    if (member && !mentioned.includes(member.id)) mentioned.push(member.id);
+  }
+  return mentioned;
 }
 
 // ═══════════════════════════════════════════
@@ -3381,12 +3858,28 @@ async function signIn() {
 }
 
 async function onSignedIn(user) {
-  // Load profile
   const { data: profile } = await _sb.from('profiles').select('*').eq('id', user.id).single();
-  S.currentUser = { id: user.id, email: user.email, name: profile?.name || user.email, role: profile?.role || 'worker', color: profile?.avatar_color || '#7c3aed' };
+  const firstName = profile?.first_name || '';
+  const lastName = profile?.last_name || '';
+  const displayName = (firstName + ' ' + lastName).trim() || profile?.name || user.email;
+  S.currentUser = {
+    id: user.id,
+    email: user.email,
+    name: displayName,
+    firstName,
+    lastName,
+    role: profile?.role || 'worker',
+    color: profile?.avatar_color || '#7c3aed',
+    notifPausedUntil: profile?.notifications_paused_until || null,
+    pushEnabled: profile?.push_enabled || false,
+  };
   renderUserBadge();
   await load();
   afterLoad();
+  // Check notification permission after a short delay
+  if (S.currentUser.role !== 'owner' || true) {
+    setTimeout(maybeShowNotifPrompt, 2000);
+  }
 }
 
 function renderUserBadge() {
@@ -3395,12 +3888,13 @@ function renderUserBadge() {
   const avatar = document.getElementById('userAvatar');
   const nameEl = document.getElementById('userName');
   const roleEl = document.getElementById('userRole');
-  avatar.textContent = u.name.charAt(0).toUpperCase();
+  const initials = u.firstName ? u.firstName.charAt(0).toUpperCase() : u.name.charAt(0).toUpperCase();
+  avatar.textContent = initials;
   avatar.style.background = u.color;
   nameEl.textContent = u.name;
-  roleEl.textContent = u.role;
+  const isPaused = isNotifPaused();
+  roleEl.textContent = u.role + (isPaused ? ' 🔕' : '');
   badge.style.display = 'flex';
-  // Owner-only UI
   const isOwner = u.role === 'owner';
   document.getElementById('btnAddClient').style.display = isOwner ? 'block' : 'none';
   document.getElementById('btnTeam').style.display = isOwner ? 'block' : 'none';
@@ -3459,8 +3953,17 @@ document.getElementById('f_name').addEventListener('keydown', e => {
   initSupabase(SUPABASE_URL, SUPABASE_KEY);
   setConfig(SUPABASE_URL, SUPABASE_KEY);
 
-  // Check for client portal token in URL
+  // Check for client invite token in URL
   const params = new URLSearchParams(window.location.search);
+  const inviteToken = params.get('invite');
+  if (inviteToken) {
+    window._pendingInviteToken = inviteToken;
+    document.getElementById('clientSignupSub').textContent = 'Create your account to access your portal';
+    document.getElementById('clientSignupModal').classList.add('open');
+    return;
+  }
+
+  // Check for client portal token in URL
   const token = params.get('token');
   if (token) {
     await loadClientPortal(token);
