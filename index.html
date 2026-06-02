@@ -685,7 +685,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
     </div>
     <a href="https://charming-babka-6d354e.netlify.app" target="_blank" class="btn btn-outline btn-sm" style="text-decoration:none;flex-shrink:0;">🔄 Deliverable Swapper</a>
     <div id="userBadge" style="display:none;align-items:center;gap:10px;">
-      <div id="userAvatar" style="width:30px;height:45px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;"></div>
+      <div id="userAvatar" style="width:34px;height:34px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;"></div>
       <div style="display:flex;flex-direction:column;line-height:1.2;">
         <span id="userName" style="font-size:13px;font-weight:600;color:var(--gray-700);"></span>
         <span id="userRole" style="font-size:11px;color:var(--gray-400);text-transform:capitalize;"></span>
@@ -1455,43 +1455,34 @@ function renderHeader(c) {
   document.getElementById('clientHeader').innerHTML = `
     <div class="client-header-row">
       <div class="client-header-info" style="flex:1">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div class="client-header-name">${c.name}</div>
-        </div>
+        <div class="client-header-name">${c.name}</div>
         <div class="client-header-details">
           ${c.shopUrl ? `<div class="client-detail">🏪 <strong>${c.shopUrl}</strong></div>` : ''}
           <div class="client-detail">📦 Plan: <strong>${c.tier || 'Essentials'}</strong> ${S.isClientPortal ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:1px 7px;margin-left:4px;" onclick="openEditClientModal('${c.id}')">Change Plan</button>`}</div>
           <div class="client-detail">📅 Started: <strong>${started}</strong></div>
           <div class="client-detail">✅ <strong>${done}/${total}</strong> tasks done</div>
         </div>
-        <div style="display:flex;align-items:center;gap:16px;margin-top:12px;">
-          <div class="overall-progress" style="max-width:320px;flex:1;">
+        <div style="display:flex;align-items:center;gap:12px;margin-top:12px;">
+          <div class="overall-progress" style="max-width:300px;flex:1;">
             <div class="progress-label"><span>Overall Progress</span><span>${p}%</span></div>
             <div class="progress-bar"><div class="progress-fill" style="width:${p}%"></div></div>
           </div>
-          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
             ${navItems.map(n => {
               const isActive = n.id === 'chat_client_nav'
                 ? (S.activeTab === 'chat' && S._chatSubTab === 'client')
                 : S.activeTab === n.id;
-              return `<button onclick="setTab('${n.id}')" style="
-                padding:5px 12px; border-radius:8px; font-size:12px; font-weight:500;
-                border:1px solid ${isActive?'var(--teal)':'var(--gray-200)'};
-                background:${isActive?'var(--teal-pale)':'var(--white)'};
-                color:${isActive?'var(--teal-dark)':'var(--gray-500)'};
-                cursor:pointer; font-family:var(--font); transition:all 0.15s;
-                display:inline-flex;align-items:center;gap:5px;">
-                ${n.icon} ${n.label}
-              </button>`;
+              return `<button onclick="setTab('${n.id}')" style="padding:5px 12px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid ${isActive?'var(--teal)':'var(--gray-200)'};background:${isActive?'var(--teal-pale)':'var(--white)'};color:${isActive?'var(--teal-dark)':'var(--gray-500)'};cursor:pointer;font-family:var(--font);transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;">${n.icon} ${n.label}</button>`;
             }).join('')}
-            <div style="width:1px;height:20px;background:var(--gray-200);margin:0 4px;"></div>
-            <button class="btn btn-outline btn-sm" onclick="openLinksModal()">🔗 All Links</button>
-            ${S.isClientPortal ? '' : `
-            <button class="btn btn-outline btn-sm" onclick="copyClientPortalLink('${c.id}')">🔗 Client Portal</button>
-            <button class="btn btn-outline btn-sm" onclick="openEditClientModal('${c.id}')">✏️ Edit</button>
-            <button class="btn btn-danger-ghost btn-sm" onclick="deleteClient('${c.id}')">🗑️</button>`}
           </div>
         </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;align-self:flex-start;">
+        <button class="btn btn-outline btn-sm" onclick="openLinksModal()">🔗 All Links</button>
+        ${S.isClientPortal ? '' : `
+        <button class="btn btn-outline btn-sm" onclick="copyClientPortalLink('${c.id}')">🔗 Client Portal</button>
+        <button class="btn btn-outline btn-sm" onclick="openEditClientModal('${c.id}')">✏️ Edit</button>
+        <button class="btn btn-danger-ghost btn-sm" onclick="deleteClient('${c.id}')">🗑️</button>`}
       </div>
     </div>`;
 }
@@ -3041,27 +3032,13 @@ let _chatChannel = null;
 let _chatClientId = null;
 
 function renderChatPage(c, activeChannel) {
-  const subTabs = S.isClientPortal
-    ? [{ id:'client', label:'📢 Client Chat', sub:'Messages visible to you and the Shopiotic team' }]
-    : [
-        { id:'team', label:'💬 Team', sub:'Internal — visible to team only' },
-        { id:'client', label:'📢 Client Chat', sub:'Client-facing — client can see and reply' }
-      ];
-  const tabBar = subTabs.length > 1 ? `
-    <div style="display:flex;gap:0;border-bottom:1px solid var(--gray-200);margin-bottom:0;flex-shrink:0;">
-      ${subTabs.map(t => `
-        <button onclick="switchChatTab('${t.id}')" style="padding:10px 16px;font-size:13px;font-weight:${activeChannel===t.id?'600':'500'};
-          color:${activeChannel===t.id?'var(--teal)':'var(--gray-400)'};background:none;border:none;cursor:pointer;
-          border-bottom:2px solid ${activeChannel===t.id?'var(--teal)':'transparent'};font-family:var(--font);transition:all 0.15s;">
-          ${t.label}
-        </button>`).join('')}
-    </div>` : '';
-  const active = subTabs.find(t => t.id === activeChannel) || subTabs[0];
+  const isTeam = activeChannel === 'team';
+  const sub = isTeam ? 'Internal — visible to team only' : 'Client-facing — client can see and reply';
   return `
     <div class="chat-wrap" id="chatWrap_${activeChannel}" style="padding-top:4px;">
-      ${tabBar}
-      <div style="padding:8px 0 4px;flex-shrink:0;">
-        <div style="font-size:11px;color:var(--gray-400);">${active.sub}</div>
+      <div style="padding:4px 0 10px;flex-shrink:0;border-bottom:1px solid var(--gray-200);margin-bottom:4px;">
+        <div style="font-size:14px;font-weight:700;color:var(--gray-800);margin-bottom:2px;">${isTeam ? '💬 Team Chat' : '📢 Client Chat'}</div>
+        <div style="font-size:12px;color:var(--gray-400);">${sub}</div>
       </div>
       <div class="chat-messages" id="chatMessages_${activeChannel}">
         <div class="chat-empty"><div class="chat-empty-icon">💬</div>Loading messages…</div>
