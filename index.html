@@ -1446,6 +1446,12 @@ function renderHeader(c) {
   const [done, total] = overallProgress(c);
   const p = pct(done, total);
   const started = c.startDate ? new Date(c.startDate).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) : 'Not set';
+  const navItems = [
+    { id:'overview', icon:'🏠', label:'Overview' },
+    { id:'analytics', icon:'📊', label:'Analytics' },
+    ...(S.isClientPortal ? [] : [{ id:'chat', icon:'💬', label:'Team Chat' }]),
+    ...(S.isClientPortal ? [{ id:'chat', icon:'💬', label:'Chat' }] : []),
+  ];
   document.getElementById('clientHeader').innerHTML = `
     <div class="client-header-row">
       <div class="client-header-info" style="flex:1">
@@ -1458,26 +1464,35 @@ function renderHeader(c) {
           <div class="client-detail">📅 Started: <strong>${started}</strong></div>
           <div class="client-detail">✅ <strong>${done}/${total}</strong> tasks done</div>
         </div>
-        <div class="overall-progress" style="max-width:400px;">
-          <div class="progress-label"><span>Overall Progress</span><span>${p}%</span></div>
-          <div class="progress-bar"><div class="progress-fill" style="width:${p}%"></div></div>
+        <div style="display:flex;align-items:center;gap:16px;margin-top:12px;">
+          <div class="overall-progress" style="max-width:320px;flex:1;">
+            <div class="progress-label"><span>Overall Progress</span><span>${p}%</span></div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${p}%"></div></div>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0;">
+            ${navItems.map(n => `
+              <button onclick="setTab('${n.id}')" style="
+                padding:5px 12px; border-radius:8px; font-size:12px; font-weight:500;
+                border:1px solid ${S.activeTab===n.id?'var(--teal)':'var(--gray-200)'};
+                background:${S.activeTab===n.id?'var(--teal-pale)':'var(--white)'};
+                color:${S.activeTab===n.id?'var(--teal-dark)':'var(--gray-500)'};
+                cursor:pointer; font-family:var(--font); transition:all 0.15s;
+                display:inline-flex;align-items:center;gap:5px;">
+                ${n.icon} ${n.label}
+              </button>`).join('')}
+            <button class="btn btn-outline btn-sm" onclick="openLinksModal()" style="margin-left:4px;">🔗 Links</button>
+            ${S.isClientPortal ? '' : `
+            <button class="btn btn-outline btn-sm" onclick="copyClientPortalLink('${c.id}')">↗ Client</button>
+            <button class="btn btn-outline btn-sm" onclick="openEditClientModal('${c.id}')">✏️</button>
+            <button class="btn btn-danger-ghost btn-sm" onclick="deleteClient('${c.id}')">🗑️</button>`}
+          </div>
         </div>
-      </div>
-      <div style="display:flex;gap:6px;flex-shrink:0;">
-        <button class="btn btn-outline btn-sm" onclick="openLinksModal()">🔗 All Links</button>
-        ${S.isClientPortal ? '' : `
-        <button class="btn btn-outline btn-sm" onclick="copyClientPortalLink('${c.id}')">🔗 Client Portal</button>
-        <button class="btn btn-outline btn-sm" onclick="openEditClientModal('${c.id}')">✏️ Edit</button>
-        <button class="btn btn-danger-ghost btn-sm" onclick="deleteClient('${c.id}')">🗑️</button>`}
       </div>
     </div>`;
 }
 
 function renderTabs(c) {
   const tabs = [
-    { id:'overview', label:'Overview' },
-    { id:'analytics', label:'📊 Analytics' },
-    { id:'chat', label:'💬 Chat' },
     { id:'p1o', label:'Phase 1: Onboarding', cats: TASKS.phase1_onboarding },
     { id:'p1t', label:'Tech SEO Audit', cats: TASKS.phase1_tech },
     { id:'p2s', label:'Phase 2 Setup', cats: TASKS.phase2_setup },
