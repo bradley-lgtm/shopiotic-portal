@@ -2053,16 +2053,18 @@ function openLinksModal() {
   const links = (c.links || []).slice().sort((a,b) => (a.date||'').localeCompare(b.date||''));
   const html = links.length ? `
     <div class="links-table">
-      <div class="link-row link-row-head">
-        <span>URL</span><span>Target URL</span><span>Anchor Text</span><span>Type</span><span>Cost</span><span>Month</span><span></span>
+      <div class="link-row link-row-head" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.7fr 0.9fr 56px;">
+        <span>URL</span><span>Target URL</span><span>Anchor Text</span><span>Anchor Type</span><span>Link Type</span><span>Cost</span><span>Month</span><span></span>
       </div>
       ${links.map(l => {
         const anchorClass = { 'Exact Match':'anchor-exact','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic' }[l.anchorType] || '';
-        return `<div class="link-row">
+        const ltBadge = l.linkType === 'Guest Post' ? `<span class="anchor-badge" style="background:#fef3c7;color:#b45309;">Guest Post</span>` : l.linkType === 'Link Insertion' ? `<span class="anchor-badge" style="background:#ede9fe;color:#6d28d9;">Link Insertion</span>` : '';
+        return `<div class="link-row" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.7fr 0.9fr 56px;">
           <span style="word-break:break-all;">${linkify(l.url)}</span>
           <span style="word-break:break-all;">${linkify(l.targetUrl)}</span>
           <span>${esc(l.anchorText)}</span>
           <span><span class="anchor-badge ${anchorClass}">${l.anchorType}</span></span>
+          <span>${ltBadge}</span>
           <span>$${parseFloat(l.cost||0).toFixed(0)}</span>
           <span>${l.phaseKey} · ${l.date||''}</span>
           ${S.isClientPortal ? '<span></span>' : `<span style="display:flex;gap:3px;">
