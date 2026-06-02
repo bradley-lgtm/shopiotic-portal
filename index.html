@@ -627,7 +627,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 <!-- SIDEBAR -->
 <div id="sidebar">
   <div class="sidebar-logo">
-    <img src="logo-white.png" alt="Shopiotic" style="height:22px;width:auto;object-fit:contain;">
+    <img src="logo-white.png" alt="Shopiotic" style="height:30px;width:auto;object-fit:contain;">
   </div>
   <div class="sidebar-label">Clients</div>
   <div class="client-list" id="clientList"></div>
@@ -641,7 +641,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 <div id="main">
   <div class="topbar" id="topbar">
     <div class="topbar-title" style="display:flex;align-items:center;gap:10px;">
-      <img src="logo-dark.png" alt="Shopiotic" style="height:20px;width:auto;object-fit:contain;">
+      <img src="logo-dark.png" alt="Shopiotic" style="height:26px;width:auto;object-fit:contain;">
       <span class="topbar-subtitle" style="margin-left:0;">Ops Portal</span>
     </div>
     <a href="https://charming-babka-6d354e.netlify.app" target="_blank" class="btn btn-outline btn-sm" style="text-decoration:none;flex-shrink:0;">🔄 Deliverable Swapper</a>
@@ -674,7 +674,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 <!-- SETUP MODAL (first run) -->
 <div class="gate-overlay" id="setupModal">
   <div class="gate-box">
-    <img src="logo-white.png" alt="Shopiotic" style="height:28px;width:auto;object-fit:contain;margin-bottom:4px;">
+    <img src="logo-white.png" alt="Shopiotic" style="height:36px;width:auto;object-fit:contain;margin-bottom:4px;">
     <div class="gate-sub">Connect your Supabase database to get started</div>
     <div class="gate-field">
       <label>Supabase Project URL</label>
@@ -704,7 +704,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 <!-- LOGIN MODAL -->
 <div class="gate-overlay" id="loginModal">
   <div class="gate-box">
-    <img src="logo-white.png" alt="Shopiotic" style="height:28px;width:auto;object-fit:contain;margin-bottom:4px;">
+    <img src="logo-white.png" alt="Shopiotic" style="height:36px;width:auto;object-fit:contain;margin-bottom:4px;">
     <div class="gate-sub">Sign in to your account</div>
     <div class="gate-field">
       <label>Email</label>
@@ -2841,7 +2841,7 @@ async function loadClientPortal(token) {
   document.getElementById('sidebar').style.display = 'none';
   document.getElementById('topbar').innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;">
-      <img src="logo-dark.png" alt="Shopiotic" style="height:20px;width:auto;object-fit:contain;">
+      <img src="logo-dark.png" alt="Shopiotic" style="height:26px;width:auto;object-fit:contain;">
       <span class="topbar-subtitle">Shopify SEO Agency</span>
     </div>
     <div style="font-size:13px;color:var(--gray-500);">Client Portal — <strong>${esc(c.name||'')}</strong></div>`;
@@ -2919,7 +2919,7 @@ function renderClientPortal(c) {
     <div style="min-height:100vh;background:#f9f9fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
       <!-- Header -->
       <div style="background:#0d0d0f;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;">
-        <img src="logo-white.png" alt="Shopiotic" style="height:22px;width:auto;object-fit:contain;">
+        <img src="logo-white.png" alt="Shopiotic" style="height:30px;width:auto;object-fit:contain;">
         <div style="font-size:12px;color:#64647a;">Shopify SEO Agency</div>
       </div>
       <!-- Client banner -->
