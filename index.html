@@ -1477,8 +1477,7 @@ function renderTabs(c) {
   const tabs = [
     { id:'overview', label:'Overview' },
     { id:'analytics', label:'📊 Analytics' },
-    ...(S.isClientPortal ? [] : [{ id:'chat_team', label:'💬 Team' }]),
-    { id:'chat_client', label:'📢 Client Chat' },
+    { id:'chat', label:'💬 Chat' },
     { id:'p1o', label:'Phase 1: Onboarding', cats: TASKS.phase1_onboarding },
     { id:'p1t', label:'Tech SEO Audit', cats: TASKS.phase1_tech },
     { id:'p2s', label:'Phase 2 Setup', cats: TASKS.phase2_setup },
@@ -1689,15 +1688,10 @@ function renderContent(c) {
       ${monthBarHTML}
       ${content}`;
   }
-  else if (S.activeTab === 'chat_team') {
-    if (S.isClientPortal) { area.innerHTML = ''; return; }
-    area.innerHTML = renderChatUI(c, 'team');
-    initChat(c.id, 'team');
-    return;
-  }
-  else if (S.activeTab === 'chat_client') {
-    area.innerHTML = renderChatUI(c, 'client');
-    initChat(c.id, 'client');
+  else if (S.activeTab === 'chat') {
+    const defaultCh = S.isClientPortal ? 'client' : (S._chatSubTab || 'team');
+    area.innerHTML = renderChatPage(c, defaultCh);
+    initChat(c.id, defaultCh);
     return;
   }
   else if (S.activeTab === 'rec') {
@@ -3024,31 +3018,50 @@ let _chatMessages = []; // cached messages for current channel
 let _chatChannel = null;
 let _chatClientId = null;
 
-function renderChatUI(c, channel) {
-  const isTeam = channel === 'team';
-  const title = isTeam ? '💬 Team Chat' : '📢 Client Chat';
-  const sub = isTeam
-    ? 'Internal channel — visible to team only'
-    : 'Client-facing channel — client can see and reply here';
+function renderChatPage(c, activeChannel) {
+  const subTabs = S.isClientPortal
+    ? [{ id:'client', label:'📢 Client Chat', sub:'Messages visible to you and the Shopiotic team' }]
+    : [
+        { id:'team', label:'💬 Team', sub:'Internal — visible to team only' },
+        { id:'client', label:'📢 Client Chat', sub:'Client-facing — client can see and reply' }
+      ];
+  const tabBar = subTabs.length > 1 ? `
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--gray-200);margin-bottom:0;flex-shrink:0;">
+      ${subTabs.map(t => `
+        <button onclick="switchChatTab('${t.id}')" style="padding:10px 16px;font-size:13px;font-weight:${activeChannel===t.id?'600':'500'};
+          color:${activeChannel===t.id?'var(--teal)':'var(--gray-400)'};background:none;border:none;cursor:pointer;
+          border-bottom:2px solid ${activeChannel===t.id?'var(--teal)':'transparent'};font-family:var(--font);transition:all 0.15s;">
+          ${t.label}
+        </button>`).join('')}
+    </div>` : '';
+  const active = subTabs.find(t => t.id === activeChannel) || subTabs[0];
   return `
-    <div class="chat-wrap" id="chatWrap_${channel}">
-      <div class="chat-header">
-        <div class="chat-header-title">${title}</div>
-        <div class="chat-header-sub">${sub}</div>
+    <div class="chat-wrap" id="chatWrap_${activeChannel}" style="padding-top:4px;">
+      ${tabBar}
+      <div style="padding:8px 0 4px;flex-shrink:0;">
+        <div style="font-size:11px;color:var(--gray-400);">${active.sub}</div>
       </div>
-      <div class="chat-messages" id="chatMessages_${channel}">
-        <div class="chat-empty"><div class="chat-empty-icon">${isTeam ? '💬' : '📢'}</div>Loading messages…</div>
+      <div class="chat-messages" id="chatMessages_${activeChannel}">
+        <div class="chat-empty"><div class="chat-empty-icon">💬</div>Loading messages…</div>
       </div>
       <div class="chat-input-area">
         <div class="chat-input-row">
-          <textarea class="chat-input" id="chatInput_${channel}" placeholder="Message… (use @name to mention someone)" rows="1"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage('${channel}');}
+          <textarea class="chat-input" id="chatInput_${activeChannel}" placeholder="Message… (Enter to send, @name to mention)" rows="1"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage('${activeChannel}');}
             this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';"></textarea>
-          <button class="chat-send" onclick="sendMessage('${channel}')">Send</button>
+          <button class="chat-send" onclick="sendMessage('${activeChannel}')">Send</button>
         </div>
-        <div style="font-size:11px;color:var(--gray-400);margin-top:5px;">Enter to send · Shift+Enter for new line · @name to mention</div>
       </div>
     </div>`;
+}
+
+function switchChatTab(channel) {
+  S._chatSubTab = channel;
+  const c = getClient(); if (!c) return;
+  cleanupChat();
+  const area = document.getElementById('contentArea');
+  area.innerHTML = renderChatPage(c, channel);
+  initChat(c.id, channel);
 }
 
 function renderMessages(messages, channel) {
@@ -3117,7 +3130,17 @@ async function initChat(clientId, channel) {
         filter: `client_id=eq.${clientId}`
       }, payload => {
         if (payload.new.channel === _chatChannel) {
-          _chatMessages.push(payload.new);
+          // Replace optimistic temp message or add if new from another user
+          const exists = _chatMessages.find(m =>
+            m.user_id === payload.new.user_id &&
+            m.text === payload.new.text &&
+            m.id.toString().startsWith('temp_')
+          );
+          if (exists) {
+            _chatMessages = _chatMessages.map(m => m === exists ? payload.new : m);
+          } else {
+            _chatMessages.push(payload.new);
+          }
           renderMessages(_chatMessages, _chatChannel);
         }
       })
@@ -3151,6 +3174,20 @@ async function sendMessage(channel) {
     renderMessages(_chatMessages, channel);
   } else {
     const u = S.currentUser;
+    // Optimistic update — show immediately without waiting for realtime
+    const optimistic = {
+      id: 'temp_' + Date.now(),
+      client_id: c.id,
+      user_id: u.id,
+      sender_name: u.name,
+      sender_color: u.color,
+      text,
+      channel,
+      created_at: new Date().toISOString(),
+    };
+    _chatMessages.push(optimistic);
+    renderMessages(_chatMessages, channel);
+
     const { error } = await _sb.from('messages').insert({
       client_id: c.id,
       user_id: u.id,
@@ -3159,8 +3196,12 @@ async function sendMessage(channel) {
       text,
       channel,
     });
-    if (error) showToast('Failed to send: ' + error.message, 'error');
-    // Realtime will update the UI automatically
+    if (error) {
+      // Remove optimistic message on failure
+      _chatMessages = _chatMessages.filter(m => m.id !== optimistic.id);
+      renderMessages(_chatMessages, channel);
+      showToast('Failed to send: ' + error.message, 'error');
+    }
   }
 }
 
