@@ -1103,6 +1103,9 @@ function overallProgress(client) {
 function pct(d, t) { return t === 0 ? 0 : Math.round(d / t * 100); }
 
 // Which task ID prefixes carry a tier quantity badge, and which TIER_CONFIG key to use
+// Tasks replaced by dynamic logic — hidden from static list in ALL views
+const DYNAMIC_ONLY_TASKS = new Set(['bl4']);
+
 // Tasks hidden from the client portal view
 const CLIENT_HIDDEN_TASKS = new Set([
   // Phase 1 Onboarding — internal admin tasks
@@ -1189,6 +1192,7 @@ function renderCategories(phaseKey, categories) {
     }
 
     const taskHTML = dynamicItems
+      .filter(item => !DYNAMIC_ONLY_TASKS.has(item.id))
       .filter(item => !(S.isClientPortal && CLIENT_HIDDEN_TASKS.has(item.id)))
       .map(item => {
       const key = taskKey(phaseKey, item.id);
@@ -1903,13 +1907,13 @@ function renderBudgetWidget(c, phaseKey) {
 
   const linksHTML = links.length ? `
     <div class="links-table" style="margin-top:12px;">
-      <div class="link-row link-row-head">
+      <div class="link-row link-row-head" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.7fr 0.9fr 56px;">
         <span>URL</span><span>Target URL</span><span>Anchor Text</span><span>Anchor Type</span><span>Link Type</span><span>Cost</span><span>Date</span><span></span>
       </div>
       ${links.map(l => {
         const anchorClass = { 'Exact Match':'anchor-exact','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic' }[l.anchorType] || '';
         const ltBadge = l.linkType === 'Guest Post' ? `<span class="anchor-badge" style="background:#fef3c7;color:#b45309;">Guest Post</span>` : l.linkType === 'Link Insertion' ? `<span class="anchor-badge" style="background:#ede9fe;color:#6d28d9;">Link Insertion</span>` : '';
-        return `<div class="link-row" id="lrow_${l.id}" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.7fr 0.9fr 32px;">
+        return `<div class="link-row" id="lrow_${l.id}" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.7fr 0.9fr 56px;">
           <span style="word-break:break-all;">${linkify(l.url)}</span>
           <span style="word-break:break-all;">${linkify(l.targetUrl)}</span>
           <span>${esc(l.anchorText)}</span>
