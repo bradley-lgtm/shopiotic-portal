@@ -981,7 +981,7 @@ function initSupabase(url, key) {
 //  STATE & STORAGE
 // ═══════════════════════════════════════════
 
-let S = { clients: [], activeId: null, activeTab: 'overview', p2Month: 2, p3Month: 6, currentUser: null };
+let S = { clients: [], activeId: null, activeTab: 'overview', p2Month: 2, p3Month: 6, currentUser: null, isClientPortal: false };
 let editingId = null;
 let _saveTimers = {}; // debounce timers per client id
 
@@ -1004,6 +1004,7 @@ async function load() {
 
 // Fire-and-forget save — debounced 400ms to avoid hammering on keystrokes
 function save() {
+  if (S.isClientPortal) return; // read-only in client portal
   const c = getClient();
   if (!c || !_sb) return;
   const id = c.id;
@@ -1102,6 +1103,36 @@ function overallProgress(client) {
 function pct(d, t) { return t === 0 ? 0 : Math.round(d / t * 100); }
 
 // Which task ID prefixes carry a tier quantity badge, and which TIER_CONFIG key to use
+// Tasks hidden from the client portal view
+const CLIENT_HIDDEN_TASKS = new Set([
+  // Phase 1 Onboarding — internal admin tasks
+  'p1o1',   // Setup auto billing in HubSpot
+  'p1o3',   // Book the Sell Me Your Products call
+  'p1o4',   // Setup and customize Trello board
+  'p1o5',   // Send onboarding form
+  'p1o6',   // Send brand information form
+  'p1o7',   // Send Shopify access request
+  'p1o8',   // Log in to Shopify, GA4, GSC
+  'p1o9',   // Setup empty position tracking project
+  'p1o10b', // Embed Data Studio report
+  'p1o12',  // Setup phase checklist copy for client
+  'p1o15',  // Setup backlink campaign tracker (replaced by dashboard)
+  'p1o19',  // Have the Sell Me Your Products call
+  'p1o35',  // Notify client once Technical SEO audit complete
+  // Phase 1 Tech
+  't1',     // Make a copy of Technical SEO report doc
+  't23',    // Send Technical SEO findings doc to client
+  // Phase 3 Setup
+  'p3s6',   // Increase backlink budget (automatic via tier)
+  'p3s11',  // Deliverable swapper
+  // Phase 3 Monthly
+  'bg1b',   // Have AI write article drafts (WIP)
+  'bg3',    // Writer sends drafts for review (internal)
+  'gc6',    // AI alternative to writer (WIP)
+  // Phase 2 monthly bl4 is handled dynamically via guest post detection
+  'bl4',
+]);
+
 const TIER_QTY = {
   cp1:'p2collections', cp2:'p2collections', cp3:'p2collections', cp4:'p2collections', cp5:'p2collections',
   p1cp1:'p1collections', p1cp2:'p1collections', p1cp3:'p1collections', p1cp4:'p1collections', p1cp5:'p1collections',
@@ -1141,7 +1172,25 @@ function renderCategories(phaseKey, categories) {
   }).map(cat => {
     const items = cat.items;
     let catDone = 0;
-    const taskHTML = items.map(item => {
+    // Dynamic bl4: add tier-2 task for each guest post link this month
+    let dynamicItems = [...items];
+    if (S.isClientPortal !== true && isMonthly && cat.cat === 'Backlinks') {
+      const guestPosts = (c.links||[]).filter(l => l.phaseKey === phaseKey && l.linkType === 'Guest Post');
+      guestPosts.forEach((l, i) => {
+        dynamicItems.push({ id: `bl4_gp_${l.id}`, t: `Build tier 2 links for: ${l.url || 'Guest Post'}`, s: ['Use the Tier 2 Article Generator: https://docs.google.com/spreadsheets/d/1swxgRm1ig-mhNLha2oWSU2c1oIb6Fp7xgN-INM3JZI4/edit','Make payment and send articles','Send update in Trello'] });
+      });
+    }
+    // For client portal, also show dynamic bl4 tasks
+    if (S.isClientPortal && isMonthly && cat.cat === 'Backlinks') {
+      const guestPosts = (c.links||[]).filter(l => l.phaseKey === phaseKey && l.linkType === 'Guest Post');
+      guestPosts.forEach(l => {
+        dynamicItems.push({ id: `bl4_gp_${l.id}`, t: `Build tier 2 links for: ${l.url || 'Guest Post'}`, s: ['Tier 2 links are built to boost the guest post article in search results'] });
+      });
+    }
+
+    const taskHTML = dynamicItems
+      .filter(item => !(S.isClientPortal && CLIENT_HIDDEN_TASKS.has(item.id)))
+      .map(item => {
       const key = taskKey(phaseKey, item.id);
       const done = !!c.done[key];
       if (done) catDone++;
@@ -1154,13 +1203,16 @@ function renderCategories(phaseKey, categories) {
       const hasNote = noteVal.length > 0;
       const qtyKey = TIER_QTY[item.id];
       const qty = qtyKey ? getEffectiveQty(c, phaseKey, item.id, qtyKey) : 0;
-      const qtyBadge = qty > 0 ? `<span class="tier-qty-badge" style="cursor:pointer;" title="Click to override quantity" onclick="event.stopPropagation();openQtyOverride('${phaseKey}','${item.id}','${qtyKey}','${past||!isMonthly?'month':'template'}')">× ${qty} ✏️</span>` : '';
+      // Client portal: qty badge without edit button
+      const qtyBadge = qty > 0 ? (S.isClientPortal
+        ? `<span class="tier-qty-badge">× ${qty}</span>`
+        : `<span class="tier-qty-badge" style="cursor:pointer;" title="Click to override quantity" onclick="event.stopPropagation();openQtyOverride('${phaseKey}','${item.id}','${qtyKey}','${past||!isMonthly?'month':'template'}')">× ${qty} ✏️</span>`) : '';
 
-      // ⋮ menu
+      // ⋮ menu — hidden in client portal
       const menuId = `tdrop_${phaseKey}_${item.id}`;
       const templateDisabled = past ? 'disabled' : '';
       const templateTitle = past ? ' title="Cannot edit template from a past month"' : '';
-      const menuHTML = `
+      const menuHTML = S.isClientPortal ? '' : `
         <div class="task-menu-wrap">
           <button class="task-menu-btn" onclick="event.stopPropagation();openTaskMenu('${phaseKey}','${item.id}',this)" title="Options">⋮</button>
           <div class="task-menu-dropdown" id="${menuId}">
@@ -1176,22 +1228,29 @@ function renderCategories(phaseKey, categories) {
           </div>
         </div>`;
 
+      // Note display — read-only in client portal
+      const noteSection = S.isClientPortal
+        ? (hasNote ? `<div class="task-note-area open" id="note_${phaseKey}_${item.id}" style="pointer-events:none;"><div style="padding:8px 12px;font-size:12px;color:var(--gray-600);background:#f9f9fb;border-radius:0 0 6px 6px;">${esc(noteVal)}</div></div>` : '')
+        : `<div class="task-note-area ${hasNote ? 'open' : ''}" id="note_${phaseKey}_${item.id}"><textarea class="task-note-input" placeholder="Add a note or link for this task…" oninput="saveTaskNote('${key}',this.value)" onkeydown="event.stopPropagation()">${noteVal}</textarea></div>`;
+
+      const noteBtn = S.isClientPortal ? '' : `<button class="task-note-btn ${hasNote ? 'has-note' : ''}" title="${hasNote ? 'View/edit note' : 'Add note'}" onclick="event.stopPropagation();toggleNote('note_${phaseKey}_${item.id}')">📎</button>`;
+
+      const rowClick = S.isClientPortal ? '' : `onclick="toggleTask('${key}')"`;
+
       return `
         <div class="task-item">
-          <div class="task-row" onclick="toggleTask('${key}')">
-            <div class="task-check ${done ? 'done' : ''}"></div>
+          <div class="task-row" ${rowClick} style="${S.isClientPortal ? 'cursor:default;' : ''}">
+            <div class="task-check ${done ? 'done' : ''}" style="${S.isClientPortal ? 'cursor:default;' : ''}"></div>
             <div class="task-body">
               <div style="display:flex;align-items:flex-start;gap:4px;">
                 <div class="task-label ${done ? 'done' : ''}" style="flex:1">${item.t}${qtyBadge}</div>
-                <button class="task-note-btn ${hasNote ? 'has-note' : ''}" title="${hasNote ? 'View/edit note' : 'Add note'}" onclick="event.stopPropagation();toggleNote('note_${phaseKey}_${item.id}')">📎</button>
+                ${noteBtn}
                 ${menuHTML}
               </div>
               ${hasSubs ? `<button class="subtask-toggle" onclick="event.stopPropagation();expandToggle(this)">▼ show details</button>` : ''}
             </div>
           </div>
-          <div class="task-note-area ${hasNote ? 'open' : ''}" id="note_${phaseKey}_${item.id}">
-            <textarea class="task-note-input" placeholder="Add a note or link for this task…" oninput="saveTaskNote('${key}',this.value)" onkeydown="event.stopPropagation()">${noteVal}</textarea>
-          </div>
+          ${noteSection}
           ${subsHTML}
         </div>`;
     }).join('');
@@ -1232,7 +1291,7 @@ function renderCategories(phaseKey, categories) {
     }).join('');
 
     const scopeForAdd = (isMonthly && !past) ? 'template' : 'month';
-    const addTaskBtn = `<div style="padding:6px 16px 10px;">
+    const addTaskBtn = S.isClientPortal ? '' : `<div style="padding:6px 16px 10px;">
       <button class="btn btn-ghost btn-sm" style="font-size:12px;color:var(--teal);" onclick="addTask('${phaseKey}','${cat.cat}','${scopeForAdd}')">+ Add task</button>
     </div>`;
 
@@ -1294,7 +1353,7 @@ function renderHeader(c) {
         </div>
         <div class="client-header-details">
           ${c.shopUrl ? `<div class="client-detail">🏪 <strong>${c.shopUrl}</strong></div>` : ''}
-          <div class="client-detail">📦 Plan: <strong>${c.tier || 'Essentials'}</strong> <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:1px 7px;margin-left:4px;" onclick="openEditClientModal('${c.id}')">Change Plan</button></div>
+          <div class="client-detail">📦 Plan: <strong>${c.tier || 'Essentials'}</strong> ${S.isClientPortal ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:1px 7px;margin-left:4px;" onclick="openEditClientModal('${c.id}')">Change Plan</button>`}</div>
           <div class="client-detail">📅 Started: <strong>${started}</strong></div>
           <div class="client-detail">✅ <strong>${done}/${total}</strong> tasks done</div>
         </div>
@@ -1303,12 +1362,12 @@ function renderHeader(c) {
           <div class="progress-bar"><div class="progress-fill" style="width:${p}%"></div></div>
         </div>
       </div>
-      <div style="display:flex;gap:6px;flex-shrink:0;">
+      ${S.isClientPortal ? '' : `<div style="display:flex;gap:6px;flex-shrink:0;">
         <button class="btn btn-outline btn-sm" onclick="copyClientPortalLink('${c.id}')">🔗 Client Portal</button>
         <button class="btn btn-outline btn-sm" onclick="openLinksModal()">⛓ All Links</button>
         <button class="btn btn-outline btn-sm" onclick="openEditClientModal('${c.id}')">✏️ Edit</button>
         <button class="btn btn-danger-ghost btn-sm" onclick="deleteClient('${c.id}')">🗑️</button>
-      </div>
+      </div>`}
     </div>`;
 }
 
@@ -1481,7 +1540,7 @@ function renderContent(c) {
             <div class="phase-banner-desc">Monthly deliverables: backlinks, collection page builds, internal linking, and end-of-month reporting. Add a new month tab as each month begins.</div>
           </div>
         </div>
-        <button class="btn btn-outline btn-sm" style="flex-shrink:0;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff;" onclick="openTplModal('p2')">⚙️ Manage Template</button>
+        ${S.isClientPortal ? '' : `<button class="btn btn-outline btn-sm" style="flex-shrink:0;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff;" onclick="openTplModal('p2')">⚙️ Manage Template</button>`}
       </div>
       ${monthBarHTML}
       ${content}`;
@@ -1521,7 +1580,7 @@ function renderContent(c) {
             <div class="phase-banner-desc">Monthly blog content, backlinks, internal linking, and reporting. Builds topical authority through hub-and-spoke content clusters.</div>
           </div>
         </div>
-        <button class="btn btn-outline btn-sm" style="flex-shrink:0;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff;" onclick="openTplModal('p3')">⚙️ Manage Template</button>
+        ${S.isClientPortal ? '' : `<button class="btn btn-outline btn-sm" style="flex-shrink:0;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff;" onclick="openTplModal('p3')">⚙️ Manage Template</button>`}
       </div>
       ${monthBarHTML}
       ${content}`;
@@ -1845,21 +1904,23 @@ function renderBudgetWidget(c, phaseKey) {
   const linksHTML = links.length ? `
     <div class="links-table" style="margin-top:12px;">
       <div class="link-row link-row-head">
-        <span>URL</span><span>Target URL</span><span>Anchor Text</span><span>Type</span><span>Cost</span><span>Date</span><span></span>
+        <span>URL</span><span>Target URL</span><span>Anchor Text</span><span>Anchor Type</span><span>Link Type</span><span>Cost</span><span>Date</span><span></span>
       </div>
       ${links.map(l => {
         const anchorClass = { 'Exact Match':'anchor-exact','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic' }[l.anchorType] || '';
-        return `<div class="link-row" id="lrow_${l.id}">
+        const ltBadge = l.linkType === 'Guest Post' ? `<span class="anchor-badge" style="background:#fef3c7;color:#b45309;">Guest Post</span>` : l.linkType === 'Link Insertion' ? `<span class="anchor-badge" style="background:#ede9fe;color:#6d28d9;">Link Insertion</span>` : '';
+        return `<div class="link-row" id="lrow_${l.id}" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.7fr 0.9fr 32px;">
           <span style="word-break:break-all;">${linkify(l.url)}</span>
           <span style="word-break:break-all;">${linkify(l.targetUrl)}</span>
           <span>${esc(l.anchorText)}</span>
           <span><span class="anchor-badge ${anchorClass}">${l.anchorType}</span></span>
+          <span>${ltBadge}</span>
           <span>$${parseFloat(l.cost||0).toFixed(0)}</span>
           <span>${l.date||''}</span>
-          <span style="display:flex;gap:3px;">
+          ${S.isClientPortal ? '<span></span>' : `<span style="display:flex;gap:3px;">
             <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="openEditLink('${l.id}','${phaseKey}')">✏️</button>
             <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="deleteLink('${l.id}')">🗑️</button>
-          </span>
+          </span>`}
         </div>`;
       }).join('')}
     </div>` : `<div style="font-size:12px;color:var(--gray-400);padding:8px 0 2px;">No links recorded this month yet.</div>`;
@@ -1868,7 +1929,7 @@ function renderBudgetWidget(c, phaseKey) {
     <div class="add-link-form">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
         <div class="add-link-form-title" style="margin-bottom:0;">💰 Link Budget — ${phaseKey.startsWith('p2') ? 'Phase 2' : 'Phase 3'}</div>
-        <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="openBudgetOverride('${phaseKey}')">✏️ ${hasOverride ? 'Edit override' : 'Override budget'}</button>
+        ${S.isClientPortal ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="openBudgetOverride('${phaseKey}')">✏️ ${hasOverride ? 'Edit override' : 'Override budget'}</button>`}
       </div>
       <div class="budget-widget" style="margin-bottom:12px;">
         <div class="budget-stat">
@@ -1884,7 +1945,7 @@ function renderBudgetWidget(c, phaseKey) {
         <div class="budget-divider"></div>
         <div class="budget-stat"><span class="budget-stat-label">Remaining</span><span class="budget-stat-value ${remClass}">$${remaining.toFixed(0)}</span></div>
       </div>
-      <div class="add-link-grid">
+      ${S.isClientPortal ? '' : `<div class="add-link-grid">
         <input id="lk_url_${phaseKey}" placeholder="Linking site URL (e.g. example.com/blog/post)">
         <input id="lk_target_${phaseKey}" placeholder="Target URL (e.g. yourstore.com/collections/x)">
         <input id="lk_anchor_${phaseKey}" placeholder="Anchor text">
@@ -1892,10 +1953,15 @@ function renderBudgetWidget(c, phaseKey) {
           <option value="">Anchor type…</option>
           <option>Exact Match</option><option>Branded</option><option>Compound</option><option>Generic</option>
         </select>
+        <select id="lk_linktype_${phaseKey}">
+          <option value="">Link type…</option>
+          <option value="Link Insertion">Link Insertion</option>
+          <option value="Guest Post">Guest Post</option>
+        </select>
         <input id="lk_cost_${phaseKey}" type="number" placeholder="Cost $" min="0">
         <input id="lk_date_${phaseKey}" type="date" value="${new Date().toISOString().slice(0,10)}">
-      </div>
-      <button class="btn btn-primary btn-sm" onclick="addLink('${phaseKey}')">+ Add Link</button>
+      </div>`}
+      ${S.isClientPortal ? '' : `<button class="btn btn-primary btn-sm" onclick="addLink('${phaseKey}')">+ Add Link</button>`}
       ${linksHTML}
     </div>`;
 }
@@ -1906,11 +1972,12 @@ function addLink(phaseKey) {
   const targetUrl = document.getElementById('lk_target_'+phaseKey).value.trim();
   const anchorText = document.getElementById('lk_anchor_'+phaseKey).value.trim();
   const anchorType = document.getElementById('lk_type_'+phaseKey).value;
+  const linkType = document.getElementById('lk_linktype_'+phaseKey).value;
   const cost = document.getElementById('lk_cost_'+phaseKey).value;
   const date = document.getElementById('lk_date_'+phaseKey).value;
   if (!url || !anchorType) { alert('URL and anchor type are required.'); return; }
   if (!c.links) c.links = [];
-  c.links.push({ id: uid(), url, targetUrl, anchorText, anchorType, cost, date, phaseKey });
+  c.links.push({ id: uid(), url, targetUrl, anchorText, anchorType, linkType, cost, date, phaseKey });
   save(); renderClient();
 }
 
@@ -2092,6 +2159,10 @@ function openEditLink(linkId, phaseKey) {
             <option value="">Anchor type…</option>
             ${['Exact Match','Branded','Compound','Generic'].map(t => `<option${l.anchorType===t?' selected':''}>${t}</option>`).join('')}
           </select>
+          <select id="el_linktype">
+            <option value="">Link type…</option>
+            ${['Link Insertion','Guest Post'].map(t => `<option value="${t}"${l.linkType===t?' selected':''}>${t}</option>`).join('')}
+          </select>
           <input id="el_cost" type="number" placeholder="Cost $" value="${l.cost||''}">
           <input id="el_date" type="date" value="${l.date||''}">
         </div>
@@ -2112,6 +2183,7 @@ function saveEditLink() {
   l.targetUrl = document.getElementById('el_target').value.trim();
   l.anchorText = document.getElementById('el_anchor').value.trim();
   l.anchorType = document.getElementById('el_type').value;
+  l.linkType = document.getElementById('el_linktype').value;
   l.cost = document.getElementById('el_cost').value;
   l.date = document.getElementById('el_date').value;
   save(); closeEditLinkModal(); renderClient();
@@ -2681,28 +2753,37 @@ function copyClientPortalLink(clientId) {
 }
 
 async function loadClientPortal(token) {
-  // Hide the main app UI entirely
-  document.getElementById('sidebar').style.display = 'none';
-  document.getElementById('main').style.display = 'none';
-
-  // Fetch client data via the secure RPC function (no auth needed)
   const { data, error } = await _sb.rpc('get_portal_client', { p_token: token });
   if (error || !data) {
-    document.body.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0d0d0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-        <div style="text-align:center;color:#9191a8;">
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('main').innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;height:100vh;">
+        <div style="text-align:center;color:var(--gray-400);">
           <div style="font-size:48px;margin-bottom:16px;">🔒</div>
-          <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:8px;">Invalid or expired link</div>
+          <div style="font-size:20px;font-weight:700;color:var(--gray-700);margin-bottom:8px;">Invalid or expired link</div>
           <div style="font-size:14px;">Please contact your Shopiotic specialist for a new link.</div>
         </div>
       </div>`;
     return;
   }
-
-  const c = data;
-  renderClientPortal(c);
+  S.isClientPortal = true;
+  const c = { ...data };
+  if (!c.id) c.id = token;
+  migrateClient(c);
+  S.clients = [c];
+  S.activeId = c.id;
+  S.activeTab = 'overview';
+  document.getElementById('sidebar').style.display = 'none';
+  document.getElementById('topbar').innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="font-size:18px;font-weight:800;color:var(--navy);">Shopi<span style="color:var(--teal);">otic</span></div>
+      <span class="topbar-subtitle">Shopify SEO Agency</span>
+    </div>
+    <div style="font-size:13px;color:var(--gray-500);">Client Portal — <strong>${esc(c.name||'')}</strong></div>`;
+  renderClient();
 }
 
+// Keep renderClientPortal for legacy — now unused but left to avoid reference errors
 function renderClientPortal(c) {
   // Calculate overall progress
   migrateClient(c);
