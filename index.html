@@ -1203,6 +1203,23 @@ function pct(d, t) { return t === 0 ? 0 : Math.round(d / t * 100); }
 // Tasks replaced by dynamic logic — hidden from static list in ALL views
 const DYNAMIC_ONLY_TASKS = new Set(['bl4']);
 
+// Get effective client visibility for a task
+// Returns true if the task should be shown to the client
+function isClientVisible(c, taskId) {
+  const override = c.taskVisibility && c.taskVisibility[taskId];
+  if (override === 'visible') return true;
+  if (override === 'hidden') return false;
+  return !CLIENT_HIDDEN_TASKS.has(taskId);
+}
+
+function toggleClientVisibility(taskId) {
+  const c = getClient(); if (!c) return;
+  if (!c.taskVisibility) c.taskVisibility = {};
+  const current = isClientVisible(c, taskId);
+  c.taskVisibility[taskId] = current ? 'hidden' : 'visible';
+  save(); renderClient();
+}
+
 // Tasks hidden from the client portal view
 const CLIENT_HIDDEN_TASKS = new Set([
   // Phase 1 Onboarding — internal admin tasks
@@ -1290,7 +1307,7 @@ function renderCategories(phaseKey, categories) {
 
     const taskHTML = dynamicItems
       .filter(item => !DYNAMIC_ONLY_TASKS.has(item.id))
-      .filter(item => !(S.isClientPortal && CLIENT_HIDDEN_TASKS.has(item.id)))
+      .filter(item => !(S.isClientPortal && !isClientVisible(c, item.id)))
       .map(item => {
       const key = taskKey(phaseKey, item.id);
       const done = !!c.done[key];
@@ -1313,6 +1330,7 @@ function renderCategories(phaseKey, categories) {
       const menuId = `tdrop_${phaseKey}_${item.id}`;
       const templateDisabled = past ? 'disabled' : '';
       const templateTitle = past ? ' title="Cannot edit template from a past month"' : '';
+      const clientVisible = isClientVisible(c, item.id);
       const menuHTML = S.isClientPortal ? '' : `
         <div class="task-menu-wrap">
           <button class="task-menu-btn" onclick="event.stopPropagation();openTaskMenu('${phaseKey}','${item.id}',this)" title="Options">⋮</button>
@@ -1326,6 +1344,9 @@ function renderCategories(phaseKey, categories) {
             <button class="task-menu-item ${templateDisabled}" ${templateTitle} onclick="event.stopPropagation();${past ? '' : `openEditTask('${phaseKey}','${item.id}','template')`}">✏️ Edit task</button>
             <button class="task-menu-item danger ${templateDisabled}" ${templateTitle} onclick="event.stopPropagation();${past ? '' : `deleteTask('${phaseKey}','${item.id}','template')`}">🗑️ Delete task</button>
             ` : ''}
+            <div class="task-menu-divider"></div>
+            <div class="task-menu-scope">Client visibility</div>
+            <button class="task-menu-item" onclick="event.stopPropagation();toggleClientVisibility('${item.id}')">${clientVisible ? '🔒 Hide from client' : '👁 Show to client'}</button>
           </div>
         </div>`;
 
@@ -1344,7 +1365,7 @@ function renderCategories(phaseKey, categories) {
             <div class="task-check ${done ? 'done' : ''}" style="${S.isClientPortal ? 'cursor:default;' : ''}"></div>
             <div class="task-body">
               <div style="display:flex;align-items:flex-start;gap:4px;">
-                <div class="task-label ${done ? 'done' : ''}" style="flex:1">${item.t}${qtyBadge}</div>
+                <div class="task-label ${done ? 'done' : ''}" style="flex:1">${item.t}${qtyBadge}${!S.isClientPortal && !clientVisible ? '<span style="font-size:10px;color:var(--gray-400);margin-left:5px;" title="Hidden from client">🔒</span>' : ''}</div>
                 ${noteBtn}
                 ${menuHTML}
               </div>
@@ -1953,7 +1974,7 @@ function saveClientModal() {
       tier: document.getElementById('f_tier').value, startDate: document.getElementById('f_start').value,
       done: {}, notes: '', p2months: [], p3months: [],
       team: { specialist:'', specialistEmail:'', clientContact:'', clientContactEmail:'', slack:'' },
-      resources: [], activity: [], taskNotes: {}, links: [], contacts: [], reportEmbedUrl: '', shareToken: uid() };
+      resources: [], activity: [], taskNotes: {}, links: [], contacts: [], reportEmbedUrl: '', shareToken: uid(), taskVisibility: {} };
     S.clients.push(c);
     S.activeId = c.id;
     S.activeTab = 'overview';
@@ -2671,6 +2692,7 @@ function migrateClient(c) {
   if (!c.links) c.links = [];
   if (!c.contacts) c.contacts = [];
   if (c.reportEmbedUrl === undefined) c.reportEmbedUrl = '';
+  if (!c.taskVisibility) c.taskVisibility = {};
   if (!c.shareToken) { c.shareToken = uid(); save(); }
   ensureClientCustomData(c);
 }
