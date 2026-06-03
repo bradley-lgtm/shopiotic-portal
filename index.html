@@ -3762,15 +3762,10 @@ function setupMentionAutocomplete(inputEl, channel) {
       ? _mentionState.members.filter(m => m.role !== 'client')
       : _mentionState.members;
 
-    // Deduplicate by mention tag (same name = same tag, skip dupes)
-    const seenTags = new Set();
     const matches = eligibleMembers.filter(m => {
       const tag = getMentionTag(m).toLowerCase();
       const name = (m.name || '').toLowerCase();
-      if (!tag.startsWith(query) && !name.startsWith(query)) return false;
-      if (seenTags.has(tag)) return false;
-      seenTags.add(tag);
-      return true;
+      return tag.startsWith(query) || name.startsWith(query);
     }).slice(0, 6);
 
     if (!matches.length) {
