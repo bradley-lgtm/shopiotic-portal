@@ -1588,7 +1588,7 @@ function renderHeader(c) {
   const navItems = [
     { id:'overview', icon:'🏠', label:'Overview' },
     { id:'analytics', icon:'📊', label:'Analytics' },
-    { id:'chat', icon:'💬', label: S.isClientPortal ? 'Chat' : 'Team Chat' },
+    { id:'chat', icon:'💬', label: S.isClientPortal ? 'General Chat' : 'Team Chat' },
     ...(S.isClientPortal ? [] : [{ id:'chat_client_nav', icon:'📢', label:'Client Chat' }]),
   ];
   document.getElementById('clientHeader').innerHTML = `
@@ -3200,11 +3200,11 @@ const CHAT_PAGE = 50;
 
 function renderChatPage(c, activeChannel) {
   const isTeam = activeChannel === 'team';
-  const sub = isTeam ? 'Internal — visible to team only' : 'Client-facing — client can see and reply';
+  const sub = isTeam ? 'Internal — visible to team only' : (S.isClientPortal ? 'Chat directly with your Shopiotic team' : 'Client-facing — client can see and reply');
   return `
     <div class="chat-wrap" id="chatWrap_${activeChannel}" style="padding-top:4px;">
       <div style="padding:4px 0 10px;flex-shrink:0;border-bottom:1px solid var(--gray-200);margin-bottom:4px;">
-        <div style="font-size:14px;font-weight:700;color:var(--gray-800);margin-bottom:2px;">${isTeam ? '💬 Team Chat' : '📢 Client Chat'}</div>
+        <div style="font-size:14px;font-weight:700;color:var(--gray-800);margin-bottom:2px;">${isTeam ? '💬 Team Chat' : (S.isClientPortal ? '💬 General Chat' : '📢 Client Chat')}</div>
         <div style="font-size:12px;color:var(--gray-400);">${sub}</div>
       </div>
       <div class="chat-messages" id="chatMessages_${activeChannel}">
