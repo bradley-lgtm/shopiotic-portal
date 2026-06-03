@@ -3612,22 +3612,13 @@ async function submitClientSignup() {
   }
 
   document.getElementById('clientSignupModal').classList.remove('open');
+  showToast('Account created! Loading your portal…', 'success');
 
-  // Show "check your email" message — Supabase requires email confirmation
-  const div = document.createElement('div');
-  div.className = 'gate-overlay open';
-  div.style.zIndex = '600';
-  div.innerHTML = `
-    <div class="gate-box" style="text-align:center;">
-      <div style="font-size:48px;margin-bottom:16px;">📬</div>
-      <div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:8px;">Check your inbox</div>
-      <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:24px;line-height:1.6;">
-        We sent a confirmation email to <strong style="color:#fff;">${email}</strong>.<br>
-        Click the link in that email, then come back here and sign in.
-      </div>
-      <button class="gate-btn" onclick="this.closest('.gate-overlay').remove();document.getElementById('loginModal').classList.add('open');">Go to Sign In</button>
-    </div>`;
-  document.body.appendChild(div);
+  const { data: signInData } = await _sb.auth.signInWithPassword({ email, password: pw });
+  if (signInData?.user) {
+    window.history.replaceState({}, '', window.location.pathname);
+    await onSignedIn(signInData.user);
+  }
 }
 
 function showLoginFromSignup() {
