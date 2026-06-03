@@ -3601,7 +3601,7 @@ async function submitClientSignup() {
 
   const { data, error } = await _sb.auth.signUp({
     email, password: pw,
-    options: { data: { first_name: first, last_name: last, role: 'client' } }
+    options: { data: { first_name: first, last_name: last, app_role: 'client' } }
   });
 
   if (error) { err.textContent = error.message; return; }
