@@ -577,6 +577,34 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 /* ── INVITE MODAL ── */
 .invite-url-box { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--gray-600); font-family: monospace; word-break: break-all; margin: 8px 0; }
 
+/* ── PRODUCT TOUR ── */
+.tour-overlay {
+  position: fixed; inset: 0; z-index: 9000; pointer-events: none;
+  transition: opacity 0.3s;
+}
+.tour-spotlight {
+  position: relative !important;
+  z-index: 9001 !important;
+  border-radius: 10px;
+  box-shadow: 0 0 0 4px #7c3aed, 0 0 0 9999px rgba(0,0,0,0.65) !important;
+  pointer-events: auto !important;
+  transition: box-shadow 0.3s;
+}
+.tour-card {
+  position: fixed; z-index: 9002; background: #fff; border-radius: 14px;
+  padding: 20px 22px; width: 300px; box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+  animation: tourCardIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  border: 1px solid var(--gray-200);
+}
+@keyframes tourCardIn { from { transform: scale(0.92) translateY(8px); opacity:0; } to { transform: scale(1) translateY(0); opacity:1; } }
+.tour-card-step { font-size:11px; font-weight:700; color:var(--teal); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; }
+.tour-card-title { font-size:16px; font-weight:800; color:var(--gray-800); margin-bottom:8px; letter-spacing:-0.3px; }
+.tour-card-body { font-size:13px; color:var(--gray-500); line-height:1.6; margin-bottom:16px; }
+.tour-card-actions { display:flex; align-items:center; justify-content:space-between; }
+.tour-dots { display:flex; gap:5px; }
+.tour-dot { width:7px; height:7px; border-radius:50%; background:var(--gray-200); transition:background 0.2s; }
+.tour-dot.active { background:var(--teal); }
+
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -1585,13 +1613,13 @@ function renderHeader(c) {
                 : n.id === 'chat'
                   ? (S.activeTab === 'chat' && S._chatSubTab !== 'client')
                   : S.activeTab === n.id;
-              return `<button onclick="setTab('${n.id}')" style="padding:5px 12px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid ${isActive?'var(--teal)':'var(--gray-200)'};background:${isActive?'var(--teal-pale)':'var(--white)'};color:${isActive?'var(--teal-dark)':'var(--gray-500)'};cursor:pointer;font-family:var(--font);transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;">${n.icon} ${n.label}</button>`;
+              return `<button id="nav-btn-${n.id}" onclick="setTab('${n.id}')" style="padding:5px 12px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid ${isActive?'var(--teal)':'var(--gray-200)'};background:${isActive?'var(--teal-pale)':'var(--white)'};color:${isActive?'var(--teal-dark)':'var(--gray-500)'};cursor:pointer;font-family:var(--font);transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;">${n.icon} ${n.label}</button>`;
             }).join('')}
           </div>
         </div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0;align-self:flex-start;">
-        <button class="btn btn-outline btn-sm" onclick="openLinksModal()">🔗 All Links</button>
+        <button id="btn-all-backlinks" class="btn btn-outline btn-sm" onclick="openLinksModal()">🔗 All Backlinks</button>
         ${S.isClientPortal ? '' : `
         <button class="btn btn-outline btn-sm" onclick="openInviteModal('${c.id}')">✉️ Invite Client</button>
         <button class="btn btn-outline btn-sm" onclick="openEditClientModal('${c.id}')">✏️ Edit</button>
@@ -3952,8 +3980,8 @@ async function loadClientPortalForUser() {
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
       <span style="font-size:13px;color:var(--gray-500);">Welcome, <strong>${esc(S.currentUser.firstName || S.currentUser.name)}</strong></span>
-      <button class="btn btn-outline btn-sm" onclick="openPortalGuide()" style="gap:5px;">📖 Guide</button>
-      <button class="btn btn-ghost btn-sm" onclick="openSettings()">⚙️ Settings</button>
+      <button class="btn btn-outline btn-sm" onclick="startTour()" style="gap:5px;">📖 Tour</button>
+      <button id="client-settings-btn" class="btn btn-ghost btn-sm" onclick="openSettings()">⚙️ Settings</button>
       <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
     </div>`;
 
@@ -3963,6 +3991,119 @@ async function loadClientPortalForUser() {
   if (!localStorage.getItem('portal_guide_seen_' + S.currentUser.id)) {
     setTimeout(openPortalGuide, 800);
   }
+}
+
+// ═══════════════════════════════════════════
+//  PRODUCT TOUR
+// ═══════════════════════════════════════════
+
+const TOUR_STEPS = [
+  {
+    target: 'nav-btn-overview',
+    title: '🏠 Overview',
+    body: 'Your campaign home base. See your team contacts, shared resources, and all updates posted by your specialist.',
+  },
+  {
+    target: 'nav-btn-analytics',
+    title: '📊 Analytics',
+    body: 'Your live performance report — organic traffic, revenue, keyword rankings, and more. Updated automatically.',
+  },
+  {
+    target: 'nav-btn-chat_client_nav',
+    title: '📢 Client Chat',
+    body: 'Message your Shopiotic team directly. Type @name to mention someone and they\'ll get a notification instantly.',
+  },
+  {
+    target: 'phaseTabs',
+    title: '📋 Campaign Phases',
+    body: 'Track every task across each phase of your SEO campaign — from onboarding through to ongoing growth. You can see exactly what\'s been done and what\'s coming up.',
+  },
+  {
+    target: 'btn-all-backlinks',
+    title: '🔗 All Backlinks',
+    body: 'View the complete history of every backlink built for your site — including the URL, anchor text, link type, and cost.',
+  },
+  {
+    target: 'client-settings-btn',
+    title: '⚙️ Settings',
+    body: 'Update your name and manage notification preferences. Enable desktop notifications to get alerted when your specialist @mentions you.',
+  },
+];
+
+let _tourStep = 0;
+let _tourSpotlightEl = null;
+
+function startTour() {
+  _tourStep = 0;
+  showTourStep();
+}
+
+function showTourStep() {
+  cleanupTour();
+  if (_tourStep >= TOUR_STEPS.length) { endTour(); return; }
+
+  const step = TOUR_STEPS[_tourStep];
+  const el = document.getElementById(step.target);
+  if (!el) { _tourStep++; showTourStep(); return; } // skip if element not found
+
+  // Spotlight the element
+  el.classList.add('tour-spotlight');
+  _tourSpotlightEl = el;
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  // Position the tooltip card
+  setTimeout(() => {
+    const rect = el.getBoundingClientRect();
+    const card = document.createElement('div');
+    card.className = 'tour-card';
+    card.id = 'tourCard';
+
+    // Dots
+    const dots = TOUR_STEPS.map((_, i) =>
+      `<div class="tour-dot ${i === _tourStep ? 'active' : ''}"></div>`
+    ).join('');
+
+    const isLast = _tourStep === TOUR_STEPS.length - 1;
+    card.innerHTML = `
+      <div class="tour-card-step">Step ${_tourStep + 1} of ${TOUR_STEPS.length}</div>
+      <div class="tour-card-title">${step.title}</div>
+      <div class="tour-card-body">${step.body}</div>
+      <div class="tour-card-actions">
+        <div class="tour-dots">${dots}</div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="endTour()" style="padding:6px 12px;background:none;border:1px solid var(--gray-200);border-radius:7px;font-size:12px;color:var(--gray-400);cursor:pointer;font-family:var(--font);">Skip</button>
+          <button onclick="${isLast ? 'endTour()' : 'nextTourStep()'}" style="padding:6px 16px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);">${isLast ? '🎉 Done!' : 'Next →'}</button>
+        </div>
+      </div>`;
+
+    // Position below or above the element
+    const cardHeight = 180;
+    const margin = 14;
+    let top = rect.bottom + margin;
+    let left = rect.left + rect.width / 2 - 150;
+
+    // Flip above if not enough space below
+    if (top + cardHeight > window.innerHeight - 20) top = rect.top - cardHeight - margin;
+    // Keep within viewport width
+    left = Math.max(12, Math.min(left, window.innerWidth - 312));
+
+    card.style.top = top + 'px';
+    card.style.left = left + 'px';
+    document.body.appendChild(card);
+  }, 100);
+}
+
+function nextTourStep() { _tourStep++; showTourStep(); }
+
+function cleanupTour() {
+  if (_tourSpotlightEl) { _tourSpotlightEl.classList.remove('tour-spotlight'); _tourSpotlightEl = null; }
+  const card = document.getElementById('tourCard');
+  if (card) card.remove();
+}
+
+function endTour() {
+  cleanupTour();
+  if (S.currentUser) localStorage.setItem('portal_tour_seen_' + S.currentUser.id, '1');
 }
 
 function openPortalGuide() {
@@ -4050,7 +4191,7 @@ function openPortalGuide() {
         💡 <strong>Tip:</strong> You'll get a desktop notification when your specialist @mentions you in the chat — make sure to allow notifications when prompted.
       </div>
 
-      <button onclick="document.getElementById('portalGuideModal').remove()" style="width:100%;padding:11px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);">Got it, let's go!</button>
+      <button onclick="document.getElementById('portalGuideModal').remove();setTimeout(startTour,400);" style="width:100%;padding:11px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);">Got it — show me around! →</button>
     </div>`;
   document.body.appendChild(div);
   div.addEventListener('click', e => { if (e.target === div) div.remove(); });
