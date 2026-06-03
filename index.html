@@ -3233,7 +3233,7 @@ function renderChatPage(c, activeChannel) {
       <div class="chat-input-area">
         <div class="chat-input-row">
           <textarea class="chat-input" id="chatInput_${activeChannel}" placeholder="Message… (Enter to send, @name to mention)" rows="1"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage('${activeChannel}');}
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!document.getElementById('mentionDrop')){event.preventDefault();sendMessage('${activeChannel}');}
             this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';"></textarea>
           <button class="chat-send" onclick="sendMessage('${activeChannel}')">Send</button>
         </div>
