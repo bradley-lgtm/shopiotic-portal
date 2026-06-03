@@ -1595,7 +1595,6 @@ function renderHeader(c) {
         <button class="btn btn-outline btn-sm" onclick="openLinksModal()">🔗 All Links</button>
         ${S.isClientPortal ? '' : `
         <button class="btn btn-outline btn-sm" onclick="openInviteModal('${c.id}')">✉️ Invite Client</button>
-        <button class="btn btn-outline btn-sm" onclick="copyClientPortalLink('${c.id}')">🔗 Client Portal</button>
         <button class="btn btn-outline btn-sm" onclick="openEditClientModal('${c.id}')">✏️ Edit</button>
         <button class="btn btn-danger-ghost btn-sm" onclick="deleteClient('${c.id}')">🗑️</button>`}
       </div>
@@ -3234,8 +3233,9 @@ async function initChat(clientId, channel) {
   _chatChannel = channel;
 
   // Load existing messages
-  if (S.isClientPortal) {
-    // Use anon RPC for client portal
+  const isAnonPortal = S.isClientPortal && !S.currentUser; // token-based portal, no session
+  if (isAnonPortal) {
+    // Use anon RPC for token-based client portal (no login)
     const token = new URLSearchParams(window.location.search).get('token');
     const { data } = await _sb.rpc('get_client_messages', { p_token: token });
     _chatMessages = data || [];
@@ -3304,8 +3304,9 @@ async function sendMessage(channel) {
   input.value = '';
   input.style.height = 'auto';
 
-  if (S.isClientPortal) {
-    // Use anon RPC for client — ask for name if not known
+  const isAnonPortal = S.isClientPortal && !S.currentUser;
+  if (isAnonPortal) {
+    // Use anon RPC for token-based portal (no login)
     let senderName = localStorage.getItem('client_portal_name');
     if (!senderName) {
       senderName = prompt('Your name (shown with your message):');
@@ -3314,7 +3315,6 @@ async function sendMessage(channel) {
     }
     const token = new URLSearchParams(window.location.search).get('token');
     await _sb.rpc('add_client_message', { p_token: token, p_name: senderName.trim(), p_text: text });
-    // Reload messages since we don't have realtime in client portal
     const { data } = await _sb.rpc('get_client_messages', { p_token: token });
     _chatMessages = data || [];
     renderMessages(_chatMessages, channel);
