@@ -3932,6 +3932,7 @@ async function loadClientPortalForUser() {
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
       <span style="font-size:13px;color:var(--gray-500);">Welcome, <strong>${esc(S.currentUser.firstName || S.currentUser.name)}</strong></span>
+      <button class="btn btn-ghost btn-sm" onclick="openSettings()">⚙️ Settings</button>
       <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
     </div>`;
 
