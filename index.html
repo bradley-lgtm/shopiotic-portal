@@ -3718,9 +3718,23 @@ function setupMentionAutocomplete(inputEl, channel) {
     _mentionState = { active: true, query, start: textBefore.length - atMatch[0].length };
 
     const c = getClient(); if (!c) return;
+
+    // Show loading state immediately so we know the event fired
+    const rect0 = inputEl.getBoundingClientRect();
+    removeMentionDropdown();
+    const loadDrop = document.createElement('div');
+    loadDrop.id = 'mentionDrop';
+    loadDrop.className = 'mention-dropdown';
+    loadDrop.style.cssText = `position:fixed;bottom:${window.innerHeight - rect0.top + 8}px;left:${rect0.left}px;width:${Math.min(280, rect0.width)}px;z-index:9999;padding:10px 14px;font-size:13px;color:var(--gray-400);`;
+    loadDrop.textContent = 'Loading members…';
+    document.body.appendChild(loadDrop);
+
     if (!_mentionState.members.length) {
       _mentionState.members = await loadChatMembers(c.id);
     }
+    console.log('Mention members loaded:', _mentionState.members.length, _mentionState.members.map(m=>m.name));
+
+    removeMentionDropdown();
 
     const matches = _mentionState.members.filter(m => {
       const tag = getMentionTag(m).toLowerCase();
@@ -3728,7 +3742,10 @@ function setupMentionAutocomplete(inputEl, channel) {
       return tag.startsWith(query) || name.startsWith(query);
     }).slice(0, 6);
 
-    if (!matches.length) { removeMentionDropdown(); return; }
+    if (!matches.length) {
+      console.log('No matches for query:', query);
+      return;
+    }
 
     const drop = document.createElement('div');
     drop.id = 'mentionDrop';
