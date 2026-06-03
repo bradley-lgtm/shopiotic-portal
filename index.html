@@ -3612,6 +3612,7 @@ async function saveProfileSettings() {
   S.currentUser.firstName = first;
   S.currentUser.lastName = last;
   S.currentUser.name = fullName;
+  _mentionState.members = []; // force reload so new name appears in autocomplete
   renderUserBadge();
   showToast('Profile saved ✓', 'success');
   document.getElementById('settingsModal').remove();
