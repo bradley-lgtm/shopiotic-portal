@@ -3612,14 +3612,22 @@ async function submitClientSignup() {
   }
 
   document.getElementById('clientSignupModal').classList.remove('open');
-  showToast('Account created! Signing you in…', 'success');
-  // Sign in automatically
-  const { data: signInData } = await _sb.auth.signInWithPassword({ email, password: pw });
-  if (signInData?.user) {
-    await onSignedIn(signInData.user);
-    // Remove invite param from URL
-    window.history.replaceState({}, '', window.location.pathname);
-  }
+
+  // Show "check your email" message — Supabase requires email confirmation
+  const div = document.createElement('div');
+  div.className = 'gate-overlay open';
+  div.style.zIndex = '600';
+  div.innerHTML = `
+    <div class="gate-box" style="text-align:center;">
+      <div style="font-size:48px;margin-bottom:16px;">📬</div>
+      <div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:8px;">Check your inbox</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:24px;line-height:1.6;">
+        We sent a confirmation email to <strong style="color:#fff;">${email}</strong>.<br>
+        Click the link in that email, then come back here and sign in.
+      </div>
+      <button class="gate-btn" onclick="this.closest('.gate-overlay').remove();document.getElementById('loginModal').classList.add('open');">Go to Sign In</button>
+    </div>`;
+  document.body.appendChild(div);
 }
 
 function showLoginFromSignup() {
@@ -3881,13 +3889,63 @@ async function onSignedIn(user) {
     notifPausedUntil: profile?.notifications_paused_until || null,
     pushEnabled: profile?.push_enabled || false,
   };
+
+  // Client users get the client portal view, not the ops portal
+  if (S.currentUser.role === 'client') {
+    await loadClientPortalForUser();
+    return;
+  }
+
   renderUserBadge();
   await load();
   afterLoad();
-  // Check notification permission after a short delay
-  if (S.currentUser.role !== 'owner' || true) {
-    setTimeout(maybeShowNotifPrompt, 2000);
+  setTimeout(maybeShowNotifPrompt, 2000);
+}
+
+async function loadClientPortalForUser() {
+  // Find this client's assigned dashboard
+  const { data: access } = await _sb.from('client_access')
+    .select('client_id').eq('user_id', S.currentUser.id).single();
+
+  if (!access) {
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('main').innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;height:100vh;">
+        <div style="text-align:center;color:var(--gray-400);">
+          <div style="font-size:40px;margin-bottom:12px;">⏳</div>
+          <div style="font-size:18px;font-weight:700;color:var(--gray-700);margin-bottom:6px;">No portal assigned yet</div>
+          <div style="font-size:13px;">Your specialist hasn't linked your account yet. Check back soon.</div>
+        </div>
+      </div>`;
+    return;
   }
+
+  // Load their client data
+  const { data: row } = await _sb.from('shopiotic_clients')
+    .select('id, data').eq('id', access.client_id).single();
+
+  if (!row) return;
+
+  S.isClientPortal = true;
+  const c = { ...row.data, id: row.id };
+  migrateClient(c);
+  S.clients = [c];
+  S.activeId = c.id;
+  S.activeTab = 'overview';
+
+  document.getElementById('sidebar').style.display = 'none';
+  document.getElementById('topbar').innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;">
+      <img src="logo-dark.png" alt="Shopiotic" style="height:39px;width:auto;object-fit:contain;">
+      <span class="topbar-subtitle" style="margin-left:0;">Client Portal</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:13px;color:var(--gray-500);">Welcome, <strong>${esc(S.currentUser.firstName || S.currentUser.name)}</strong></span>
+      <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
+    </div>`;
+
+  renderClient();
+  setTimeout(maybeShowNotifPrompt, 2000);
 }
 
 function renderUserBadge() {
