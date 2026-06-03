@@ -3681,17 +3681,38 @@ function showLoginFromSignup() {
 let _mentionState = { active: false, query: '', start: 0, members: [] };
 
 async function loadChatMembers(clientId) {
-  // Use security definer RPC to bypass RLS — returns owner + all assigned workers/clients
-  const { data, error } = await _sb.rpc('get_client_members', { p_client_id: clientId });
-  if (!error && data && data.length) return data;
-  // Fallback: just owner + current user
-  const { data: owner } = await _sb.from('profiles').select('*').eq('role', 'owner');
-  const result = owner || [];
+  try {
+    // Race the RPC against a 4s timeout
+    const rpc = _sb.rpc('get_client_members', { p_client_id: clientId });
+    const timeout = new Promise(r => setTimeout(() => r({ data: null, error: 'timeout' }), 4000));
+    const { data, error } = await Promise.race([rpc, timeout]);
+    console.log('loadChatMembers RPC result:', { error, dataLength: Array.isArray(data) ? data.length : typeof data, data });
+    if (!error && Array.isArray(data) && data.length) return data;
+  } catch(e) { console.warn('loadChatMembers RPC failed:', e); }
+
+  // Fallback: query profiles we know we can read
+  console.log('loadChatMembers falling back to direct queries');
+  const results = [];
+  const seen = new Set();
+  const add = (p) => { if (p && !seen.has(p.id)) { seen.add(p.id); results.push(p); } };
+
+  const { data: owners } = await _sb.from('profiles').select('*').eq('role', 'owner');
+  (owners || []).forEach(add);
   if (S.currentUser) {
     const { data: me } = await _sb.from('profiles').select('*').eq('id', S.currentUser.id).single();
-    if (me && !result.find(p => p.id === me.id)) result.push(me);
+    add(me);
   }
-  return result;
+  // Try client_access directly (works for owner, partially for workers)
+  const { data: access } = await _sb.from('client_access').select('user_id').eq('client_id', clientId);
+  if (access && access.length) {
+    const ids = access.map(a => a.user_id).filter(id => !seen.has(id));
+    if (ids.length) {
+      const { data: members } = await _sb.from('profiles').select('*').in('id', ids);
+      (members || []).forEach(add);
+    }
+  }
+  console.log('loadChatMembers fallback result:', results.map(p => p.name));
+  return results;
 }
 
 function getMentionTag(profile) {
