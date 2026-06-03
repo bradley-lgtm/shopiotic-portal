@@ -3426,6 +3426,7 @@ function cleanupChat() {
   _chatClientId = null;
   _chatTotal = 0;
   _chatOffset = 0;
+  _mentionState = { active: false, query: '', start: 0, members: [] }; // reset so members reload for new client/channel
 }
 
 // ═══════════════════════════════════════════
@@ -3681,16 +3682,17 @@ function showLoginFromSignup() {
 let _mentionState = { active: false, query: '', start: 0, members: [] };
 
 async function loadChatMembers(clientId) {
-  // Load all profiles who have access to this client
-  const { data: access } = await _sb.from('client_access').select('user_id').eq('client_id', clientId);
-  const userIds = (access || []).map(a => a.user_id);
-  // Always include owner
+  // Use security definer RPC to bypass RLS — returns owner + all assigned workers/clients
+  const { data, error } = await _sb.rpc('get_client_members', { p_client_id: clientId });
+  if (!error && data && data.length) return data;
+  // Fallback: just owner + current user
   const { data: owner } = await _sb.from('profiles').select('*').eq('role', 'owner');
-  const { data: members } = userIds.length ? await _sb.from('profiles').select('*').in('id', userIds) : { data: [] };
-  const all = [...(owner || []), ...(members || [])];
-  // Deduplicate by id
-  const seen = new Set();
-  return all.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+  const result = owner || [];
+  if (S.currentUser) {
+    const { data: me } = await _sb.from('profiles').select('*').eq('id', S.currentUser.id).single();
+    if (me && !result.find(p => p.id === me.id)) result.push(me);
+  }
+  return result;
 }
 
 function getMentionTag(profile) {
