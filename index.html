@@ -1639,15 +1639,17 @@ function renderContent(c) {
   }
 
   if (S.activeTab === 'overview') {
-    const resHTML = c.resources.length
-      ? c.resources.map(r => `
+    const visibleResources = S.isClientPortal ? c.resources.filter(r => r.pub) : c.resources;
+    const resHTML = visibleResources.length
+      ? visibleResources.map(r => `
           <div class="resource-item">
             <div class="resource-label" title="${r.label}">${r.label}</div>
             <a class="resource-url" href="${r.url.startsWith('http') ? r.url : 'https://'+r.url}" target="_blank">${r.url}</a>
+            ${S.isClientPortal ? '' : `
             <button class="vis-btn ${r.pub ? 'pub' : 'prv'}" onclick="toggleResourceVis('${r.id}')">${r.pub ? '👁 Client' : '🔒 Internal'}</button>
-            <button class="btn btn-ghost btn-sm" style="padding:2px 6px;" onclick="removeResource('${r.id}')">🗑️</button>
+            <button class="btn btn-ghost btn-sm" style="padding:2px 6px;" onclick="removeResource('${r.id}')">🗑️</button>`}
           </div>`).join('')
-      : `<div style="font-size:13px;color:var(--gray-400);padding:6px 0;">No resources yet — add links below.</div>`;
+      : `<div style="font-size:13px;color:var(--gray-400);padding:6px 0;">${S.isClientPortal ? 'No resources shared yet.' : 'No resources yet — add links below.'}</div>`;
 
     const actHTML = [...c.activity].reverse().map(e => `
       <div class="activity-entry">
@@ -1667,10 +1669,10 @@ function renderContent(c) {
       <div class="category-card" style="margin-bottom:14px;">
         <div class="category-head">
           <div class="category-head-title">Team & Contacts</div>
-          <button class="btn btn-outline btn-sm" onclick="addContact()">+ Add Contact</button>
+          ${S.isClientPortal ? '' : `<button class="btn btn-outline btn-sm" onclick="addContact()">+ Add Contact</button>`}
         </div>
         <div style="padding:8px 16px 14px;">
-          ${renderContactsHTML(c)}
+          ${S.isClientPortal ? renderContactsClientHTML(c) : renderContactsHTML(c)}
         </div>
       </div>
 
@@ -1678,15 +1680,16 @@ function renderContent(c) {
       <div class="category-card" style="margin-bottom:14px;">
         <div class="category-head">
           <div class="category-head-title">Resources & Links</div>
-          <span style="font-size:11px;color:var(--gray-400);">Toggle 👁 Client to show in client report</span>
+          ${S.isClientPortal ? '' : `<span style="font-size:11px;color:var(--gray-400);">Toggle 👁 Client to show in client report</span>`}
         </div>
         <div style="padding:12px 16px 16px;">
           ${resHTML}
+          ${S.isClientPortal ? '' : `
           <div class="add-res-row" style="margin-top:${c.resources.length ? '12px' : '6px'};">
             <input id="res_label" placeholder="Label  (e.g. Data Studio Dashboard)" onkeydown="if(event.key==='Enter')addResource()">
             <input id="res_url" placeholder="URL" onkeydown="if(event.key==='Enter')addResource()">
             <button class="btn btn-primary btn-sm" onclick="addResource()">+ Add</button>
-          </div>
+          </div>`}
         </div>
       </div>
 
@@ -1694,17 +1697,18 @@ function renderContent(c) {
       <div class="category-card">
         <div class="category-head">
           <div class="category-head-title">Activity Log</div>
-          <button class="btn btn-outline btn-sm" onclick="openClientView()">👁 Client Report</button>
+          ${S.isClientPortal ? '' : `<button class="btn btn-outline btn-sm" onclick="openClientView()">👁 Client Report</button>`}
         </div>
         <div style="padding:12px 16px 16px;">
           <div class="activity-feed">${actHTML}</div>
+          ${S.isClientPortal ? '' : `
           <div class="act-input-row">
             <textarea id="act_text" class="act-textarea" placeholder="Add an update or note…"></textarea>
             <div class="act-options">
               <label><input type="checkbox" id="act_pub"> Client visible</label>
               <button class="btn btn-primary btn-sm" onclick="postActivity()">Post</button>
             </div>
-          </div>
+          </div>`}
         </div>
       </div>`;
     return;
@@ -1894,6 +1898,23 @@ function clearReportEmbed() {
   if (!confirm('Remove the embedded report?')) return;
   c.reportEmbedUrl = '';
   save(); renderContent(c);
+}
+
+function renderContactsClientHTML(c) {
+  const contacts = c.contacts || [];
+  if (!contacts.length) return `
+    <div style="font-size:13px;color:var(--gray-400);padding:10px 0;line-height:1.6;">
+      No contacts added yet.<br>
+      <span style="font-size:12px;">Want someone added? Message <span class="chat-mention">@BradleyPudney</span> in the Client Chat.</span>
+    </div>`;
+  const header = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:6px 0 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;"><span>Name</span><span>Email</span><span>Role</span></div>`;
+  const rows = contacts.map(ct => `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--gray-100);font-size:13px;color:var(--gray-700);">
+      <span>${esc(ct.name||'')}</span>
+      <span>${esc(ct.email||'')}</span>
+      <span style="color:var(--gray-500);">${esc(ct.role||'')}</span>
+    </div>`).join('');
+  return header + rows;
 }
 
 function renderContactsHTML(c) {
