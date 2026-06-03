@@ -3331,39 +3331,32 @@ async function initChat(clientId, channel) {
     if (input) setupMentionAutocomplete(input, channel);
   }, 100);
 
-  // Subscribe to realtime (authenticated users only)
-  if (!S.isClientPortal) {
-    _chatSub = _sb.channel(`chat_${clientId}_${channel}`)
+  // Subscribe to realtime — no server-side filter (needs REPLICA IDENTITY FULL), filter in handler
+  if (!isAnonPortal) {
+    _chatSub = _sb.channel(`chat_${clientId}_${channel}_${Date.now()}`)
       .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'messages',
-        filter: `client_id=eq.${clientId}`
+        event: 'INSERT', schema: 'public', table: 'messages'
       }, payload => {
-        if (payload.new.channel === _chatChannel) {
-          // Replace optimistic temp message or add if new from another user
-          const exists = _chatMessages.find(m =>
-            m.user_id === payload.new.user_id &&
-            m.text === payload.new.text &&
-            m.id.toString().startsWith('temp_')
-          );
-          if (exists) {
-            _chatMessages = _chatMessages.map(m => m === exists ? payload.new : m);
-          } else {
-          // Show desktop notification if current user is mentioned
-          if (S.currentUser && payload.new.mentions && payload.new.mentions.includes(S.currentUser.id)) {
-            const clientName = getClient()?.name || 'a client';
-            showDesktopNotif(
-              `@${S.currentUser.firstName || S.currentUser.name} mentioned in ${clientName}`,
-              payload.new.sender_name + ': ' + payload.new.text.slice(0, 80),
-              _chatClientId,
-              _chatChannel
-            );
-          }
-            _chatMessages.push(payload.new);
-          }
-          renderMessages(_chatMessages, _chatChannel);
+        const msg = payload.new;
+        // Filter in JS — only handle messages for this client and channel
+        if (msg.client_id !== clientId || msg.channel !== _chatChannel) return;
+
+        // Replace optimistic temp message or add new
+        const exists = _chatMessages.find(m =>
+          m.user_id === msg.user_id &&
+          m.text === msg.text &&
+          m.id.toString().startsWith('temp_')
+        );
+        if (exists) {
+          _chatMessages = _chatMessages.map(m => m === exists ? msg : m);
+        } else {
+          _chatMessages.push(msg);
         }
+        renderMessages(_chatMessages, _chatChannel);
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Chat realtime subscription status:', status);
+      });
   }
 }
 
