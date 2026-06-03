@@ -3191,6 +3191,7 @@ function renderClientPortal(c) {
 // ═══════════════════════════════════════════
 
 let _chatSub = null;
+let _chatPoll = null;
 let _globalNotifSub = null;
 
 function setupGlobalNotifications(userId) {
@@ -3331,21 +3332,14 @@ async function initChat(clientId, channel) {
     if (input) setupMentionAutocomplete(input, channel);
   }, 100);
 
-  // Subscribe to realtime — no server-side filter (needs REPLICA IDENTITY FULL), filter in handler
-  if (!isAnonPortal) {
+  // Subscribe to realtime for workers/owner
+  if (!isAnonPortal && S.currentUser?.role !== 'client') {
     _chatSub = _sb.channel(`chat_${clientId}_${channel}_${Date.now()}`)
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'messages'
-      }, payload => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
         const msg = payload.new;
-        // Filter in JS — only handle messages for this client and channel
         if (msg.client_id !== clientId || msg.channel !== _chatChannel) return;
-
-        // Replace optimistic temp message or add new
         const exists = _chatMessages.find(m =>
-          m.user_id === msg.user_id &&
-          m.text === msg.text &&
-          m.id.toString().startsWith('temp_')
+          m.user_id === msg.user_id && m.text === msg.text && m.id.toString().startsWith('temp_')
         );
         if (exists) {
           _chatMessages = _chatMessages.map(m => m === exists ? msg : m);
@@ -3354,9 +3348,25 @@ async function initChat(clientId, channel) {
         }
         renderMessages(_chatMessages, _chatChannel);
       })
-      .subscribe((status) => {
-        console.log('Chat realtime subscription status:', status);
-      });
+      .subscribe();
+  }
+
+  // Polling fallback for clients (realtime RLS blocks postgres_changes for client role)
+  if (!isAnonPortal && S.currentUser?.role === 'client') {
+    _chatPoll = setInterval(async () => {
+      const latest = _chatMessages.filter(m => !m.id.toString().startsWith('temp_')).slice(-1)[0];
+      const since = latest ? latest.created_at : new Date(0).toISOString();
+      const { data } = await _sb.from('messages')
+        .select('*').eq('client_id', clientId).eq('channel', channel)
+        .gt('created_at', since).order('created_at', { ascending: true });
+      if (data && data.length) {
+        const newMsgs = data.filter(m => !_chatMessages.find(e => e.id === m.id));
+        if (newMsgs.length) {
+          _chatMessages = [..._chatMessages.filter(m => !m.id.toString().startsWith('temp_')), ..._chatMessages.filter(m => m.id.toString().startsWith('temp_')), ...newMsgs];
+          renderMessages(_chatMessages, _chatChannel);
+        }
+      }
+    }, 3000);
   }
 }
 
@@ -3443,6 +3453,7 @@ async function loadEarlierMessages() {
 
 function cleanupChat() {
   if (_chatSub) { _chatSub.unsubscribe(); _chatSub = null; }
+  if (_chatPoll) { clearInterval(_chatPoll); _chatPoll = null; }
   _chatMessages = [];
   _chatChannel = null;
   _chatClientId = null;
