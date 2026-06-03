@@ -3974,18 +3974,16 @@ async function loadClientPortalForUser() {
 
   document.getElementById('sidebar').style.display = 'none';
   document.getElementById('topbar').innerHTML = `
-    <div style="display:flex;align-items:center;gap:12px;">
+    <div style="display:flex;align-items:center;gap:10px;">
       <img src="logo-dark.png" alt="Shopiotic" style="height:39px;width:auto;object-fit:contain;">
       <span class="topbar-subtitle" style="margin-left:0;">Client Portal</span>
+      <span style="font-size:13px;color:var(--gray-400);margin-left:4px;">· Welcome, <strong style="color:var(--gray-700);">${esc(S.currentUser.firstName || S.currentUser.name)}</strong></span>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;">
-      <span style="font-size:13px;color:var(--gray-500);">Welcome, <strong>${esc(S.currentUser.firstName || S.currentUser.name)}</strong></span>
-      <div style="display:flex;gap:6px;margin-left:auto;">
-        <button class="btn btn-outline btn-sm" onclick="openPortalGuide()">📲 Add To Desktop</button>
-        <button class="btn btn-outline btn-sm" onclick="startTour()">📖 Tour</button>
-        <button id="client-settings-btn" class="btn btn-outline btn-sm" onclick="openSettings()">⚙️ Settings</button>
-        <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
-      </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+      <button class="btn btn-outline btn-sm" onclick="openPortalGuide()">📲 Add To Desktop</button>
+      <button class="btn btn-outline btn-sm" onclick="startTour()">📖 Tour</button>
+      <button id="client-settings-btn" class="btn btn-outline btn-sm" onclick="openSettings()">⚙️ Settings</button>
+      <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
     </div>`;
 
   renderClient();
