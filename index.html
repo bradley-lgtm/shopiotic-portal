@@ -3233,7 +3233,7 @@ function renderChatPage(c, activeChannel) {
       <div class="chat-input-area">
         <div class="chat-input-row">
           <textarea class="chat-input" id="chatInput_${activeChannel}" placeholder="Message… (Enter to send, @name to mention)" rows="1"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!document.getElementById('mentionDrop')){event.preventDefault();sendMessage('${activeChannel}');}
+            onkeydown="this._channel='${activeChannel}';"
             this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';"></textarea>
           <button class="chat-send" onclick="sendMessage('${activeChannel}')">Send</button>
         </div>
@@ -3834,6 +3834,20 @@ function setupMentionAutocomplete(inputEl, channel) {
 
   inputEl.addEventListener('keydown', e => {
     const drop = document.getElementById('mentionDrop');
+    if (e.key === 'Enter' && !e.shiftKey) {
+      if (drop) {
+        // Dropdown open — select active item, never send
+        e.preventDefault();
+        const active = drop.querySelector('.mention-item.active');
+        if (active) active.click();
+        else removeMentionDropdown();
+        return;
+      }
+      // No dropdown — send message
+      e.preventDefault();
+      sendMessage(channel);
+      return;
+    }
     if (!drop) return;
     const items = drop.querySelectorAll('.mention-item');
     const active = drop.querySelector('.mention-item.active');
@@ -3843,9 +3857,6 @@ function setupMentionAutocomplete(inputEl, channel) {
       const next = e.key === 'ArrowDown' ? Math.min(idx+1, items.length-1) : Math.max(idx-1, 0);
       items.forEach(x => x.classList.remove('active'));
       items[next].classList.add('active');
-    } else if (e.key === 'Enter' && active) {
-      e.preventDefault();
-      active.click();
     } else if (e.key === 'Escape') {
       removeMentionDropdown();
     }
