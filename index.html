@@ -532,6 +532,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 .chat-meta { font-size:11px; color:var(--gray-400); display:flex; align-items:center; gap:6px; }
 .chat-sender { font-weight:600; color:var(--gray-600); }
 .chat-mention { background:var(--teal-faint); color:var(--teal-dark); border-radius:4px; padding:1px 4px; font-weight:600; }
+.chat-mention-me { background:#dcfce7 !important; color:#16a34a !important; }
 .chat-input-area { flex-shrink:0; padding:16px 0 0; border-top:1px solid var(--gray-200); }
 .chat-input-row { display:flex; gap:8px; align-items:flex-end; }
 .chat-input {
@@ -3190,6 +3191,26 @@ function renderClientPortal(c) {
 // ═══════════════════════════════════════════
 
 let _chatSub = null;
+let _globalNotifSub = null;
+
+function setupGlobalNotifications(userId) {
+  if (_globalNotifSub) { try { _globalNotifSub.unsubscribe(); } catch(e) {} }
+  _globalNotifSub = _sb.channel('global_mentions_' + userId)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+      const msg = payload.new;
+      // Only notify if this user is mentioned AND they didn't send it
+      if (!msg.mentions || !msg.mentions.includes(userId)) return;
+      if (msg.user_id === userId) return;
+      const clientName = (S.clients || []).find(c => c.id === msg.client_id)?.name || 'a client';
+      showDesktopNotif(
+        `You were mentioned in ${clientName}`,
+        `${msg.sender_name}: ${(msg.text || '').slice(0, 80)}`,
+        msg.client_id,
+        msg.channel
+      );
+    })
+    .subscribe();
+}
 let _chatMessages = [];
 let _chatChannel = null;
 let _chatClientId = null;
@@ -3269,7 +3290,11 @@ function formatChatText(text) {
   // Escape HTML, linkify URLs, highlight @mentions
   let safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   safe = safe.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">$1</a>');
-  safe = safe.replace(/@(\w+)/g, '<span class="chat-mention">@$1</span>');
+  const myTag = S.currentUser ? getMentionTag(S.currentUser).toLowerCase() : null;
+  safe = safe.replace(/@(\w+)/g, (match, tag) => {
+    const isMe = myTag && tag.toLowerCase() === myTag;
+    return `<span class="chat-mention${isMe ? ' chat-mention-me' : ''}">@${tag}</span>`;
+  });
   return safe;
 }
 
@@ -3381,6 +3406,10 @@ async function sendMessage(channel) {
     _chatMessages.push(optimistic);
     renderMessages(_chatMessages, channel);
 
+    // Ensure members are loaded for mention parsing (in case autocomplete wasn't used)
+    if (!_mentionState.members.length && text.includes('@')) {
+      _mentionState.members = await loadChatMembers(c.id);
+    }
     const mentionedIds = parseMentions(text, _mentionState.members || []);
     const { error } = await _sb.from('messages').insert({
       client_id: c.id,
@@ -3716,7 +3745,7 @@ async function loadChatMembers(clientId) {
 }
 
 function getMentionTag(profile) {
-  const first = profile.first_name || profile.name.split(' ')[0] || '';
+  const first = profile.first_name || profile.firstName || (profile.name || '').split(' ')[0] || '';
   const last = profile.last_name || profile.name.split(' ')[1] || '';
   return (first + last).replace(/\s/g, '') || profile.name.replace(/\s/g, '');
 }
@@ -3986,6 +4015,7 @@ async function onSignedIn(user) {
   renderUserBadge();
   await load();
   afterLoad();
+  setupGlobalNotifications(S.currentUser.id);
   setTimeout(maybeShowNotifPrompt, 2000);
 }
 
@@ -4035,6 +4065,7 @@ async function loadClientPortalForUser() {
     </div>`;
 
   renderClient();
+  setupGlobalNotifications(S.currentUser.id);
   setTimeout(maybeShowNotifPrompt, 2000);
   // Show desktop guide + auto-start tour on first visit
   if (!localStorage.getItem('portal_guide_seen_' + S.currentUser.id)) {
