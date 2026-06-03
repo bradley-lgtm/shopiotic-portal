@@ -548,9 +548,8 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 
 /* ── MENTION AUTOCOMPLETE ── */
 .mention-dropdown {
-  position: absolute; bottom: 100%; left: 0; right: 0; margin-bottom: 4px;
   background: var(--white); border: 1px solid var(--gray-200); border-radius: 10px;
-  box-shadow: var(--shadow-md); max-height: 200px; overflow-y: auto; z-index: 400;
+  box-shadow: var(--shadow-lg); overflow-y: auto; z-index: 9999;
 }
 .mention-item {
   display: flex; align-items: center; gap: 10px; padding: 9px 14px;
@@ -3745,10 +3744,14 @@ function setupMentionAutocomplete(inputEl, channel) {
       </div>`;
     }).join('');
 
-    // Position relative to input wrap
-    const inputRect = inputEl.getBoundingClientRect();
-    wrap.style.position = 'relative';
-    wrap.appendChild(drop);
+    // Use fixed positioning on body to avoid overflow clipping
+    const rect = inputEl.getBoundingClientRect();
+    drop.style.position = 'fixed';
+    drop.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+    drop.style.left = rect.left + 'px';
+    drop.style.width = Math.min(280, rect.width) + 'px';
+    drop.style.maxHeight = '220px';
+    document.body.appendChild(drop);
   });
 
   inputEl.addEventListener('keydown', e => {
