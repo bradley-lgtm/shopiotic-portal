@@ -522,7 +522,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
   padding:9px 13px; border-radius:14px; font-size:13px; line-height:1.5;
   color:var(--gray-700); background:var(--white);
   border:1px solid var(--gray-200); border-radius:4px 14px 14px 14px;
-  word-break:break-word;
+  word-break:break-word; white-space:pre-wrap;
 }
 .chat-msg.mine .chat-bubble {
   background:linear-gradient(135deg,#7c3aed,#6d28d9); color:#fff;
@@ -3293,7 +3293,8 @@ function formatChatText(text) {
   const myTag = S.currentUser ? getMentionTag(S.currentUser).toLowerCase() : null;
   safe = safe.replace(/@(\w+)/g, (match, tag) => {
     const isMe = myTag && tag.toLowerCase() === myTag;
-    return `<span class="chat-mention${isMe ? ' chat-mention-me' : ''}">@${tag}</span>`;
+    const isChannel = tag.toLowerCase() === 'channel';
+    return `<span class="chat-mention${(isMe || isChannel) ? ' chat-mention-me' : ''}">@${tag}</span>`;
   });
   return safe;
 }
@@ -3791,11 +3792,16 @@ function setupMentionAutocomplete(inputEl, channel) {
       ? _mentionState.members.filter(m => m.role !== 'client')
       : _mentionState.members;
 
-    const matches = eligibleMembers.filter(m => {
+    // @channel always available if query matches
+    const channelMatch = 'channel'.startsWith(query);
+    const memberMatches = eligibleMembers.filter(m => {
       const tag = getMentionTag(m).toLowerCase();
       const name = (m.name || '').toLowerCase();
       return tag.startsWith(query) || name.startsWith(query);
-    }).slice(0, 6);
+    }).slice(0, channelMatch ? 5 : 6);
+    const matches = channelMatch
+      ? [{ id: '__channel__', name: 'channel', first_name: 'channel', last_name: '', role: 'everyone', avatar_color: '#16a34a' }, ...memberMatches]
+      : memberMatches;
 
     if (!matches.length) {
       console.log('No matches for query:', query);
@@ -3860,9 +3866,10 @@ function insertMention(tag, userId, channel) {
   const val = input.value;
   const before = val.slice(0, _mentionState.start);
   const after = val.slice(input.selectionStart);
-  input.value = before + '@' + tag + ' ' + after;
+  const insertTag = userId === '__channel__' ? 'channel' : tag;
+  input.value = before + '@' + insertTag + ' ' + after;
   input.focus();
-  const newPos = before.length + tag.length + 2;
+  const newPos = before.length + insertTag.length + 2;
   input.setSelectionRange(newPos, newPos);
   _mentionState.active = false;
 }
@@ -3873,6 +3880,11 @@ function parseMentions(text, members) {
   let m;
   while ((m = regex.exec(text)) !== null) {
     const tag = m[1].toLowerCase();
+    if (tag === 'channel') {
+      // @channel — notify everyone except sender
+      members.forEach(p => { if (p.id !== '__channel__' && !mentioned.includes(p.id)) mentioned.push(p.id); });
+      continue;
+    }
     const member = members.find(p => getMentionTag(p).toLowerCase() === tag);
     if (member && !mentioned.includes(member.id)) mentioned.push(member.id);
   }
