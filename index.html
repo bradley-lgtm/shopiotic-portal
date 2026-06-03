@@ -3493,7 +3493,46 @@ async function requestNotifPermission() {
       await _sb.from('profiles').update({ push_enabled: true }).eq('id', S.currentUser.id);
       S.currentUser.pushEnabled = true;
     }
+    await registerPushSubscription();
   }
+}
+
+async function registerPushSubscription() {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (Notification.permission !== 'granted') return;
+    if (!S.currentUser) return;
+
+    const reg = await navigator.serviceWorker.register('/shopiotic-portal/sw.js', { scope: '/shopiotic-portal/' });
+    await navigator.serviceWorker.ready;
+
+    const VAPID_PUBLIC = 'BC7TaAC3Xcnek_ywlsZXswf582dIuaxkma_1F0HDt4WD7uKuePVViq-AxEmOK537R23gskxFxAXtHUaKU6zGdLM';
+    const appServerKey = urlBase64ToUint8Array(VAPID_PUBLIC);
+
+    const subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: appServerKey
+    });
+
+    const sub = subscription.toJSON();
+    // Save endpoint + full subscription to DB
+    await _sb.from('push_subscriptions').upsert({
+      user_id: S.currentUser.id,
+      endpoint: sub.endpoint,
+      subscription: sub
+    }, { onConflict: 'user_id,endpoint' });
+
+    console.log('Push subscription registered ✓');
+  } catch(e) {
+    console.warn('Push subscription failed:', e);
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
 function showDesktopNotif(title, body, clientId, channel) {
@@ -4060,6 +4099,7 @@ async function onSignedIn(user) {
   await load();
   afterLoad();
   setupGlobalNotifications(S.currentUser.id);
+  if (Notification.permission === 'granted') registerPushSubscription();
   setTimeout(maybeShowNotifPrompt, 2000);
 }
 
@@ -4110,6 +4150,7 @@ async function loadClientPortalForUser() {
 
   renderClient();
   setupGlobalNotifications(S.currentUser.id);
+  if (Notification.permission === 'granted') registerPushSubscription();
   setTimeout(maybeShowNotifPrompt, 2000);
   // Show desktop guide + auto-start tour on first visit
   if (!localStorage.getItem('portal_guide_seen_' + S.currentUser.id)) {
