@@ -4010,8 +4010,17 @@ document.getElementById('f_name').addEventListener('keydown', e => {
   initSupabase(SUPABASE_URL, SUPABASE_KEY);
   setConfig(SUPABASE_URL, SUPABASE_KEY);
 
-  // Check for client invite token in URL
   const params = new URLSearchParams(window.location.search);
+
+  // Always check for existing session first — handles refresh with invite URL still in address bar
+  const { data: { session: existingSession } } = await _sb.auth.getSession();
+  if (existingSession) {
+    window.history.replaceState({}, '', window.location.pathname);
+    await onSignedIn(existingSession.user);
+    return;
+  }
+
+  // Check for client invite token in URL (only if not already logged in)
   const inviteToken = params.get('invite');
   if (inviteToken) {
     window._pendingInviteToken = inviteToken;
@@ -4027,11 +4036,8 @@ document.getElementById('f_name').addEventListener('keydown', e => {
     return;
   }
 
-  // Normal worker/owner flow — check for existing session
-  const { data: { session } } = await _sb.auth.getSession();
-  if (session) {
-    await onSignedIn(session.user);
-  } else {
+  // No session — show login
+  {
     document.getElementById('loginModal').classList.add('open');
     setTimeout(() => document.getElementById('login_email').focus(), 100);
   }
