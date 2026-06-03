@@ -3569,7 +3569,7 @@ function openSettings() {
           </div>
           <div class="settings-row">
             <div></div>
-            <button class="btn btn-primary btn-sm" onclick="saveProfileSettings()">Save Profile</button>
+            <button class="btn btn-primary btn-sm" id="saveProfileBtn" onclick="saveProfileSettings()">Save Profile</button>
           </div>
         </div>
         <!-- Notifications -->
@@ -3606,16 +3606,32 @@ async function saveProfileSettings() {
   const first = document.getElementById('set_first').value.trim();
   const last = document.getElementById('set_last').value.trim();
   if (!first) { showToast('First name is required', 'error'); return; }
+
+  const btn = document.getElementById('saveProfileBtn');
+  if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
+
   const fullName = (first + ' ' + last).trim();
   const { error } = await _sb.from('profiles').update({ first_name: first, last_name: last, name: fullName }).eq('id', S.currentUser.id);
-  if (error) { showToast('Failed to save: ' + error.message, 'error'); return; }
+
+  if (error) {
+    if (btn) { btn.textContent = 'Save Profile'; btn.disabled = false; }
+    showToast('Failed to save: ' + error.message, 'error');
+    return;
+  }
+
   S.currentUser.firstName = first;
   S.currentUser.lastName = last;
   S.currentUser.name = fullName;
-  _mentionState.members = []; // force reload so new name appears in autocomplete
+  _mentionState.members = [];
   renderUserBadge();
-  showToast('Profile saved ✓', 'success');
-  document.getElementById('settingsModal').remove();
+
+  // Show success state on button before closing
+  if (btn) {
+    btn.textContent = '✓ Saved!';
+    btn.style.background = '#16a34a';
+    btn.disabled = true;
+  }
+  setTimeout(() => document.getElementById('settingsModal')?.remove(), 1000);
 }
 
 // ═══════════════════════════════════════════
