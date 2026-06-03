@@ -3960,15 +3960,7 @@ function renderUserBadge() {
 
 async function signOut() {
   await _sb.auth.signOut();
-  S.currentUser = null;
-  S.clients = [];
-  S.activeId = null;
-  document.getElementById('userBadge').style.display = 'none';
-  showEmpty();
-  document.getElementById('loginModal').classList.add('open');
-  document.getElementById('login_pw').value = '';
-  document.getElementById('login_err').textContent = '';
-  setTimeout(() => document.getElementById('login_email').focus(), 100);
+  window.location.href = window.location.pathname; // reload clean, no URL params
 }
 
 function resetSetup() {
