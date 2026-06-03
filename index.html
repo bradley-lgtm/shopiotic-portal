@@ -3953,12 +3953,108 @@ async function loadClientPortalForUser() {
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
       <span style="font-size:13px;color:var(--gray-500);">Welcome, <strong>${esc(S.currentUser.firstName || S.currentUser.name)}</strong></span>
+      <button class="btn btn-outline btn-sm" onclick="openPortalGuide()" style="gap:5px;">📖 Guide</button>
       <button class="btn btn-ghost btn-sm" onclick="openSettings()">⚙️ Settings</button>
       <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
     </div>`;
 
   renderClient();
   setTimeout(maybeShowNotifPrompt, 2000);
+  // Show guide on first visit
+  if (!localStorage.getItem('portal_guide_seen_' + S.currentUser.id)) {
+    setTimeout(openPortalGuide, 800);
+  }
+}
+
+function openPortalGuide() {
+  const existing = document.getElementById('portalGuideModal');
+  if (existing) existing.remove();
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isAndroid = /Android/.test(navigator.userAgent);
+  const isMobile = isIOS || isAndroid;
+  const isChrome = /Chrome/.test(navigator.userAgent) && !/Edge/.test(navigator.userAgent);
+  const isEdge = /Edg/.test(navigator.userAgent);
+  const isSafari = /Safari/.test(navigator.userAgent) && !isChrome;
+
+  if (S.currentUser) localStorage.setItem('portal_guide_seen_' + S.currentUser.id, '1');
+
+  const div = document.createElement('div');
+  div.id = 'portalGuideModal';
+  div.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:600;';
+  div.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:28px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.2);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div>
+          <div style="font-size:18px;font-weight:800;color:#18181f;letter-spacing:-0.3px;">📖 Getting Started</div>
+          <div style="font-size:12px;color:#9898b0;margin-top:2px;">Your Shopiotic Client Portal guide</div>
+        </div>
+        <button onclick="document.getElementById('portalGuideModal').remove()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#9898b0;padding:4px;">✕</button>
+      </div>
+
+      <!-- Add to desktop -->
+      <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:16px 18px;margin-bottom:16px;">
+        <div style="font-size:14px;font-weight:700;color:#6d28d9;margin-bottom:10px;">📲 Add to your desktop for easy access</div>
+        ${isMobile && isIOS ? `
+          <div style="font-size:13px;color:#4c4c60;line-height:1.7;">
+            <div style="margin-bottom:6px;"><strong>On iPhone / iPad (Safari):</strong></div>
+            <div>1. Tap the <strong>Share</strong> button <span style="font-size:16px;">⎙</span> at the bottom of Safari</div>
+            <div>2. Scroll down and tap <strong>"Add to Home Screen"</strong></div>
+            <div>3. Tap <strong>Add</strong> — done! Opens like an app 🎉</div>
+          </div>
+        ` : isMobile && isAndroid ? `
+          <div style="font-size:13px;color:#4c4c60;line-height:1.7;">
+            <div style="margin-bottom:6px;"><strong>On Android (Chrome):</strong></div>
+            <div>1. Tap the <strong>⋮ menu</strong> in the top right of Chrome</div>
+            <div>2. Tap <strong>"Add to Home screen"</strong></div>
+            <div>3. Tap <strong>Add</strong> — done! 🎉</div>
+          </div>
+        ` : `
+          <div style="font-size:13px;color:#4c4c60;line-height:1.7;">
+            ${isEdge ? `
+              <div style="margin-bottom:10px;"><strong>Microsoft Edge:</strong> Click the <strong>⋯ menu</strong> → <strong>"Apps"</strong> → <strong>"Install this site as an app"</strong></div>
+            ` : isChrome ? `
+              <div style="margin-bottom:10px;"><strong>Google Chrome:</strong> Click the <strong>install icon</strong> <span style="font-size:13px;background:#e8e8f0;padding:1px 6px;border-radius:4px;">⊕</span> in the address bar (right side), then click <strong>Install</strong></div>
+              <div style="margin-bottom:10px;color:#9898b0;font-size:12px;">Don't see the install icon? Click <strong>⋮</strong> → <strong>"Cast, save, and share"</strong> → <strong>"Install page as app"</strong></div>
+            ` : `
+              <div style="margin-bottom:10px;"><strong>Chrome or Edge recommended</strong> for the best experience — they support installing the portal as a desktop app.</div>
+            `}
+            <div style="background:#fff;border:1px solid #e8e8f0;border-radius:8px;padding:10px 12px;margin-top:4px;">
+              <div style="font-size:12px;font-weight:600;color:#4c4c60;margin-bottom:4px;">Or bookmark this page:</div>
+              <div style="font-size:12px;color:#9898b0;"><strong>Windows:</strong> Ctrl+D &nbsp;·&nbsp; <strong>Mac:</strong> ⌘+D</div>
+            </div>
+          </div>
+        `}
+      </div>
+
+      <!-- What's in the portal -->
+      <div style="background:#f9f9fb;border-radius:12px;padding:16px 18px;margin-bottom:16px;">
+        <div style="font-size:14px;font-weight:700;color:#18181f;margin-bottom:10px;">🗂 What's in your portal</div>
+        <div style="display:grid;gap:8px;">
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;color:#4c4c60;">
+            <span style="font-size:16px;flex-shrink:0;">🏠</span><div><strong>Overview</strong> — see your team, shared resources, and activity updates from your specialist</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;color:#4c4c60;">
+            <span style="font-size:16px;flex-shrink:0;">📊</span><div><strong>Analytics</strong> — your live Data Studio performance report</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;color:#4c4c60;">
+            <span style="font-size:16px;flex-shrink:0;">📢</span><div><strong>Client Chat</strong> — message your Shopiotic team directly. Use @name to mention someone</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;color:#4c4c60;">
+            <span style="font-size:16px;flex-shrink:0;">✅</span><div><strong>Phase tabs</strong> — see exactly what work is being done and when</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tips -->
+      <div style="font-size:12px;color:#9898b0;margin-bottom:20px;line-height:1.6;">
+        💡 <strong>Tip:</strong> You'll get a desktop notification when your specialist @mentions you in the chat — make sure to allow notifications when prompted.
+      </div>
+
+      <button onclick="document.getElementById('portalGuideModal').remove()" style="width:100%;padding:11px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);">Got it, let's go!</button>
+    </div>`;
+  document.body.appendChild(div);
+  div.addEventListener('click', e => { if (e.target === div) div.remove(); });
 }
 
 function renderUserBadge() {
