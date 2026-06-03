@@ -3715,7 +3715,7 @@ function setupMentionAutocomplete(inputEl, channel) {
     if (!atMatch) { _mentionState.active = false; return; }
 
     const query = atMatch[1].toLowerCase();
-    _mentionState = { active: true, query, start: textBefore.length - atMatch[0].length };
+    _mentionState = { active: true, query, start: textBefore.length - atMatch[0].length, members: _mentionState.members || [] };
 
     const c = getClient(); if (!c) return;
 
