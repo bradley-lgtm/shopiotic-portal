@@ -747,7 +747,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
     </div>
     <a href="https://charming-babka-6d354e.netlify.app" target="_blank" class="btn btn-outline btn-sm" style="text-decoration:none;flex-shrink:0;">🔄 Deliverable Swapper</a>
     <div id="userBadge" style="display:none;align-items:center;gap:10px;">
-      <div id="userAvatar" style="width:34px;height:34px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;"></div>
+      <div id="userAvatar" style="width:34px;height:34px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;overflow:hidden;"></div>
       <div style="display:flex;flex-direction:column;line-height:1.2;">
         <span id="userName" style="font-size:13px;font-weight:600;color:var(--gray-700);"></span>
         <span id="userRole" style="font-size:11px;color:var(--gray-400);text-transform:capitalize;"></span>
@@ -3566,12 +3566,13 @@ function renderMessages(messages, channel) {
     const time = new Date(m.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
     const date = new Date(m.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'});
     const text = formatChatText(m.text);
-    // Check if sender has notifications paused
+    // Check if sender has notifications paused / has avatar
     const senderMember = _mentionState.members ? _mentionState.members.find(p => p.id === m.user_id) : null;
     const senderPaused = senderMember?.notifications_paused_until && new Date(senderMember.notifications_paused_until) > new Date();
+    const senderAvatar = (isMe && S.currentUser?.avatarUrl) || senderMember?.avatar_url || null;
     return `
       <div class="chat-msg ${isMe?'mine':''}">
-        <div class="chat-avatar" style="background:${color}">${initials}</div>
+        <div class="chat-avatar" style="${senderAvatar ? 'overflow:hidden;padding:0;background:transparent;' : 'background:'+color}">${senderAvatar ? `<img src="${senderAvatar}" style="width:100%;height:100%;object-fit:cover;">` : initials}</div>
         <div class="chat-bubble-wrap">
           <div class="chat-meta">
             <span class="chat-sender">${esc(m.sender_name||'Unknown')}${senderPaused ? ' <span title="Notifications paused">🔕</span>' : ''}</span>
@@ -3874,7 +3875,10 @@ async function resumeNotifications() {
 //  SETTINGS PAGE
 // ═══════════════════════════════════════════
 
+let _pendingAvatar = undefined; // undefined = no change; null = remove; string = new data URL
+
 function openSettings() {
+  _pendingAvatar = undefined;
   const u = S.currentUser; if (!u) return;
   const isPaused = isNotifPaused();
   const notifStatus = Notification.permission === 'granted' ? '✅ Enabled' : Notification.permission === 'denied' ? '❌ Blocked in browser' : '⚠️ Not yet enabled';
@@ -3903,6 +3907,18 @@ function openSettings() {
           <div class="settings-row">
             <div><div class="settings-row-label">Last Name</div></div>
             <input class="settings-input" id="set_last" value="${esc(u.lastName||'')}" placeholder="Last name">
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label">Profile Photo</div><div class="settings-row-sub">Shown in chat and the top bar</div></div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div id="set_avatar_preview" style="width:48px;height:48px;border-radius:50%;background:${u.color};display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:#fff;flex-shrink:0;overflow:hidden;">
+                ${u.avatarUrl ? `<img src="${u.avatarUrl}" style="width:100%;height:100%;object-fit:cover;">` : (u.firstName||u.name||'?').charAt(0).toUpperCase()}
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <label class="btn btn-outline btn-sm" style="cursor:pointer;margin:0;">📷 Upload<input type="file" accept="image/*" style="display:none;" onchange="previewAvatarUpload(event)"></label>
+                ${u.avatarUrl ? `<button class="btn btn-ghost btn-sm" style="color:var(--red);font-size:11px;" onclick="clearAvatarPreview()">Remove</button>` : ''}
+              </div>
+            </div>
           </div>
           <div class="settings-row">
             <div><div class="settings-row-label">Email</div><div class="settings-row-sub">${esc(u.email)}</div></div>
@@ -3942,6 +3958,40 @@ function openSettings() {
   div.addEventListener('click', e => { if (e.target === div) div.remove(); });
 }
 
+function previewAvatarUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { showToast('Image must be under 3 MB', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    // Resize to 128×128 to keep storage small
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128; canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      // Crop to square from centre
+      const s = Math.min(img.width, img.height);
+      const ox = (img.width - s) / 2, oy = (img.height - s) / 2;
+      ctx.drawImage(img, ox, oy, s, s, 0, 0, 128, 128);
+      _pendingAvatar = canvas.toDataURL('image/jpeg', 0.85);
+      const preview = document.getElementById('set_avatar_preview');
+      if (preview) preview.innerHTML = `<img src="${_pendingAvatar}" style="width:100%;height:100%;object-fit:cover;">`;
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearAvatarPreview() {
+  _pendingAvatar = null; // null = remove
+  const preview = document.getElementById('set_avatar_preview');
+  if (preview) {
+    const u = S.currentUser;
+    preview.innerHTML = (u.firstName||u.name||'?').charAt(0).toUpperCase();
+    preview.style.background = u.color;
+  }
+}
+
 async function saveProfileSettings() {
   const first = document.getElementById('set_first').value.trim();
   const last = document.getElementById('set_last').value.trim();
@@ -3951,17 +4001,23 @@ async function saveProfileSettings() {
   if (btn) { btn.textContent = 'Saving…'; btn.disabled = true; }
 
   const fullName = (first + ' ' + last).trim();
-  const { error } = await _sb.from('profiles').update({ first_name: first, last_name: last, name: fullName }).eq('id', S.currentUser.id);
+  const updates = { first_name: first, last_name: last, name: fullName };
+  if (_pendingAvatar !== undefined) updates.avatar_url = _pendingAvatar || null;
+
+  const { error } = await _sb.from('profiles').update(updates).eq('id', S.currentUser.id);
 
   if (error) {
     if (btn) { btn.textContent = 'Save Profile'; btn.disabled = false; }
-    showToast('Failed to save: ' + error.message, 'error');
+    const hint = error.message?.includes('avatar_url') ? ' (Run in Supabase SQL editor: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;)' : '';
+    showToast('Failed to save: ' + error.message + hint, 'error');
     return;
   }
 
   S.currentUser.firstName = first;
   S.currentUser.lastName = last;
   S.currentUser.name = fullName;
+  if (_pendingAvatar !== undefined) S.currentUser.avatarUrl = _pendingAvatar || null;
+  _pendingAvatar = undefined;
   _mentionState.members = [];
   renderUserBadge();
 
@@ -4382,6 +4438,7 @@ async function onSignedIn(user) {
     lastName,
     role: profile?.role || 'worker',
     color: profile?.avatar_color || '#7c3aed',
+    avatarUrl: profile?.avatar_url || null,
     notifPausedUntil: profile?.notifications_paused_until || null,
     pushEnabled: profile?.push_enabled || false,
   };
@@ -4652,8 +4709,14 @@ function renderUserBadge() {
   const nameEl = document.getElementById('userName');
   const roleEl = document.getElementById('userRole');
   const initials = u.firstName ? u.firstName.charAt(0).toUpperCase() : u.name.charAt(0).toUpperCase();
-  avatar.textContent = initials;
-  avatar.style.background = u.color;
+  if (u.avatarUrl) {
+    avatar.innerHTML = `<img src="${u.avatarUrl}" style="width:100%;height:100%;object-fit:cover;">`;
+    avatar.style.background = 'transparent';
+  } else {
+    avatar.innerHTML = '';
+    avatar.textContent = initials;
+    avatar.style.background = u.color;
+  }
   nameEl.textContent = u.name;
   const isPaused = isNotifPaused();
   roleEl.textContent = u.role + (isPaused ? ' 🔕' : '');
