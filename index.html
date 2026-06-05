@@ -4279,9 +4279,22 @@ async function submitClientSignup() {
 
   if (error) { err.textContent = error.message; return; }
 
-  // Use the invite to link this user to the client
+  const userId = data.user.id;
+  const fullName = (first + ' ' + last).trim();
+
+  // Explicitly upsert a profile row with role=client — guards against trigger failures
+  await _sb.from('profiles').upsert({
+    id: userId,
+    email,
+    role: 'client',
+    name: fullName,
+    first_name: first,
+    last_name: last,
+  }, { onConflict: 'id' });
+
+  // Use the invite to link this user to their client dashboard
   if (window._pendingInviteToken) {
-    await _sb.rpc('use_client_invite', { p_token: window._pendingInviteToken, p_user_id: data.user.id });
+    await _sb.rpc('use_client_invite', { p_token: window._pendingInviteToken, p_user_id: userId });
   }
 
   document.getElementById('clientSignupModal').classList.remove('open');
