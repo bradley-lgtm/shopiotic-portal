@@ -938,7 +938,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
     <div class="form-group"><label>Shopify Store URL</label><input id="f_url" placeholder="e.g. prolux.myshopify.com" autocomplete="off"></div>
     <div class="form-group"><label>Service Tier</label>
       <select id="f_tier">
-        <option selected>Essentials</option><option>Growth</option><option>Scale</option>
+        <option selected>Essentials</option><option>Core</option><option>Scale</option>
       </select>
     </div>
     <div class="form-group"><label>Start Date</label><input id="f_start" type="date"></div>
@@ -956,7 +956,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 
 const TIER_CONFIG = {
   Essentials: { p1collections: 0,  p2collections: 7,  p3blogs: 2, p3gsc: 2, p2budget: 400,  p3budget: 500  },
-  Growth:     { p1collections: 3,  p2collections: 12, p3blogs: 4, p3gsc: 4, p2budget: 600,  p3budget: 750  },
+  Core:       { p1collections: 3,  p2collections: 12, p3blogs: 4, p3gsc: 4, p2budget: 600,  p3budget: 750  },
   Scale:      { p1collections: 5,  p2collections: 20, p3blogs: 6, p3gsc: 6, p2budget: 900,  p3budget: 1100 },
 };
 
@@ -1016,7 +1016,7 @@ const TASKS = {
       { id:"p1o33", t:"Conduct a basic internal linking review", s:["Scope out the link situation across the site","Look through blog articles, home page, menu, footer, and other collections","Remove harmful or misleading links"] },
       { id:"p1o34", t:"Set up the collection page template", s:["Setup the metafield","Add a spot for content below the grid populated by the metafield"] },
     ]},
-    { cat: "Collection Pages", tierMin: "Growth", items: [
+    { cat: "Collection Pages", tierMin: "Core", items: [
       { id:"p1cp1", t:"Build draft collection pages", s:["Write & Optimize meta titles","Write & Optimize meta descriptions","Write & Optimize H1s","Set collection template to content below the grid","Optimize the URL slug","Populate with products or ask the client"] },
       { id:"p1cp2", t:"Write content for each collection", s:["Generate or assign to a writer","Add internal links — lean toward priority pages","Add FAQs","Optimize H2s and H3s for target keywords","Aim for 400-500 words below the grid","Add up to 100 words above the product grid with frontloaded keyword","Focus on client's USPs and product features","Store drafts in Google Docs and add to the Monthly tab in Collection Strategy Sheet","Forward to client for review and approval"] },
       { id:"p1cp3", t:"Add the content to the pages and add FAQ schema" },
@@ -1372,7 +1372,7 @@ const TIER_QTY = {
   gc1:'p3gsc', gc2:'p3gsc', gc3:'p3gsc', gc4:'p3gsc', gc5:'p3gsc', gc6:'p3gsc',
 };
 
-const TIER_ORDER = ['Essentials','Growth','Scale'];
+const TIER_ORDER = ['Essentials','Core','Scale'];
 
 function renderCategories(phaseKey, categories) {
   const c = getClient(); if (!c) return '';
