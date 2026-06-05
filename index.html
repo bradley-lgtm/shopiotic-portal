@@ -1317,7 +1317,10 @@ function save(clientId) {
 async function deleteFromDB(id) {
   if (!_sb) return;
   const { error } = await _sb.from('shopiotic_clients').delete().eq('id', id);
-  if (error) showToast('Delete failed: ' + error.message, 'error');
+  if (error) { showToast('Delete failed: ' + error.message, 'error'); return; }
+  // Clean up access and invite records so client users don't get stranded
+  await _sb.from('client_access').delete().eq('client_id', id);
+  await _sb.from('client_invites').delete().eq('client_id', id);
 }
 
 function toggleTask(key) {
@@ -4412,7 +4415,7 @@ async function assignClient(workerId) {
   const sel = document.getElementById('assign_' + workerId);
   const clientId = sel ? sel.value : '';
   if (!clientId) return;
-  const { error } = await _sb.from('client_access').insert({ user_id: workerId, client_id: clientId });
+  const { error } = await _sb.from('client_access').upsert({ user_id: workerId, client_id: clientId }, { onConflict: 'user_id' });
   if (error) { showToast('Failed to assign: ' + error.message, 'error'); return; }
   showToast('Client assigned ✓', 'success');
   openTeamModal(); // refresh
@@ -4517,7 +4520,20 @@ async function loadClientPortalForUser() {
   const { data: row } = await _sb.from('shopiotic_clients')
     .select('id, data').eq('id', access.client_id).single();
 
-  if (!row) return;
+  if (!row) {
+    // The client row was deleted but their access record still exists — show a safe locked screen
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('main').innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;height:100vh;">
+        <div style="text-align:center;color:var(--gray-400);">
+          <div style="font-size:40px;margin-bottom:12px;">🔒</div>
+          <div style="font-size:18px;font-weight:700;color:var(--gray-700);margin-bottom:6px;">Portal unavailable</div>
+          <div style="font-size:13px;max-width:320px;margin:0 auto;">Your dashboard is no longer available. Please contact your specialist to get access to your new portal.</div>
+          <button class="btn btn-outline btn-sm" style="margin-top:20px;" onclick="signOut()">Sign out</button>
+        </div>
+      </div>`;
+    return;
+  }
 
   S.isClientPortal = true;
   const c = { ...row.data, id: row.id };
