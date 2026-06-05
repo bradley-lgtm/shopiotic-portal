@@ -1791,7 +1791,7 @@ function renderHeader(c) {
           <div class="client-header-name">${esc(c.name)}</div>
         </div>
         <div class="client-header-details">
-          ${c.shopUrl ? `<div class="client-detail">🌐 <a href="${c.shopUrl.startsWith('http') ? c.shopUrl : 'https://' + c.shopUrl}" target="_blank" rel="noopener" style="color:inherit;font-weight:600;">${c.shopUrl}</a></div>` : ''}
+          ${c.shopUrl ? `<div class="client-detail"><a href="${c.shopUrl.startsWith('http') ? c.shopUrl : 'https://' + c.shopUrl}" target="_blank" rel="noopener" style="color:inherit;font-weight:600;">${c.shopUrl}</a></div>` : ''}
           <div class="client-detail">📦 Plan: <strong>${c.tier || 'Essentials'}</strong> ${S.isClientPortal ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:1px 7px;margin-left:4px;" onclick="openEditClientModal('${c.id}')">Change Plan</button>`}</div>
           <div class="client-detail">📅 Started: <strong>${started}</strong></div>
           <div class="client-detail">✅ <strong>${done}/${total}</strong> tasks done</div>
