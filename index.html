@@ -3252,14 +3252,20 @@ function toggleNote(id) {
   if (el.classList.contains('open')) { const ta = el.querySelector('textarea'); if (ta) ta.focus(); }
 }
 
+// Tasks excluded from the monthly PDF report
+const REPORT_EXCLUDED_TASKS = new Set(['r1', 'r2']); // EOM report + call
+
 function openMonthlyReport() {
   const c = getClient(); if (!c) return;
   migrateClient(c);
 
+  const p2months = (c.p2months||[]).slice().sort((a,b)=>a-b);
+  const p3months = (c.p3months||[]).slice().sort((a,b)=>a-b);
+
   // Build chronological list of all monthly phases
   const allMonths = [
-    ...(c.p2months||[]).slice().sort((a,b)=>a-b).map(m => ({ label:`Phase 2 – Month ${m}`, key:'p2m'+m, cats:TASKS.phase2_monthly, pp:'p2' })),
-    ...(c.p3months||[]).slice().sort((a,b)=>a-b).map(m => ({ label:`Phase 3 – Month ${m}`, key:'p3m'+m, cats:TASKS.phase3_monthly, pp:'p3' })),
+    ...p2months.map(m => ({ label:`Phase 2 – Month ${m}`, key:'p2m'+m, cats:TASKS.phase2_monthly, pp:'p2' })),
+    ...p3months.map(m => ({ label:`Phase 3 – Month ${m}`, key:'p3m'+m, cats:TASKS.phase3_monthly, pp:'p3' })),
   ];
   // Exclude the most recent (in-progress) month when ≥2 months exist
   const reportMonths = allMonths.length >= 2 ? allMonths.slice(0, -1) : allMonths;
@@ -3267,14 +3273,27 @@ function openMonthlyReport() {
     ? 'Up to ' + reportMonths[reportMonths.length - 1].label
     : 'Setup & Onboarding';
 
+  // Phase 2 / Phase 3 Setup: only appear once client has passed month 1 of that phase
+  const includeP2Setup = p2months.length >= 2;
+  const includeP3Setup = p3months.length >= 2;
+
+  // Recurring: include only when any monthly phase is active; exclude EOM tasks + hidden tasks
+  const includeRecurring = allMonths.length > 0;
+
   const staticPhases = [
-    { label:'Phase 1: Onboarding',  key:'p1o', cats:TASKS.phase1_onboarding, pp:'' },
-    { label:'Tech SEO Audit',       key:'p1t', cats:TASKS.phase1_tech,        pp:'' },
-    { label:'Phase 2 Setup',        key:'p2s', cats:TASKS.phase2_setup,       pp:'' },
-    { label:'Phase 3 Setup',        key:'p3s', cats:TASKS.phase3_setup,       pp:'' },
-    { label:'Recurring',            key:'rec', cats:TASKS.recurring,          pp:'' },
+    { label:'Phase 1: Onboarding', key:'p1o', cats:TASKS.phase1_onboarding, pp:'' },
+    { label:'Tech SEO Audit',      key:'p1t', cats:TASKS.phase1_tech,        pp:'' },
+    ...(includeP2Setup ? [{ label:'Phase 2 Setup', key:'p2s', cats:TASKS.phase2_setup, pp:'' }] : []),
+    ...(includeP3Setup ? [{ label:'Phase 3 Setup', key:'p3s', cats:TASKS.phase3_setup, pp:'' }] : []),
+    ...(includeRecurring ? [{ label:'Recurring Tasks', key:'rec', cats:TASKS.recurring, pp:'' }] : []),
   ];
   const allPhases = [...staticPhases, ...reportMonths];
+
+  // Helper: should a task item be included in the report?
+  const includeTask = (item) =>
+    !DYNAMIC_ONLY_TASKS.has(item.id) &&
+    !REPORT_EXCLUDED_TASKS.has(item.id) &&
+    !CLIENT_HIDDEN_TASKS.has(item.id);
 
   // Collect tasks per phase
   let totalDone = 0, totalOverdue = 0;
@@ -3284,12 +3303,12 @@ function openMonthlyReport() {
       if (cat.qtyGate && ph.key.match(/^p[23]m/) && getEffectiveCategoryQty(c, ph.key, cat.qtyGate) === 0) continue;
       const tasks = [];
       for (const item of cat.items) {
-        if (DYNAMIC_ONLY_TASKS.has(item.id)) continue;
+        if (!includeTask(item)) continue;
         const done = !!c.done[taskKey(ph.key, item.id)];
         tasks.push({ name: item.t, done });
         done ? totalDone++ : totalOverdue++;
       }
-      // Custom tasks
+      // Custom tasks (never hidden by default)
       const mc = c.monthData?.[ph.key]?.addedTasks?.[cat.cat] || [];
       const tc = ph.pp ? (c.templateData?.addedTasks?.[ph.pp]?.[cat.cat] || []) : [];
       for (const item of [...mc, ...tc]) {
@@ -3309,8 +3328,8 @@ function openMonthlyReport() {
   const started = c.startDate ? new Date(c.startDate + 'T00:00:00').toLocaleDateString('en-US', { month:'long', year:'numeric' }) : '—';
 
   const phasesHTML = phaseSections.map(ph => {
-    const phDone  = Object.values(ph.byCat).flat().filter(t => t.done).length;
-    const phOver  = Object.values(ph.byCat).flat().filter(t => !t.done).length;
+    const phDone = Object.values(ph.byCat).flat().filter(t => t.done).length;
+    const phOver = Object.values(ph.byCat).flat().filter(t => !t.done).length;
     const catsHTML = Object.entries(ph.byCat).map(([catName, tasks]) => `
       <div class="cat-block">
         <div class="cat-label">${esc(catName)}</div>
@@ -3325,7 +3344,7 @@ function openMonthlyReport() {
       <div class="phase-block">
         <div class="phase-head">
           <span class="phase-title">${esc(ph.label)}</span>
-          <span class="phase-tally">${phDone} done${phOver > 0 ? ` &nbsp;·&nbsp; <span style="color:#dc2626;">${phOver} overdue</span>` : ''}</span>
+          <span class="phase-tally">${phDone} done${phOver > 0 ? ` &nbsp;·&nbsp; <span class="tally-over">${phOver} overdue</span>` : ''}</span>
         </div>
         ${catsHTML}
       </div>`;
@@ -3340,73 +3359,78 @@ function openMonthlyReport() {
 <title>Shopiotic Report – ${esc(c.name)}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#1e293b;background:#fff;font-size:12px;line-height:1.55;}
+body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#1e293b;background:#f8fafc;font-size:12px;line-height:1.55;}
 .page{max-width:820px;margin:0 auto;padding:36px 32px 48px;}
 
-/* ── Header ── */
-.rpt-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:18px;border-bottom:3px solid #0d9488;margin-bottom:26px;}
-.brand{font-size:24px;font-weight:800;color:#0d9488;letter-spacing:-0.5px;}
-.client-row{display:flex;align-items:center;gap:10px;margin-top:6px;}
-.client-favicon{width:22px;height:22px;border-radius:4px;}
-.client-name{font-size:20px;font-weight:700;color:#0f172a;}
-.meta-line{font-size:11px;color:#64748b;margin-top:4px;}
+/* ── Header banner ── */
+.rpt-header{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);border-radius:14px;padding:28px 32px;margin-bottom:26px;display:flex;justify-content:space-between;align-items:flex-start;color:#fff;}
+.brand{font-size:22px;font-weight:800;color:#2dd4bf;letter-spacing:-0.5px;}
+.client-row{display:flex;align-items:center;gap:10px;margin-top:8px;}
+.client-favicon{width:24px;height:24px;border-radius:5px;}
+.client-name{font-size:22px;font-weight:700;color:#fff;}
+.meta-line{font-size:11px;color:#94a3b8;margin-top:5px;}
 .header-right{text-align:right;}
-.period-label{font-size:13px;font-weight:700;color:#0f172a;}
-.gen-date{font-size:11px;color:#64748b;margin-top:4px;}
+.period-label{font-size:13px;font-weight:700;color:#fff;}
+.period-sub{font-size:11px;color:#94a3b8;margin-top:5px;}
 
 /* ── Summary cards ── */
 .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px;}
-.s-card{border-radius:10px;padding:16px 18px;border:1px solid #e2e8f0;}
-.s-card.progress-card{background:#f0fdfa;border-color:#99f6e4;}
-.s-card.done-card{background:#f0fdf4;border-color:#bbf7d0;}
-.s-card.overdue-card{background:#fff1f2;border-color:#fecdd3;}
-.s-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8;margin-bottom:6px;}
-.s-value{font-size:30px;font-weight:800;}
+.s-card{border-radius:10px;padding:18px 20px;border:1.5px solid #e2e8f0;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
+.s-card.progress-card{border-color:#99f6e4;background:linear-gradient(135deg,#f0fdfa,#e6fffe);}
+.s-card.done-card{border-color:#86efac;background:linear-gradient(135deg,#f0fdf4,#dcfce7);}
+.s-card.overdue-card{border-color:#fca5a5;background:linear-gradient(135deg,#fff1f2,#fee2e2);}
+.s-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#94a3b8;margin-bottom:8px;}
+.s-value{font-size:32px;font-weight:800;line-height:1;}
 .progress-card .s-value{color:#0d9488;}
 .done-card .s-value{color:#16a34a;}
 .overdue-card .s-value{color:#dc2626;}
+.s-sub{font-size:11px;color:#94a3b8;margin-top:5px;}
 
 /* ── Progress bar ── */
-.pbar-wrap{margin-bottom:28px;}
-.pbar-top{display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#64748b;margin-bottom:7px;}
-.pbar-track{height:11px;background:#e2e8f0;border-radius:99px;overflow:hidden;}
-.pbar-fill{height:100%;background:linear-gradient(90deg,#0d9488,#2dd4bf);border-radius:99px;}
+.pbar-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px 20px;margin-bottom:24px;box-shadow:0 1px 4px rgba(0,0,0,0.04);}
+.pbar-top{display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#64748b;margin-bottom:9px;}
+.pbar-track{height:10px;background:#e2e8f0;border-radius:99px;overflow:hidden;}
+.pbar-fill{height:100%;background:linear-gradient(90deg,#0d9488,#6366f1);border-radius:99px;}
 
 /* ── Phase blocks ── */
-.phase-block{margin-bottom:18px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;break-inside:avoid;}
-.phase-head{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;}
-.phase-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#334155;}
-.phase-tally{font-size:11px;color:#64748b;}
+.phase-block{margin-bottom:16px;border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;break-inside:avoid;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.04);}
+.phase-head{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;background:linear-gradient(90deg,#f1f5f9,#f8fafc);border-bottom:1px solid #e2e8f0;}
+.phase-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.6px;color:#0d9488;}
+.phase-tally{font-size:11px;color:#64748b;font-weight:500;}
+.tally-over{color:#dc2626;font-weight:700;}
 
 /* ── Category ── */
-.cat-block{}
-.cat-label{padding:5px 16px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:#94a3b8;background:#fafafa;border-top:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;}
+.cat-label{padding:5px 16px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:#7c3aed;background:#faf5ff;border-top:1px solid #ede9fe;border-bottom:1px solid #ede9fe;}
 
 /* ── Task rows ── */
-.task-row{display:flex;align-items:center;gap:10px;padding:6px 16px;border-bottom:1px solid #f8fafc;}
+.task-row{display:flex;align-items:center;gap:10px;padding:7px 16px;border-bottom:1px solid #f1f5f9;}
 .task-row:last-child{border-bottom:none;}
 .task-icon{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0;}
 .task-row.done .task-icon{background:#dcfce7;color:#16a34a;}
 .task-row.overdue .task-icon{background:#fee2e2;color:#dc2626;}
 .task-name{flex:1;font-size:11.5px;color:#334155;}
+.task-row.done .task-name{color:#334155;}
 .task-row.overdue .task-name{color:#7f1d1d;}
-.task-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;flex-shrink:0;}
+.task-badge{font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;flex-shrink:0;}
 .task-row.done .task-badge{background:#dcfce7;color:#16a34a;}
 .task-row.overdue .task-badge{background:#fee2e2;color:#dc2626;}
 .custom-pill{font-size:9px;background:#ede9fe;color:#7c3aed;border-radius:3px;padding:1px 5px;margin-left:4px;font-weight:700;vertical-align:middle;}
 
 /* ── Footer ── */
-.rpt-footer{margin-top:36px;padding-top:14px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;}
+.rpt-footer{margin-top:32px;padding-top:14px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;}
 
 /* ── Save button (screen only) ── */
-.save-btn{position:fixed;top:20px;right:20px;background:#0d9488;color:#fff;border:none;padding:11px 22px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;box-shadow:0 4px 16px rgba(13,148,136,0.35);z-index:999;display:flex;align-items:center;gap:7px;}
-.save-btn:hover{background:#0f766e;}
+.save-btn{position:fixed;top:20px;right:20px;background:linear-gradient(135deg,#0d9488,#6366f1);color:#fff;border:none;padding:12px 24px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;box-shadow:0 4px 20px rgba(13,148,136,0.4);z-index:999;}
+.save-btn:hover{opacity:0.9;}
 
 @media print{
   @page{margin:12mm 14mm;size:A4;}
+  body{background:#fff;}
   .save-btn{display:none!important;}
   .page{padding:0;max-width:100%;}
-  .phase-block{break-inside:avoid;}
+  .phase-block{break-inside:avoid;box-shadow:none;}
+  .rpt-header{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}
+  .s-card,.pbar-wrap{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}
   body{font-size:11px;}
 }
 </style>
@@ -3426,18 +3450,30 @@ body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#1e293b;back
     </div>
     <div class="header-right">
       <div class="period-label">${esc(periodLabel)}</div>
-      <div class="gen-date">Generated ${today}</div>
+      <div class="period-sub">Generated ${today}</div>
     </div>
   </div>
 
   <div class="summary">
-    <div class="s-card progress-card"><div class="s-label">Overall Completion</div><div class="s-value">${completePct}%</div></div>
-    <div class="s-card done-card"><div class="s-label">Tasks Completed</div><div class="s-value">${totalDone}</div></div>
-    <div class="s-card overdue-card"><div class="s-label">Tasks Overdue</div><div class="s-value">${totalOverdue}</div></div>
+    <div class="s-card progress-card">
+      <div class="s-label">Overall Completion</div>
+      <div class="s-value">${completePct}%</div>
+      <div class="s-sub">${totalDone} of ${total} tasks</div>
+    </div>
+    <div class="s-card done-card">
+      <div class="s-label">Completed</div>
+      <div class="s-value">${totalDone}</div>
+      <div class="s-sub">tasks done</div>
+    </div>
+    <div class="s-card overdue-card">
+      <div class="s-label">Overdue</div>
+      <div class="s-value">${totalOverdue}</div>
+      <div class="s-sub">tasks pending</div>
+    </div>
   </div>
 
   <div class="pbar-wrap">
-    <div class="pbar-top"><span>Task completion</span><span>${totalDone} / ${total}</span></div>
+    <div class="pbar-top"><span>Overall task completion</span><span>${totalDone} / ${total}</span></div>
     <div class="pbar-track"><div class="pbar-fill" style="width:${completePct}%"></div></div>
   </div>
 
