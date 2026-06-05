@@ -956,9 +956,9 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 // ═══════════════════════════════════════════
 
 const TIER_CONFIG = {
-  Essentials: { p1collections: 0,  p2collections: 7,  p3blogs: 2, p3gsc: 2, p2budget: 400,  p3budget: 500  },
-  Core:       { p1collections: 3,  p2collections: 12, p3blogs: 4, p3gsc: 4, p2budget: 600,  p3budget: 750  },
-  Scale:      { p1collections: 5,  p2collections: 20, p3blogs: 6, p3gsc: 6, p2budget: 900,  p3budget: 1100 },
+  Essentials: { p1collections: 0,  p2collections: 7,  p3blogs: 2, p3gsc: 2, p2budget: 400,  p3budget: 500,  p2gsc: 0, p2blogs: 0, p3collections: 0 },
+  Core:       { p1collections: 3,  p2collections: 12, p3blogs: 4, p3gsc: 4, p2budget: 600,  p3budget: 750,  p2gsc: 0, p2blogs: 0, p3collections: 0 },
+  Scale:      { p1collections: 5,  p2collections: 20, p3blogs: 6, p3gsc: 6, p2budget: 900,  p3budget: 1100, p2gsc: 0, p2blogs: 0, p3collections: 0 },
 };
 
 function tierCfg(client) {
@@ -1113,6 +1113,24 @@ const TASKS = {
       { id:"r1", t:"Send the End of Month report", s:["Send via email and in the client chat","Include the Data Studio dashboard","Include a list of everything completed — use AI to write it upbeat","Include your own introductory paragraph with opinions"] },
       { id:"r2", t:"Take the End of Month report call", s:["Record the call and put in the client chat","Run through the monthly Data Studio report","Show position tracking wins","Run through the list of work done","Run through what we'll do next month","Ask if they're happy and if anything should change","Book the next end of month call — always book at least 3 business days into the next month to give us time to properly analyze the report and form an action plan"] },
     ]},
+    { cat: "Blogs", qtyGate: 'p2blogs', items: [
+      { id:"bg1", t:"Assign monthly blogs to the writer", s:["Focus on opportunities from hubs of priority pages","Notify the writer in the client chat","Notify the client which blogs will be written"] },
+      { id:"bg1b", t:"Have AI write article drafts (WIP)" },
+      { id:"bg2", t:"Writer writes assigned monthly blog drafts in Google Docs", s:["1000+ words naturally optimized for keywords","H1 with front-loaded keyword","Optimized meta title and description with front-loaded keywords","Suggests a URL slug based on target keyword","50% of H2s/H3s optimized for target keyword","Embed relevant videos (if client has any)","Add comparison tables where necessary","Hero image + 2-4 additional images (if client has any)","FAQs from Google's 'People Also Asked'","Internal links to all relevant collections naturally placed throughout with optimized anchor text","Internal link to hub collection within first 150 words with optimized anchor text","Internal links to 3-5 other blogs in same hub — spider web effect, can be done in content or 'Read More' sections","Table of contents"] },
+      { id:"bg3", t:"Writer sends drafts to specialist and client for review", s:["Send via the client chat","Add to the Content Strategy Sheet"] },
+      { id:"bg4", t:"Specialist reviews and makes changes to H1, meta title, description, and URL slug if necessary" },
+      { id:"bg5", t:"Writer implements changes and notifies both persons in the client chat" },
+      { id:"bg6", t:"Publish in Shopify with confirmation from specialist and client", s:["Add FAQ schema for rich results on SERP","Add how-to schema if it is a guide style blog","Notify in client chat once blogs are live"] },
+      { id:"bg7", t:"Submit blogs in GSC for faster indexing", s:["The specialist may need to do this if the writer does not have GSC access"] },
+    ]},
+    { cat: "GSC Optimisations", qtyGate: 'p2gsc', items: [
+      { id:"gc1", t:"Specialist assigns collections for GSC optimization", s:["Focus on priority collections","Focus on collections that have been published for at least 3 months","First place to look will be the collections built in Month 1 of Phase 2","Add each collection as a tab in the GSC optimization template: GSC Collection Page Optimization Template: https://docs.google.com/spreadsheets/d/1Ybn3TQ0m5o37Ah3Oq-aPXmkxYgFeTG9NmfGoc7_LK00/edit"] },
+      { id:"gc2", t:"Pull a list of top performing keywords in GSC for specific collections", s:["Filter down to the specific collection page","Set history to the last 6 months","Copy and paste the keywords below the graph into the template","Mark selected keywords in green — most relevant with more clicks and impressions","Be careful not to select keywords that might cause cannibalization"] },
+      { id:"gc3", t:"Send keyword lists to the writer and have them adjust the content", s:["Send in the client chat","Notify them which collections they are working on","Avoid keyword stuffing"] },
+      { id:"gc4", t:"Writer notifies the specialist once the work is done", s:["Send in the client chat"] },
+      { id:"gc5", t:"Specialist reviews the work and submits collections to GSC for reindexing" },
+      { id:"gc6", t:"Instead of using a writer the specialist could do all of this with AI (WIP)" },
+    ]},
   ],
 
   phase3_setup: [
@@ -1166,6 +1184,13 @@ const TASKS = {
       { id:"gc4", t:"Writer notifies the specialist once the work is done", s:["Send in the client chat"] },
       { id:"gc5", t:"Specialist reviews the work and submits collections to GSC for reindexing" },
       { id:"gc6", t:"Instead of using a writer the specialist could do all of this with AI (WIP)" },
+    ]},
+    { cat: "Collection Pages", qtyGate: 'p3collections', items: [
+      { id:"cp1", t:"Build draft collection pages (or optimize any existing pages in the strategy)", s:["Write & Optimize meta titles","Write & Optimize meta descriptions","Write & Optimize H1s","Set collection template to content below the grid","Optimize the URL slug","Populate with products or ask the client — use an automated collection, not manual"] },
+      { id:"cp2", t:"Write content for each collection", s:["Generate or assign to a writer — you can use the Claude Collection Page Content Writer skill","Add 5-8 internal links to the content, lean toward priority pages","Add FAQs","Optimize H2s and H3s for target keywords","Include keywords naturally throughout the content","Aim for 400-500 words below the grid","Add up to 100 words above the product grid — front load the target keyword and include 2-3 more variations, keep it natural","Focus on client's USPs, product features and benefits, and what sets them apart — this helps conversions","Store drafts in Google Docs and add to the Monthly tab in Collection Strategy Sheet","Forward to client for review and approval via the client chat"] },
+      { id:"cp3", t:"Add the content to the pages and add FAQ schema" },
+      { id:"cp4", t:"Publish the collection pages", s:["Submit to GSC for indexing","Notify the client in the client chat"] },
+      { id:"cp5", t:"Add collection keywords to position tracking in SEMrush" },
     ]},
   ],
 
@@ -1418,8 +1443,9 @@ function renderCategories(phaseKey, categories) {
   }
 
   return resolvedCats.filter(cat => {
-    if (!cat.tierMin) return true;
-    return TIER_ORDER.indexOf(cat.tierMin) <= clientTierIdx;
+    if (cat.tierMin && TIER_ORDER.indexOf(cat.tierMin) > clientTierIdx) return false;
+    if (cat.qtyGate && isMonthly) return getEffectiveCategoryQty(c, phaseKey, cat.qtyGate) > 0;
+    return true;
   }).map(cat => {
     const items = cat.items;
     let catDone = 0;
@@ -1453,10 +1479,11 @@ function renderCategories(phaseKey, categories) {
         </div>` : '';
       const noteVal = (c.taskNotes && c.taskNotes[key]) ? c.taskNotes[key] : '';
       const hasNote = noteVal.length > 0;
-      const qtyKey = TIER_QTY[item.id];
-      const qty = qtyKey ? getEffectiveQty(c, phaseKey, item.id, qtyKey) : 0;
-      // Client portal: qty badge without edit button
-      const qtyBadge = qty > 0 ? (S.isClientPortal
+      const catGateQty = cat.qtyGate ? getEffectiveCategoryQty(c, phaseKey, cat.qtyGate) : null;
+      const qtyKey = catGateQty !== null ? null : TIER_QTY[item.id];
+      const qty = catGateQty !== null ? catGateQty : (qtyKey ? getEffectiveQty(c, phaseKey, item.id, qtyKey) : 0);
+      // Client portal: qty badge without edit button; gated categories: badge only (managed via Manage Template)
+      const qtyBadge = qty > 0 ? (S.isClientPortal || catGateQty !== null
         ? `<span class="tier-qty-badge">× ${qty}</span>`
         : `<span class="tier-qty-badge" style="cursor:pointer;" title="Click to override quantity" onclick="event.stopPropagation();openQtyOverride('${phaseKey}','${item.id}','${qtyKey}','${past||!isMonthly?'month':'template'}')">× ${qty} ✏️</span>`) : '';
 
@@ -1512,7 +1539,10 @@ function renderCategories(phaseKey, categories) {
     }).join('');
     // Render added custom tasks for this category
     const addedMonthTasks = (c.monthData && c.monthData[phaseKey] && c.monthData[phaseKey].addedTasks && c.monthData[phaseKey].addedTasks[cat.cat]) || [];
-    const addedTplTasks = (c.templateData && c.templateData.addedTasks && c.templateData.addedTasks[cat.cat]) || [];
+    const _phasePrefix = phaseKey.startsWith('p2m') ? 'p2' : phaseKey.startsWith('p3m') ? 'p3' : '';
+    const addedTplTasks = _phasePrefix
+      ? ((c.templateData?.addedTasks?.[_phasePrefix]?.[cat.cat]) || [])
+      : ((c.templateData && c.templateData.addedTasks && c.templateData.addedTasks[cat.cat]) || []);
     const allAdded = [...addedTplTasks, ...addedMonthTasks];
     const addedHTML = allAdded.map(item => {
       const key = taskKey(phaseKey, item.id);
@@ -1535,6 +1565,13 @@ function renderCategories(phaseKey, categories) {
                     <div class="task-menu-scope">This task</div>
                     <button class="task-menu-item" onclick="event.stopPropagation();openEditTask('${phaseKey}','${item.id}','month')">✏️ Edit task</button>
                     <button class="task-menu-item danger" onclick="event.stopPropagation();deleteCustomTask('${phaseKey}','${item.id}','${cat.cat}',${isTemplateTask})">🗑️ Delete task</button>
+                    ${isMonthly ? `
+                    <div class="task-menu-divider"></div>
+                    <div class="task-menu-scope">Repeat</div>
+                    ${isTemplateTask
+                      ? `<button class="task-menu-item" onclick="event.stopPropagation();stopCustomTaskRepeating('${phaseKey}','${item.id}','${cat.cat}')">📅 Stop repeating (this month only)</button>`
+                      : `<button class="task-menu-item" onclick="event.stopPropagation();makeCustomTaskRepeating('${phaseKey}','${item.id}','${cat.cat}')">🔁 Repeat in all future months</button>`
+                    }` : ''}
                     <div class="task-menu-divider"></div>
                     <div class="task-menu-scope">Client visibility</div>
                     <button class="task-menu-item" onclick="event.stopPropagation();toggleClientVisibility('${item.id}')">${isClientVisible(c, item.id) ? '🔒 Hide from client' : '👁 Show to client'}</button>
@@ -2376,11 +2413,23 @@ function openTplModal(phase) {
       </div>
     </div>`;
 
+  const getOptQty = (key) => {
+    const td = c.templateData;
+    if (td && td.optQty && td.optQty[key] != null) return td.optQty[key];
+    return cfg[key] || 0;
+  };
+
   const p2Section = phase === 'p2' ? `
     <div class="tpl-section-title">📄 Collection Pages</div>
     ${qtyRow('Collection pages per month', `Tier default: ${cfg.p2collections}`, 'tpl_qty_cp', getQty('cp1','p2collections'), cfg.p2collections)}
+    <div class="tpl-section-title" style="margin-top:16px;">✍️ Blog Content <span style="font-size:11px;font-weight:400;color:var(--gray-400)">(optional — 0 = off)</span></div>
+    ${qtyRow('Blogs per month', 'Default: 0 (disabled). Set > 0 to add blog tasks to this and future months.', 'tpl_p2blogs', getOptQty('p2blogs'), 0)}
+    <div class="tpl-section-title" style="margin-top:16px;">🔍 GSC Optimisations <span style="font-size:11px;font-weight:400;color:var(--gray-400)">(optional — 0 = off)</span></div>
+    ${qtyRow('Optimisations per month', 'Default: 0 (disabled). Set > 0 to add GSC optimisation tasks to this and future months.', 'tpl_p2gsc', getOptQty('p2gsc'), 0)}
   ` : `
-    <div class="tpl-section-title">✍️ Blog Content</div>
+    <div class="tpl-section-title">📄 Collection Pages <span style="font-size:11px;font-weight:400;color:var(--gray-400)">(optional — 0 = off)</span></div>
+    ${qtyRow('Collection pages per month', 'Default: 0 (disabled). Enable if client adds new products and needs new collections in Phase 3.', 'tpl_p3collections', getOptQty('p3collections'), 0)}
+    <div class="tpl-section-title" style="margin-top:16px;">✍️ Blog Content</div>
     ${qtyRow('Blogs per month', `Tier default: ${cfg.p3blogs}`, 'tpl_qty_bg', getQty('bg1','p3blogs'), cfg.p3blogs)}
     <div class="tpl-section-title" style="margin-top:16px;">🔍 GSC Collection Optimisations</div>
     ${qtyRow('Optimisations per month', `Tier default: ${cfg.p3gsc}`, 'tpl_qty_gc', getQty('gc1','p3gsc'), cfg.p3gsc)}
@@ -2420,11 +2469,18 @@ function saveTplModal() {
     }
   };
 
+  if (!c.templateData.optQty) c.templateData.optQty = {};
   if (_tplPhase === 'p2') {
     applyQty('tpl_qty_cp', ['cp1','cp2','cp3','cp4','cp5']);
+    const p2blogsEl = document.getElementById('tpl_p2blogs');
+    const p2gscEl = document.getElementById('tpl_p2gsc');
+    if (p2blogsEl) c.templateData.optQty.p2blogs = parseInt(p2blogsEl.value) || 0;
+    if (p2gscEl) c.templateData.optQty.p2gsc = parseInt(p2gscEl.value) || 0;
   } else {
     applyQty('tpl_qty_bg', ['bg1','bg1b','bg2','bg3','bg4','bg5','bg6','bg7']);
     applyQty('tpl_qty_gc', ['gc1','gc2','gc3','gc4','gc5','gc6']);
+    const p3cpEl = document.getElementById('tpl_p3collections');
+    if (p3cpEl) c.templateData.optQty.p3collections = parseInt(p3cpEl.value) || 0;
   }
 
   // Budget
@@ -2559,6 +2615,22 @@ function getEffectiveQty(c, phaseKey, itemId, qtyKey) {
   return tierCfg(c)[qtyKey] || 0;
 }
 
+// Returns effective qty for an optional gated category (p2gsc, p2blogs, p3collections)
+function getEffectiveCategoryQty(c, phaseKey, optKey) {
+  const md = c.monthData && c.monthData[phaseKey];
+  if (md && md.optQty && md.optQty[optKey] != null) return md.optQty[optKey];
+  const isP2 = phaseKey.startsWith('p2m');
+  const monthNum = parseInt(phaseKey.slice(3));
+  const maxMonth = isP2
+    ? ((c.p2months && c.p2months.length) ? Math.max(...c.p2months) : 0)
+    : ((c.p3months && c.p3months.length) ? Math.max(...c.p3months) : 0);
+  if (monthNum >= maxMonth) {
+    const td = c.templateData;
+    if (td && td.optQty && td.optQty[optKey] != null) return td.optQty[optKey];
+  }
+  return (TIER_CONFIG[c && c.tier] || TIER_CONFIG.Essentials)[optKey] || 0;
+}
+
 // ── ADD TASK ──
 function addTask(phaseKey, catName, scope) {
   const title = prompt('New task title:');
@@ -2567,9 +2639,16 @@ function addTask(phaseKey, catName, scope) {
   const c = getClient(); if (!c) return;
   ensureClientCustomData(c);
   if (scope === 'template') {
+    const _pp = phaseKey.startsWith('p2m') ? 'p2' : phaseKey.startsWith('p3m') ? 'p3' : '';
     if (!c.templateData.addedTasks) c.templateData.addedTasks = {};
-    if (!c.templateData.addedTasks[catName]) c.templateData.addedTasks[catName] = [];
-    c.templateData.addedTasks[catName].push(newTask);
+    if (_pp) {
+      if (!c.templateData.addedTasks[_pp]) c.templateData.addedTasks[_pp] = {};
+      if (!c.templateData.addedTasks[_pp][catName]) c.templateData.addedTasks[_pp][catName] = [];
+      c.templateData.addedTasks[_pp][catName].push(newTask);
+    } else {
+      if (!c.templateData.addedTasks[catName]) c.templateData.addedTasks[catName] = [];
+      c.templateData.addedTasks[catName].push(newTask);
+    }
     clearFutureSnapshots(c);
   } else {
     ensureMonthData(phaseKey, c);
@@ -2585,7 +2664,8 @@ function addTask(phaseKey, catName, scope) {
 // ═══════════════════════════════════════════
 
 function ensureClientCustomData(c) {
-  if (!c.templateData) c.templateData = { taskEdits: {}, deletedTasks: [], addedTasks: {} };
+  if (!c.templateData) c.templateData = { taskEdits: {}, deletedTasks: [], addedTasks: {}, optQty: {} };
+  if (!c.templateData.optQty) c.templateData.optQty = {};
   if (!c.monthData) c.monthData = {};
 }
 
@@ -2810,13 +2890,57 @@ function deleteCustomTask(phaseKey, taskId, catName, isTemplate) {
   const c = getClient(); if (!c) return;
   if (!confirm('Delete this custom task?')) return;
   ensureClientCustomData(c);
-  if (isTemplate && c.templateData.addedTasks && c.templateData.addedTasks[catName]) {
-    c.templateData.addedTasks[catName] = c.templateData.addedTasks[catName].filter(t => t.id !== taskId);
+  const _pp = phaseKey.startsWith('p2m') ? 'p2' : phaseKey.startsWith('p3m') ? 'p3' : '';
+  if (isTemplate) {
+    // Phase-scoped storage (new)
+    if (_pp && c.templateData?.addedTasks?.[_pp]?.[catName]) {
+      c.templateData.addedTasks[_pp][catName] = c.templateData.addedTasks[_pp][catName].filter(t => t.id !== taskId);
+    }
+    // Legacy non-scoped storage (backward compat)
+    if (c.templateData?.addedTasks?.[catName] && !_pp) {
+      c.templateData.addedTasks[catName] = c.templateData.addedTasks[catName].filter(t => t.id !== taskId);
+    }
     clearFutureSnapshots(c);
   }
-  if (c.monthData && c.monthData[phaseKey] && c.monthData[phaseKey].addedTasks && c.monthData[phaseKey].addedTasks[catName]) {
+  if (c.monthData?.[phaseKey]?.addedTasks?.[catName]) {
     c.monthData[phaseKey].addedTasks[catName] = c.monthData[phaseKey].addedTasks[catName].filter(t => t.id !== taskId);
   }
+  save(); renderClient();
+}
+
+function makeCustomTaskRepeating(phaseKey, taskId, catName) {
+  const c = getClient(); if (!c) return;
+  ensureClientCustomData(c);
+  const _pp = phaseKey.startsWith('p2m') ? 'p2' : phaseKey.startsWith('p3m') ? 'p3' : '';
+  const md = c.monthData?.[phaseKey];
+  if (!md) return;
+  const monthTask = (md.addedTasks?.[catName] || []).find(t => t.id === taskId);
+  if (!monthTask) return;
+  if (!c.templateData.addedTasks[_pp]) c.templateData.addedTasks[_pp] = {};
+  if (!c.templateData.addedTasks[_pp][catName]) c.templateData.addedTasks[_pp][catName] = [];
+  if (!c.templateData.addedTasks[_pp][catName].find(t => t.id === taskId)) {
+    c.templateData.addedTasks[_pp][catName].push(monthTask);
+  }
+  md.addedTasks[catName] = (md.addedTasks[catName] || []).filter(t => t.id !== taskId);
+  clearFutureSnapshots(c);
+  save(); renderClient();
+}
+
+function stopCustomTaskRepeating(phaseKey, taskId, catName) {
+  const c = getClient(); if (!c) return;
+  const _pp = phaseKey.startsWith('p2m') ? 'p2' : phaseKey.startsWith('p3m') ? 'p3' : '';
+  const tplTask = (c.templateData?.addedTasks?.[_pp]?.[catName] || []).find(t => t.id === taskId);
+  if (!tplTask) return;
+  ensureMonthData(phaseKey, c);
+  if (!c.monthData[phaseKey].addedTasks) c.monthData[phaseKey].addedTasks = {};
+  if (!c.monthData[phaseKey].addedTasks[catName]) c.monthData[phaseKey].addedTasks[catName] = [];
+  if (!c.monthData[phaseKey].addedTasks[catName].find(t => t.id === taskId)) {
+    c.monthData[phaseKey].addedTasks[catName].push(tplTask);
+  }
+  if (c.templateData.addedTasks?.[_pp]?.[catName]) {
+    c.templateData.addedTasks[_pp][catName] = c.templateData.addedTasks[_pp][catName].filter(t => t.id !== taskId);
+  }
+  clearFutureSnapshots(c);
   save(); renderClient();
 }
 
