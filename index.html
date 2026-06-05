@@ -1786,7 +1786,10 @@ function renderHeader(c) {
   document.getElementById('clientHeader').innerHTML = `
     <div class="client-header-row">
       <div class="client-header-info" style="flex:1">
-        <div class="client-header-name">${c.name}</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          ${c.shopUrl ? `<img src="${getFaviconUrl(c.shopUrl)}" width="28" height="28" style="border-radius:6px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.12);" onerror="this.style.display='none'">` : ''}
+          <div class="client-header-name">${esc(c.name)}</div>
+        </div>
         <div class="client-header-details">
           ${c.shopUrl ? `<div class="client-detail">🌐 <a href="${c.shopUrl.startsWith('http') ? c.shopUrl : 'https://' + c.shopUrl}" target="_blank" rel="noopener" style="color:inherit;font-weight:600;">${c.shopUrl}</a></div>` : ''}
           <div class="client-detail">📦 Plan: <strong>${c.tier || 'Essentials'}</strong> ${S.isClientPortal ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:1px 7px;margin-left:4px;" onclick="openEditClientModal('${c.id}')">Change Plan</button>`}</div>
