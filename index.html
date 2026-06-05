@@ -975,60 +975,66 @@ const TASKS = {
       { id:"p1o1", t:"Setup auto billing in HubSpot" },
       { id:"p1o2", t:"Start a SEMrush technical audit" },
       { id:"p1o3", t:"Book the 'Sell Me Your Products' call" },
-      { id:"p1o4", t:"Setup and customize the client's Trello board", s:["Invite specialists and the client's point of contact","Drop a message in the general chat"] },
+      { id:"p1o4", t:"Setup and customize the client's dashboard", s:["Drop a welcome message in the client chat"] },
+      { id:"p1o4b", t:"Invite clients to their dashboard", s:["You must send a unique link to each point of contact / client employee that will be logging onto the dashboard — they cannot all use the same link"] },
       { id:"p1o5", t:"Send client the onboarding form", s:["Link: https://forms.fillout.com/t/cJJzkNCLX4us"] },
       { id:"p1o6", t:"Send the brand information form", s:["Link: https://forms.fillout.com/t/fewst8YypVus"] },
       { id:"p1o7", t:"Send a Shopify access request", s:["Notify the client via email/Slack","Include access to edit home page meta title and description","Tutorial: https://content-climber-seo.neetorecord.com/watch/b63a176f86e86f999354"] },
       { id:"p1o8", t:"Log in to Shopify, GA4, and GSC" },
-      { id:"p1o9", t:"Setup an empty position tracking project" },
+      { id:"p1o9", t:"Setup an empty position tracking project", s:['Add "hello" as a keyword for now'] },
+      { id:"p1o9b", t:"Setup a Claude project for the client", s:["Add the client's Shopify store as an integration","Used to generate draft content and optimize content for Google Search Console keywords","All AI content work for this client should be done in this project so it builds up context over time"] },
+      { id:"p1o9c", t:"Setup a Claude Code project for the client", s:["Add the client's Shopify store as an integration","Used to fix technical SEO issues in the theme code"] },
     ]},
     { cat: "Reporting Setup", items: [
-      { id:"p1o10", t:"Setup reporting in Data Studio", s:["Setup the weekly report in Data Studio","Setup the monthly report in Data Studio","Setup scheduling for both reports","Share the analytics dash with the client","Store the link to the dash in Trello"] },
-      { id:"p1o10b", t:"Embed the Data Studio report in the client portal", s:["Go to the Analytics tab for this client in the Shopiotic Ops Portal","Click '+ Embed Report'","In Looker Studio: File → Embed Report → enable embedding → copy embed code","Paste the embed code into the portal and save"] },
+      { id:"p1o10", t:"Setup reporting in Data Studio", s:["Setup the monthly report in Data Studio","Setup scheduling for the report","Name the doc and the header with the client's name","Share the analytics dashboard with the client","Store the link to the dashboard in the client portal","Add the client's name and the names, email addresses, and roles of all points of contact to the overview tab in the portal"] },
+      { id:"p1o10b", t:"Embed the Data Studio report in the client portal", s:["Go to the Analytics tab for this client in the Shopiotic Ops Portal","Click '+ Embed Report'","In Looker Studio: File → Embed Report → enable embedding → copy embed code","Paste the embed code into the portal and save","Make sure the dashboard is shared with all points of contact who will want access — they won't be able to see the report otherwise"] },
     ]},
     { cat: "Research & Calls", items: [
-      { id:"p1o17", t:"Conduct competitor research", s:["Pay attention to most visited pages","Note commercial page layouts","Build a quick report using AI and send in Trello"] },
-      { id:"p1o18", t:"Scrape the client's website for brand information", s:["Store results in a properly named Google Doc","Store the doc in the Trello Dashboard"] },
-      { id:"p1o19", t:"Have the 'Sell Me Your Products' call", s:["Record the call","Store the recording and transcript in Trello","Book the end of month report call"] },
-      { id:"p1o11", t:"Setup a Google Doc to track theme edits", s:["Store the Doc in Trello in the technical SEO section"] },
-      { id:"p1o12", t:"Setup a phase checklist copy for the client", s:["Acts as a to-do list the client can see work happening","Customize it to the client and their tier","Store in Trello and share with the client"] },
+      { id:"p1o17", t:"Conduct competitor research", s:["Pay attention to most visited pages","Note commercial page layouts","Build a quick report using AI — dictate your findings and ask it to write it up as an update — send to the client","Store in the overview tab on the client dashboard"] },
+      { id:"p1o18", t:"Scrape the client's website for brand information", s:["Store results in a properly named Google Doc","Store the doc in the overview tab on the client dashboard","You can use the Claude Brain Scraper skill for this","Be sure to do this in the client's Claude project we set up"] },
+      { id:"p1o19", t:"Have the 'Sell Me Your Products' call", s:["Record the call","Store the recording and transcript in the overview tab on the client dashboard","Book the end of month report call — always book at least 3 business days into the next month to give us time to analyze the report and form an action plan"] },
+      { id:"p1o11", t:"Setup a Google Doc to track theme edits", s:["Store the doc in the overview tab on the client dashboard"] },
     ]},
     { cat: "Strategy & Planning", items: [
-      { id:"p1o13", t:"Record the client's average YoY revenue and traffic", s:["Store in the Trello Goals card","Record monthly average revenue from organic search"] },
-      { id:"p1o14", t:"Setup a collection page strategy sheet", s:["Use Collection Page Strategy Sheet Template: https://docs.google.com/spreadsheets/d/1SWr9TUbeQlizJmTRf7Xt4-BLKmPQBenHbALNfdQ4C8o/edit","Name it and store it in Trello"] },
-      { id:"p1o15", t:"Note the client's monthly backlink budget in the portal", s:["Budget is determined by their plan tier","This is used to track monthly link building spend"] },
+      { id:"p1o13", t:"Record the client's average YoY revenue and traffic", s:["Store in the portal goals section","Record monthly average revenue from organic search"] },
+      { id:"p1o14", t:"Setup a collection page strategy sheet", s:["Make a copy of the template: Collection Page Strategy Sheet Template: https://docs.google.com/spreadsheets/d/1SWr9TUbeQlizJmTRf7Xt4-BLKmPQBenHbALNfdQ4C8o/edit","Name it with the client's name","Add the client's name to the title","Remove 'template' from the title","Store it in the client dashboard overview tab"] },
       { id:"p1o20", t:"Audit existing collections on the site", s:["Look through existing collections to see if any can be used in the SEO strategy","If found, add them to the Collection Strategy Sheet","Noindex any cannibal pages that can't be used in the SEO strategy"] },
       { id:"p1o21", t:"Start keyword research in SEMrush", s:["Identify home page keywords","Identify potential collections","Identify the most lucrative collections","Assign collections month by month starting with most lucrative"] },
       { id:"p1o22", t:"Complete keyword research for each collection", s:["Export keyword lists into Google Sheets","Add Sheets to the Collection Strategy Sheet","Also complete for the homepage"] },
       { id:"p1o23", t:"Complete target keyword selection", s:["Select most relevant and lucrative terms","Mark 1-3 keywords in green for high leverage on-page areas","Select a range of keyword difficulties for short and long-term","Also complete for the homepage"] },
       { id:"p1o24", t:"Perform a backlink gap analysis for each collection", s:["Search target keywords in Google and average backlinks of top 3-5 results","Estimate how many backlinks would be needed, considering domain authority","Add the estimate to each keyword sheet"] },
-      { id:"p1o25", t:"Select 1-3 collections as backlinking targets", s:["Store this list in Trello","Select based on revenue potential, product fit, existing traction, and backlink gaps","These pages need to start ranking and getting sales quickly","Must be setup in Month 1 of Phase 2"] },
+      { id:"p1o25", t:"Select 1-3 collections as backlinking targets", s:["Mark these as priority in the Priority Page column on the Collections tab of the Collection Page Strategy Sheet","Select based on revenue potential, product fit, existing traction, and backlink gaps","These pages need to start ranking and getting sales quickly","Must be setup in Month 1 of Phase 2"] },
       { id:"p1o26", t:"Setup position tracking in SEMrush", s:["Take keywords for each collection, tag them, and add to the project","Start with just keywords for Month 2","Repeat monthly for new collections"] },
       { id:"p1o16", t:"Setup a 3 year goal Google Doc for the client", s:["Make reasonable revenue predictions","Detail exactly what will be done to achieve the goal","List 1-3 priority pages to focus on initially","Include a 1 year goal and a 3 month goal","Send to the client and ask for their thoughts","Example: https://docs.google.com/document/d/1GkP6Oz7WCcrYNFjD9YE3W3ScgFTsK2S07dAErSDYnxg/edit"] },
     ]},
     { cat: "Backlinks", items: [
-      { id:"p1o27", t:"Define the client's general niches for backlink sites and store in Trello" },
+      { id:"p1o27", t:"Define the client's general niches for backlink sites and store in the All Backlinks tab in the client portal" },
       { id:"p1o28", t:"Start prospecting for backlink sites (15+ promising sites)", s:["Vet prospects with the 6-step process","Add suitable sites to the database","Add the client name in the notes section","Pull contact details for each site","Database: Shopiotic Backlink Database: https://docs.google.com/spreadsheets/d/1moGr5KvG4tm2pR-bH0Z2Xw7Z-uaDTnzY4bJROsMefaQ/edit"] },
       { id:"p1o29", t:"Recover lost links", s:["Look at backlink report in SEMrush to find lost links of value","Reach out to web admins to reinstate for a small fee"] },
     ]},
     { cat: "On-Page SEO", items: [
       { id:"p1o30", t:"Optimize the home page for its target keywords", s:["Optimize the H1 and other headings","Add/optimize FAQs and FAQ schema","Add content optimized for keywords","Optimize any existing content","Optimize the meta title and description"] },
-      { id:"p1o31", t:"Pull the top 10 product pages from GSC", s:["Swap out any based on client suggestions from brand info form","Swap out for keyword opportunities found during research","Store these pages in Trello","Notify the client we'll be optimizing these pages"] },
-      { id:"p1o32", t:"Optimize the top 10 product pages", s:["Add keywords to meta title and description, frontloaded","Add target keyword to H1, frontloaded","Optimize description — add target keyword in the first sentence, then naturally throughout","Add FAQs if opportunities exist, include FAQ Schema","Helpful video: https://youtu.be/M37C9-ksZDo?si=aHqj9ZOY6Mu4dhil"] },
+      { id:"p1o31a", t:"Make a copy of the top 10 product pages optimization template", s:["Template: https://docs.google.com/spreadsheets/d/1jcKU1A69E5Y9krq6ROQ7vdPrIOYQiZ4kfuGMB8roSA0/edit","Rename each tab for its product","Store it in the client dashboard overview tab"] },
+      { id:"p1o31", t:"Pull the top 10 product pages from GSC", s:["Swap out any based on client suggestions from brand info form","Swap out for keyword opportunities found during research","Store these pages in the client dashboard","Notify the client we'll be optimizing these pages"] },
+      { id:"p1o31b", t:"Pull a list of top performing keywords in GSC for each product page", s:["Filter down to the specific product page in GSC","Set history to the last 6 months","Copy and paste the keywords into the product pages optimization template","Mark selected keywords in green — most relevant with more clicks and impressions","Be careful not to select keywords that might cause cannibalization"] },
+      { id:"p1o32", t:"Optimize the top 10 product pages", s:["Add keywords to meta title and description, frontloaded","Add target keyword to H1, frontloaded","Optimize description — add target keyword in the first sentence, then naturally throughout","Add FAQs if opportunities exist, include FAQ Schema","Set up a copy of the optimized product page content template and rename each tab for its product: https://docs.google.com/spreadsheets/d/1jcKU1A69E5Y9krq6ROQ7vdPrIOYQiZ4kfuGMB8roSA0/edit","Helpful video: https://youtu.be/M37C9-ksZDo?si=aHqj9ZOY6Mu4dhil"] },
+      { id:"p1o32b", t:"Send a Google Doc with the product page drafts to the client", s:["Send via the client chat","Ask the client to review and approve each draft","Note any changes requested and implement them before publishing"] },
+      { id:"p1o32c", t:"Publish the updated content onto the Shopify site", s:["Make sure FAQ questions are H3s","Submit all products for indexing in Google Search Console after publishing"] },
+      { id:"p1o32d", t:"Add up to 5 top keywords for each product to the SEMrush position tracking project", s:["Tag keywords by product name so we can track individual product page performance over time"] },
       { id:"p1o33", t:"Conduct a basic internal linking review", s:["Scope out the link situation across the site","Look through blog articles, home page, menu, footer, and other collections","Remove harmful or misleading links","We will be limited in adding links as priority pages won't yet be live"] },
       { id:"p1o34", t:"Set up the collection page template", s:["Setup the metafield","Add a spot for content below the grid populated by the metafield"] },
     ]},
     { cat: "Collection Pages", tierMin: "Core", items: [
       { id:"p1cp1", t:"Build draft collection pages (or optimize any existing pages in the strategy)", s:["Write & Optimize meta titles","Write & Optimize meta descriptions","Write & Optimize H1s","Set collection template to content below the grid","Optimize the URL slug","Populate with products or ask the client — use an automated collection, not manual"] },
-      { id:"p1cp2", t:"Write content for each collection", s:["Generate or assign to a writer — you can use the Claude Collection Page Content Writer skill","Add 5-8 internal links to the content, lean toward priority pages","Add FAQs","Optimize H2s and H3s for target keywords","Include keywords naturally throughout the content","Aim for 400-500 words below the grid","Add up to 100 words above the product grid — front load the target keyword and include 2-3 more variations, keep it natural","Focus on client's USPs, product features and benefits, and what sets them apart — this helps conversions","Store drafts in Google Docs and add to the Monthly tab in Collection Strategy Sheet","Forward to client for review and approval via Trello"] },
+      { id:"p1cp2", t:"Write content for each collection", s:["Generate or assign to a writer — you can use the Claude Collection Page Content Writer skill","Add 5-8 internal links to the content, lean toward priority pages","Add FAQs","Optimize H2s and H3s for target keywords","Include keywords naturally throughout the content","Aim for 400-500 words below the grid","Add up to 100 words above the product grid — front load the target keyword and include 2-3 more variations, keep it natural","Focus on client's USPs, product features and benefits, and what sets them apart — this helps conversions","Store drafts in Google Docs and add to the Monthly tab in Collection Strategy Sheet","Forward to client for review and approval via the client chat"] },
       { id:"p1cp3", t:"Add the content to the pages and add FAQ schema" },
-      { id:"p1cp4", t:"Publish the collection pages", s:["Submit to GSC for indexing","Notify the client in Trello general chat"] },
+      { id:"p1cp4", t:"Publish the collection pages", s:["Submit to GSC for indexing","Notify the client in the client chat"] },
       { id:"p1cp5", t:"Add collection keywords to position tracking in SEMrush" },
     ]},
     { cat: "End of Month", items: [
       { id:"p1o35", t:"Notify the client once the Technical SEO audit is complete", s:["Share findings and actions taken to fix issues"] },
-      { id:"p1o36", t:"Send the End of Month report", s:["Send via email and in Trello general chat","Include the Data Studio dash","Include a list of everything completed — ask AI to write it upbeat","Include your own introductory paragraph with opinions"] },
-      { id:"p1o37", t:"Take the End of Month report call", s:["Record the call and put in Trello general chat","Run through the monthly Data Studio report","Run position tracking and show wins","Run through the list of work done","Run through what we'll be doing next month","Ask if they're happy and if anything should be done differently","Book the next end of month call"] },
+      { id:"p1o36", t:"Send the End of Month report", s:["Send via email and in the client chat","Include the Data Studio dashboard","Include a list of everything completed — ask AI to write it upbeat","Include your own introductory paragraph with opinions"] },
+      { id:"p1o37", t:"Take the End of Month report call", s:["Record the call and store in the client chat","Run through the monthly Data Studio report","Run position tracking and show wins","Run through the list of work done","Run through what we'll be doing next month","Ask if they're happy and if anything should be done differently","Book the next end of month call — always book at least 3 business days into the next month to give us time to properly analyze the report and form an action plan"] },
     ]},
   ],
 
@@ -1085,9 +1091,9 @@ const TASKS = {
     ]},
     { cat: "Collection Pages", items: [
       { id:"cp1", t:"Build draft collection pages (or optimize any existing pages in the strategy)", s:["Write & Optimize meta titles","Write & Optimize meta descriptions","Write & Optimize H1s","Set collection template to content below the grid","Optimize the URL slug","Populate with products or ask the client — use an automated collection, not manual"] },
-      { id:"cp2", t:"Write content for each collection", s:["Generate or assign to a writer — you can use the Claude Collection Page Content Writer skill","Add 5-8 internal links to the content, lean toward priority pages","Add FAQs","Optimize H2s and H3s for target keywords","Include keywords naturally throughout the content","Aim for 400-500 words below the grid","Add up to 100 words above the product grid — front load the target keyword and include 2-3 more variations, keep it natural","Focus on client's USPs, product features and benefits, and what sets them apart — this helps conversions","Store drafts in Google Docs and add to the Monthly tab in Collection Strategy Sheet","Forward to client for review and approval via Trello"] },
+      { id:"cp2", t:"Write content for each collection", s:["Generate or assign to a writer — you can use the Claude Collection Page Content Writer skill","Add 5-8 internal links to the content, lean toward priority pages","Add FAQs","Optimize H2s and H3s for target keywords","Include keywords naturally throughout the content","Aim for 400-500 words below the grid","Add up to 100 words above the product grid — front load the target keyword and include 2-3 more variations, keep it natural","Focus on client's USPs, product features and benefits, and what sets them apart — this helps conversions","Store drafts in Google Docs and add to the Monthly tab in Collection Strategy Sheet","Forward to client for review and approval via the client chat"] },
       { id:"cp3", t:"Add the content to the pages and add FAQ schema" },
-      { id:"cp4", t:"Publish the collection pages", s:["Submit to GSC for indexing","Notify the client in Trello general chat"] },
+      { id:"cp4", t:"Publish the collection pages", s:["Submit to GSC for indexing","Notify the client in the client chat"] },
       { id:"cp5", t:"Add collection keywords to position tracking in SEMrush" },
     ]},
     { cat: "Internal Linking", items: [
@@ -1098,8 +1104,8 @@ const TASKS = {
       { id:"il5", t:"Add internal links onto the home page", s:["Keep UX at forefront — should help navigation","Run past client before pushing live","Focus on high level priority collections"] },
     ]},
     { cat: "Reporting", items: [
-      { id:"r1", t:"Send the End of Month report", s:["Send via email and Trello general chat","Include the Data Studio dash","Include a list of everything completed — use AI to write it upbeat","Include your own introductory paragraph with opinions"] },
-      { id:"r2", t:"Take the End of Month report call", s:["Record the call and put in Trello general chat","Run through the monthly Data Studio report","Show position tracking wins","Run through the list of work done","Run through what we'll do next month","Ask if they're happy and if anything should change","Book the next end of month call"] },
+      { id:"r1", t:"Send the End of Month report", s:["Send via email and in the client chat","Include the Data Studio dashboard","Include a list of everything completed — use AI to write it upbeat","Include your own introductory paragraph with opinions"] },
+      { id:"r2", t:"Take the End of Month report call", s:["Record the call and put in the client chat","Run through the monthly Data Studio report","Show position tracking wins","Run through the list of work done","Run through what we'll do next month","Ask if they're happy and if anything should change","Book the next end of month call — always book at least 3 business days into the next month to give us time to properly analyze the report and form an action plan"] },
     ]},
   ],
 
@@ -1144,8 +1150,8 @@ const TASKS = {
       { id:"bg7", t:"Submit blogs in GSC for faster indexing", s:["The specialist may need to do this if the writer does not have GSC access"] },
     ]},
     { cat: "Reporting", items: [
-      { id:"r1", t:"Send the End of Month report", s:["Send via email and Trello general chat","Include the Data Studio dash","Include a list of everything completed — use AI to write it upbeat","Include your own introductory paragraph with opinions","Ask for a review if results are good and the client seems happy"] },
-      { id:"r2", t:"Take the End of Month report call", s:["Record the call and put in Trello general chat","Run through the monthly Data Studio report","Show position tracking wins","Run through the list of work done","Run through what we'll do next month","Ask if they're happy and if anything should change","Ask for a review again if results seem good and the client seems happy","Book the next end of month call"] },
+      { id:"r1", t:"Send the End of Month report", s:["Send via email and in the client chat","Include the Data Studio dashboard","Include a list of everything completed — use AI to write it upbeat","Include your own introductory paragraph with opinions","Ask for a review if results are good and the client seems happy"] },
+      { id:"r2", t:"Take the End of Month report call", s:["Record the call and put in the client chat","Run through the monthly Data Studio report","Show position tracking wins","Run through the list of work done","Run through what we'll do next month","Ask if they're happy and if anything should change","Ask for a review again if results seem good and the client seems happy","Book the next end of month call — always book at least 3 business days into the next month to give us time to properly analyze the report and form an action plan"] },
     ]},
     { cat: "Collections", items: [
       { id:"gc1", t:"Specialist assigns collections for GSC optimization", s:["Focus on priority collections","Focus on collections that have been published for at least 3 months","First place to look will be the collections built in Month 1 of Phase 2","Add each collection as a tab in the GSC optimization template: GSC Collection Page Optimization Template: https://docs.google.com/spreadsheets/d/1Ybn3TQ0m5o37Ah3Oq-aPXmkxYgFeTG9NmfGoc7_LK00/edit"] },
@@ -1341,17 +1347,20 @@ function toggleClientVisibility(taskId) {
 const CLIENT_HIDDEN_TASKS = new Set([
   // Phase 1 Onboarding — internal admin tasks
   'p1o1',   // Setup auto billing in HubSpot
+  'p1o2',   // Start a SEMrush technical audit
   'p1o3',   // Book the Sell Me Your Products call
-  'p1o4',   // Setup and customize Trello board
+  'p1o4',   // Setup and customize dashboard
+  'p1o4b',  // Invite clients to dashboard
   'p1o5',   // Send onboarding form
   'p1o6',   // Send brand information form
   'p1o7',   // Send Shopify access request
   'p1o8',   // Log in to Shopify, GA4, GSC
   'p1o9',   // Setup empty position tracking project
+  'p1o9b',  // Setup Claude project for client
+  'p1o9c',  // Setup Claude Code project for client
   'p1o10b', // Embed Data Studio report
-  'p1o12',  // Setup phase checklist copy for client
-  'p1o15',  // Setup backlink campaign tracker (replaced by dashboard)
   'p1o19',  // Have the Sell Me Your Products call
+  'p1o31a', // Make a copy of product pages optimization template
   'p1o35',  // Notify client once Technical SEO audit complete
   // Phase 1 Tech
   't1',     // Make a copy of Technical SEO report doc
@@ -1750,7 +1759,7 @@ function renderContent(c) {
         <div class="phase-banner-icon">🚀</div>
         <div class="phase-banner-body">
           <div class="phase-banner-title">Phase 1 — Onboarding <span style="color:var(--teal)">(Month 1 · Duration: 1 month)</span></div>
-          <div class="phase-banner-desc">Sets the foundation: billing, access, Trello setup, keyword research, backlink strategy, technical audit, and on-page optimisation.</div>
+          <div class="phase-banner-desc">Sets the foundation: billing, access, dashboard setup, keyword research, backlink strategy, technical audit, and on-page optimisation.</div>
         </div>
       </div>
       ${renderCategories('p1o', TASKS.phase1_onboarding)}
