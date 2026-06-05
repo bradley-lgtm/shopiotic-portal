@@ -966,7 +966,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
   <div class="modal">
     <div class="modal-title" id="modalTitle">Add New Client</div>
     <div class="form-group"><label>Client / Store Name</label><input id="f_name" placeholder="e.g. Prolux Materials" autocomplete="off"></div>
-    <div class="form-group"><label>Shopify Store URL</label><input id="f_url" placeholder="e.g. prolux.myshopify.com" autocomplete="off"></div>
+    <div class="form-group"><label>Website URL</label><input id="f_url" placeholder="e.g. https://prolux.com" autocomplete="off"></div>
     <div class="form-group"><label>Service Tier</label>
       <select id="f_tier">
         <option selected>Essentials</option><option>Core</option><option>Scale</option>
@@ -1281,6 +1281,8 @@ async function load() {
     const teamDocsRow = all.find(row => row.id === '__team_docs__');
     S.teamDocs = teamDocsRow ? (teamDocsRow.data?.docs || []) : [];
     S.clients = all.filter(row => row.id !== '__team_docs__').map(row => ({ ...row.data, id: row.id }));
+    // Sort by saved order (drag-to-reorder persists sortOrder on each client)
+    S.clients.sort((a, b) => (a.sortOrder ?? 9999) - (b.sortOrder ?? 9999));
   } catch(e) {
     showToast('Failed to load: ' + e.message, 'error');
   }
@@ -1298,9 +1300,10 @@ function saveTeamDocs() {
 }
 
 // Fire-and-forget save — debounced 400ms to avoid hammering on keystrokes
-function save() {
+// Pass an explicit clientId to save a non-active client (e.g. during reorder)
+function save(clientId) {
   if (S.isClientPortal) return; // read-only in client portal
-  const c = getClient();
+  const c = clientId ? S.clients.find(x => x.id === clientId) : getClient();
   if (!c || !_sb) return;
   const id = c.id;
   clearTimeout(_saveTimers[id]);
@@ -1352,18 +1355,30 @@ function phaseProgress(phaseKey, categories) {
       total++;
       if (c.done[taskKey(phaseKey, item.id)]) done++;
     }
+    // Count custom tasks added to this phase/category
+    const custom = c.monthData?.[phaseKey]?.addedTasks?.[cat.cat] || [];
+    for (const item of custom) { total++; if (c.done[taskKey(phaseKey, item.id)]) done++; }
   }
   return [done, total];
 }
 
 function monthProgress(prefix, categories) {
   const c = getClient(); if (!c) return [0,0];
+  const pp = prefix.startsWith('p2m') ? 'p2' : prefix.startsWith('p3m') ? 'p3' : '';
   let total = 0, done = 0;
   for (const cat of categories) {
+    // Skip gated categories that are qty=0 for this month
+    if (cat.qtyGate && getEffectiveCategoryQty(c, prefix, cat.qtyGate) === 0) continue;
     for (const item of cat.items) {
       total++;
       if (c.done[taskKey(prefix, item.id)]) done++;
     }
+    // Month-specific custom tasks
+    const monthCustom = c.monthData?.[prefix]?.addedTasks?.[cat.cat] || [];
+    for (const item of monthCustom) { total++; if (c.done[taskKey(prefix, item.id)]) done++; }
+    // Template custom tasks (repeat monthly)
+    const tplCustom = pp ? (c.templateData?.addedTasks?.[pp]?.[cat.cat] || []) : [];
+    for (const item of tplCustom) { total++; if (c.done[taskKey(prefix, item.id)]) done++; }
   }
   return [done, total];
 }
@@ -1372,6 +1387,7 @@ function overallProgress(client) {
   // Include p1o, p1t, phase3_setup, recurring + all p2 months + all p3 months
   let total = 0, done = 0;
   const clientTierIdx = TIER_ORDER.indexOf(client.tier);
+  // Static phase counter (no template monthly tasks)
   const countCats = (key, cats) => {
     for (const cat of cats) {
       if (cat.tierMin && TIER_ORDER.indexOf(cat.tierMin) > clientTierIdx) continue;
@@ -1379,6 +1395,25 @@ function overallProgress(client) {
         total++;
         if (client.done[taskKey(key, item.id)]) done++;
       }
+      // Month-level custom tasks for static phases
+      const custom = client.monthData?.[key]?.addedTasks?.[cat.cat] || [];
+      for (const item of custom) { total++; if (client.done[taskKey(key, item.id)]) done++; }
+    }
+  };
+  // Monthly phase counter (includes template + month-specific custom tasks)
+  const countMonthCats = (key, cats) => {
+    const pp = key.startsWith('p2m') ? 'p2' : key.startsWith('p3m') ? 'p3' : '';
+    for (const cat of cats) {
+      if (cat.tierMin && TIER_ORDER.indexOf(cat.tierMin) > clientTierIdx) continue;
+      if (cat.qtyGate && getEffectiveCategoryQty(client, key, cat.qtyGate) === 0) continue;
+      for (const item of cat.items) {
+        total++;
+        if (client.done[taskKey(key, item.id)]) done++;
+      }
+      const mc = client.monthData?.[key]?.addedTasks?.[cat.cat] || [];
+      for (const item of mc) { total++; if (client.done[taskKey(key, item.id)]) done++; }
+      const tc = pp ? (client.templateData?.addedTasks?.[pp]?.[cat.cat] || []) : [];
+      for (const item of tc) { total++; if (client.done[taskKey(key, item.id)]) done++; }
     }
   };
   countCats('p1o', TASKS.phase1_onboarding);
@@ -1386,8 +1421,8 @@ function overallProgress(client) {
   countCats('p2s', TASKS.phase2_setup);
   countCats('p3s', TASKS.phase3_setup);
   countCats('rec', TASKS.recurring);
-  for (const m of (client.p2months || [])) countCats('p2m' + m, TASKS.phase2_monthly);
-  for (const m of (client.p3months || [])) countCats('p3m' + m, TASKS.phase3_monthly);
+  for (const m of (client.p2months || [])) countMonthCats('p2m' + m, TASKS.phase2_monthly);
+  for (const m of (client.p3months || [])) countMonthCats('p3m' + m, TASKS.phase3_monthly);
   return [done, total];
 }
 
@@ -1655,6 +1690,49 @@ function renderCategories(phaseKey, categories) {
 //  SIDEBAR
 // ═══════════════════════════════════════════
 
+let _sidebarDragId = null;
+let _sidebarDragOver = null;
+
+function getFaviconUrl(url) {
+  if (!url) return null;
+  try {
+    const full = url.startsWith('http') ? url : 'https://' + url;
+    const domain = new URL(full).hostname;
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`;
+  } catch(e) { return null; }
+}
+
+function sidebarDragStart(e, id) {
+  _sidebarDragId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => { const el = e.currentTarget; if (el) el.style.opacity = '0.5'; }, 0);
+}
+function sidebarDragEnd(e) {
+  e.currentTarget.style.opacity = '';
+  _sidebarDragId = null;
+  _sidebarDragOver = null;
+}
+function sidebarDragEnter(e, id) {
+  e.preventDefault();
+  _sidebarDragOver = id;
+  renderSidebar();
+}
+function sidebarDragOver_(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+function sidebarDrop(e, targetId) {
+  e.preventDefault();
+  if (!_sidebarDragId || _sidebarDragId === targetId) { _sidebarDragId = null; _sidebarDragOver = null; renderSidebar(); return; }
+  const fromIdx = S.clients.findIndex(c => c.id === _sidebarDragId);
+  const toIdx   = S.clients.findIndex(c => c.id === targetId);
+  if (fromIdx === -1 || toIdx === -1) return;
+  const [moved] = S.clients.splice(fromIdx, 1);
+  S.clients.splice(toIdx, 0, moved);
+  // Persist sort order on every client
+  S.clients.forEach((c, i) => { c.sortOrder = i; save(c.id); });
+  _sidebarDragId = null;
+  _sidebarDragOver = null;
+  renderSidebar();
+}
+
 function renderSidebar() {
   const el = document.getElementById('clientList');
   if (!S.clients.length) {
@@ -1666,9 +1744,23 @@ function renderSidebar() {
     const p = pct(done, total);
     const phase = (c.p3months && c.p3months.length) ? 'p3' : (c.p2months && c.p2months.length) ? 'p2' : 'p1';
     const phaseLabel = phase === 'p3' ? 'Phase 3' : phase === 'p2' ? 'Phase 2' : 'Phase 1';
+    const favicon = getFaviconUrl(c.shopUrl);
+    const isDragOver = _sidebarDragOver === c.id && _sidebarDragId !== c.id;
     return `
-      <div class="client-item ${c.id === S.activeId ? 'active' : ''}" onclick="selectClient('${c.id}')">
-        <div class="client-item-name">${c.name}</div>
+      <div class="client-item ${c.id === S.activeId ? 'active' : ''}"
+           draggable="true"
+           data-id="${c.id}"
+           style="${isDragOver ? 'border-top:2px solid var(--teal);' : ''}"
+           ondragstart="sidebarDragStart(event,'${c.id}')"
+           ondragend="sidebarDragEnd(event)"
+           ondragenter="sidebarDragEnter(event,'${c.id}')"
+           ondragover="sidebarDragOver_(event)"
+           ondrop="sidebarDrop(event,'${c.id}')"
+           onclick="selectClient('${c.id}')">
+        <div class="client-item-name" style="display:flex;align-items:center;gap:7px;">
+          ${favicon ? `<img src="${favicon}" width="16" height="16" style="border-radius:3px;flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+          <span>${esc(c.name)}</span>
+        </div>
         <div class="client-item-meta">
           <span class="phase-badge badge-${phase}">${phaseLabel}</span>
           <span>${p}% complete</span>
@@ -1696,7 +1788,7 @@ function renderHeader(c) {
       <div class="client-header-info" style="flex:1">
         <div class="client-header-name">${c.name}</div>
         <div class="client-header-details">
-          ${c.shopUrl ? `<div class="client-detail">🏪 <strong>${c.shopUrl}</strong></div>` : ''}
+          ${c.shopUrl ? `<div class="client-detail">🌐 <a href="${c.shopUrl.startsWith('http') ? c.shopUrl : 'https://' + c.shopUrl}" target="_blank" rel="noopener" style="color:inherit;font-weight:600;">${c.shopUrl}</a></div>` : ''}
           <div class="client-detail">📦 Plan: <strong>${c.tier || 'Essentials'}</strong> ${S.isClientPortal ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:1px 7px;margin-left:4px;" onclick="openEditClientModal('${c.id}')">Change Plan</button>`}</div>
           <div class="client-detail">📅 Started: <strong>${started}</strong></div>
           <div class="client-detail">✅ <strong>${done}/${total}</strong> tasks done</div>
