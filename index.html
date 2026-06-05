@@ -718,6 +718,121 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 .cv-act-entry { padding: 7px 0; border-bottom: 1px solid var(--gray-100); font-size: 13px; color: var(--gray-700); line-height: 1.4; }
 .cv-act-entry:last-child { border-bottom: none; }
 .cv-act-date { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+
+/* ── MOBILE RESPONSIVE ── */
+
+/* Hamburger button — hidden on desktop */
+#sidebarToggle {
+  display: none; flex-direction: column; justify-content: center; align-items: center;
+  gap: 4px; width: 36px; height: 36px; background: none; border: none; cursor: pointer;
+  border-radius: 8px; flex-shrink: 0; padding: 6px;
+}
+#sidebarToggle span {
+  display: block; width: 18px; height: 2px; background: var(--gray-600); border-radius: 2px;
+  transition: all 0.2s;
+}
+#sidebarToggle:hover span { background: var(--gray-800); }
+
+/* Sidebar backdrop — hidden by default */
+#sidebarBackdrop {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 999; backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+}
+#sidebarBackdrop.open { display: block; }
+
+@media (max-width: 768px) {
+  /* Sidebar becomes a slide-in drawer */
+  #sidebar {
+    position: fixed; left: -260px; top: 0; bottom: 0; z-index: 1000;
+    width: 252px; min-width: 252px;
+    transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+  }
+  #sidebar.open {
+    left: 0;
+    box-shadow: 4px 0 32px rgba(0,0,0,0.35);
+  }
+  #sidebarToggle { display: flex; }
+
+  /* Topbar */
+  .topbar { padding: 0 12px; gap: 8px; height: 52px; }
+  #topbarSubtitle { display: none; }
+  #swapperBtn { display: none; }
+  /* Shrink logo slightly */
+  .topbar-title img { height: 32px !important; }
+  /* User badge — hide name/role text, keep avatar */
+  #userName, #userRole { display: none !important; }
+
+  /* Client header */
+  .client-header { padding: 12px 14px; }
+  .client-header-row { flex-wrap: wrap; gap: 8px; }
+  .client-header-name { font-size: 18px; }
+  .client-header-details { gap: 10px; margin-top: 4px; }
+  .overall-progress { max-width: 100%; margin-top: 10px; }
+
+  /* Phase tabs */
+  .phase-tabs { padding: 0 8px; }
+  .phase-tab { padding: 10px 8px; font-size: 11px; gap: 4px; }
+  .tab-pill { padding: 1px 5px; }
+
+  /* Content */
+  .content-area { padding: 14px 12px; }
+
+  /* Category cards */
+  .category-head { padding: 10px 14px; }
+  .task-row { padding: 10px 14px; }
+  .task-note-area { padding: 0 12px 8px 40px; }
+
+  /* Add link form — single column */
+  .add-link-grid { grid-template-columns: 1fr; }
+
+  /* Links table — horizontal scroll */
+  .links-table { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .link-row { min-width: 680px; }
+
+  /* Budget widget — stack vertically */
+  .budget-widget { flex-direction: column; gap: 14px; align-items: flex-start; }
+  .budget-divider { display: none; }
+  .budget-widget-title { margin-bottom: 4px; }
+
+  /* Phase banner */
+  .phase-banner { padding: 12px 14px; gap: 10px; }
+  .phase-banner-title { font-size: 13px; }
+  .phase-banner-desc { font-size: 11px; }
+
+  /* Chat */
+  .chat-bubble-wrap { max-width: 82%; }
+  .content-area .chat-wrap { max-width: 100%; }
+
+  /* Month bar */
+  .month-bar { gap: 5px; }
+  .month-pill { font-size: 11px; padding: 4px 8px 4px 10px; }
+
+  /* Settings rows — stack label + control */
+  .settings-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+  /* Template panel — single column */
+  .tpl-panel { grid-template-columns: 1fr; }
+
+  /* Team modal */
+  .team-modal { width: 96vw; }
+
+  /* Modals already have max-width:96vw, but ensure full-bleed padding */
+  .modal { padding: 18px; border-radius: 12px; }
+
+  /* Toast — full width on mobile */
+  .toast { left: 12px; right: 12px; bottom: 16px; max-width: none; }
+}
+
+@media (max-width: 480px) {
+  .client-header-name { font-size: 16px; }
+  .client-detail { font-size: 11px; }
+  .content-area { padding: 10px; }
+  .category-head { padding: 9px 12px; }
+  .task-row { padding: 9px 12px; gap: 9px; }
+  .phase-tab { padding: 9px 6px; font-size: 10px; }
+  .tab-pill { display: none; }
+}
 </style>
 </head>
 <body>
@@ -738,14 +853,20 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
   </div>
 </div>
 
+<!-- Sidebar backdrop (mobile) -->
+<div id="sidebarBackdrop" onclick="closeSidebar()"></div>
+
 <!-- MAIN -->
 <div id="main">
   <div class="topbar" id="topbar">
+    <button id="sidebarToggle" onclick="toggleSidebar()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
     <div class="topbar-title" style="display:flex;align-items:center;gap:10px;">
       <img src="logo-dark.png" alt="Shopiotic" style="height:39px;width:auto;object-fit:contain;">
-      <span class="topbar-subtitle" style="margin-left:0;">Ops Portal</span>
+      <span class="topbar-subtitle" id="topbarSubtitle" style="margin-left:0;">Ops Portal</span>
     </div>
-    <a href="https://charming-babka-6d354e.netlify.app" target="_blank" class="btn btn-outline btn-sm" style="text-decoration:none;flex-shrink:0;">🔄 Deliverable Swapper</a>
+    <a href="https://charming-babka-6d354e.netlify.app" target="_blank" class="btn btn-outline btn-sm" id="swapperBtn" style="text-decoration:none;flex-shrink:0;">🔄 Deliverable Swapper</a>
     <div id="userBadge" style="display:none;align-items:center;gap:10px;">
       <div id="userAvatar" style="width:34px;height:34px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;overflow:hidden;"></div>
       <div style="display:flex;flex-direction:column;line-height:1.2;">
@@ -2189,6 +2310,7 @@ function showEmpty() {
 }
 
 function selectClient(id) {
+  closeSidebar(); // close mobile drawer when client selected
   cleanupChat();
   S.activeId = id;
   S.activeTab = 'overview';
@@ -3486,6 +3608,18 @@ function closeCvModal() { document.getElementById('cvModal').classList.remove('o
 // ═══════════════════════════════════════════
 //  TOAST
 // ═══════════════════════════════════════════
+
+// ── SIDEBAR MOBILE TOGGLE ──
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const bd = document.getElementById('sidebarBackdrop');
+  sb.classList.toggle('open');
+  bd.classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarBackdrop').classList.remove('open');
+}
 
 let _toastTimer;
 function showToast(msg, type = 'info') {
