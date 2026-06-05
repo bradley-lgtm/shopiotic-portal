@@ -3653,6 +3653,15 @@ async function initChat(clientId, channel) {
   }
   renderMessages(_chatMessages, channel);
 
+  // Eagerly load member profiles (avatars, colours) so they show immediately
+  // without waiting for someone to type '@'
+  if (!isAnonPortal && S.currentUser) {
+    loadChatMembers(clientId).then(members => {
+      _mentionState.members = members;
+      renderMessages(_chatMessages, channel); // re-render with avatars now available
+    });
+  }
+
   // Wire up @mention autocomplete
   setTimeout(() => {
     const input = document.getElementById('chatInput_' + channel);
