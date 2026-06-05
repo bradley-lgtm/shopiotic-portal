@@ -2447,6 +2447,20 @@ function renderBudgetWidget(c, phaseKey) {
     </div>`;
 }
 
+// Post an automated message to the team chat on behalf of the current user
+async function autoSendChatMessage(clientId, text) {
+  const u = S.currentUser; if (!u || !_sb) return;
+  await _sb.from('messages').insert({
+    client_id: clientId,
+    user_id: u.id,
+    sender_name: u.name,
+    sender_color: u.color,
+    text,
+    channel: 'team',
+    mentions: [],
+  });
+}
+
 function addLink(phaseKey) {
   const c = getClient(); if (!c) return;
   const url = document.getElementById('lk_url_'+phaseKey).value.trim();
@@ -2460,6 +2474,21 @@ function addLink(phaseKey) {
   if (!c.links) c.links = [];
   c.links.push({ id: uid(), url, targetUrl, anchorText, anchorType, linkType, cost, date, phaseKey });
   save(); renderClient();
+
+  // Auto-post to team chat with full link details
+  const lines = [
+    `🔗 New backlink added for *${c.name}*`,
+    ``,
+    `URL: ${url}`,
+    targetUrl  ? `Target URL: ${targetUrl}` : null,
+    anchorText ? `Anchor Text: ${anchorText}` : null,
+    `Anchor Type: ${anchorType}`,
+    linkType   ? `Link Type: ${linkType}` : null,
+    cost       ? `Cost: $${parseFloat(cost).toFixed(0)}` : null,
+    date       ? `Date: ${date}` : null,
+    `Phase: ${phaseKey}`,
+  ].filter(l => l !== null).join('\n');
+  autoSendChatMessage(c.id, lines);
 }
 
 function deleteLink(id) {
