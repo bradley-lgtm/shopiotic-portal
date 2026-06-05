@@ -1046,7 +1046,7 @@ const TASKS = {
 
   phase1_tech: [
     { cat: "Setup & Crawl Fixes", items: [
-      { id:"t1", t:"Make a copy of the Technical SEO report doc", s:["Fill out basic client information","Use Technical_SEO_Audit_Template.docx: https://docs.google.com/document/d/1fyBgVC4qSH7_7392Cj1Bp73Ntz8FTMUS/edit","Remove all inapplicable blocks","Remove internal instructions once done"] },
+      { id:"t1", t:"Make a copy of the Technical SEO report doc", s:["Use Technical_SEO_Audit_Template.docx: https://docs.google.com/document/d/1fyBgVC4qSH7_7392Cj1Bp73Ntz8FTMUS/edit","Fill out basic client information","Add the client's name to the document name","Remove the word 'template' from the document name","Remove all inapplicable blocks","Remove internal instructions once done","Store the Technical SEO Audit document in the Overview tab on the client dashboard"] },
       { id:"t2", t:"Review the results of the SEMrush technical audit" },
       { id:"t3", t:"Fix any 404 pages with 301 redirects" },
       { id:"t4", t:"Fix the /collections/*/products/* issue", s:["Update the theme changes doc","Video 1: https://content-climber-seo.neetorecord.com/watch/24349752bd0a8f961793","Video 2: https://content-climber-seo.neetorecord.com/watch/928e1b2b84d28ed1f7ae"] },
@@ -1054,20 +1054,20 @@ const TASKS = {
     { cat: "Robots & Indexing", items: [
       { id:"t5", t:"Add a custom robots.txt file" },
       { id:"t6", t:"Update the robots.txt file", s:["Block tagged URLs","Block product type URLs","Block vendor URLs","Block /collections, /collections/all, and /collections/new","Allow AI bots (see code in Trello card)","Helpful guide — Shopify SEO Ebook: https://drive.google.com/file/d/1mzTqDVBzh5LszQpCgNMAzJ2XOH9D7ULm/view"] },
-      { id:"t7", t:"Add an llms.txt file (WIP)" },
+      { id:"t7", t:"Add an llms.txt file", s:["Begin by checking if the client already has one — paste /llms.txt at the end of their domain in the browser","Shopify is automatically adding one in many cases, so it may already exist"] },
       { id:"t8", t:"Submit the sitemap to GSC (may already be done)" },
       { id:"t9", t:"Block filters from creating crawlable collections", s:["Helpful guide — Shopify SEO Ebook: https://drive.google.com/file/d/1mzTqDVBzh5LszQpCgNMAzJ2XOH9D7ULm/view"] },
     ]},
     { cat: "Technical Health", items: [
       { id:"t10", t:"Check for an SSL certificate", s:["Check the HTTPS report in GSC"] },
-      { id:"t11", t:"Check for page speed issues", s:["Measure on: home page, a collection, a blog, and a product page","If issues found, explore options with client — theme upgrade or removing apps"] },
+      { id:"t11", t:"Check for page speed issues", s:["Measure on: home page, a collection, a blog, and a product page","Dig deeper using Google Lighthouse reports if needed","If issues found, explore options with client — theme upgrade or removing apps"] },
       { id:"t12", t:"Check GSC core web vitals for technical errors and fix any issues" },
       { id:"t13", t:"Check if breadcrumbs are setup on the site", s:["Check: collection page, product page, basic page, and blog page","Where missing, add them in the theme with breadcrumb schema"] },
       { id:"t14", t:"Fix missing and duplicate H1s", s:["Find these in the SEMrush audit"] },
     ]},
     { cat: "Schema Markup", items: [
-      { id:"t15", t:"Make sure product schema is setup across the site", s:["Check the GSC product snippets report","Run a couple of products through the rich results test: search.google.com/test/rich-results"] },
-      { id:"t16", t:"Add organization schema", s:["Check if it's setup already","If not, add it to the home page and about us page"] },
+      { id:"t15", t:"Make sure product schema is setup across the site", s:["Check the GSC product snippets report","Run a couple of products through the rich results test: https://search.google.com/test/rich-results"] },
+      { id:"t16", t:"Add organization schema", s:["Check if it's setup already","If not, add it to the home page and about us page","Work with AI to optimize the sameAs array"] },
       { id:"t17", t:"Add local business schema", s:["Check if it's setup already","If not, add it to the home page"] },
       { id:"t18", t:"Verify breadcrumb schema in GSC", s:["Run pages through the rich results test","Fix any issues","Conduct a SERP test to confirm"] },
       { id:"t19", t:"Verify reviews schema in GSC", s:["Run pages through the rich results test","Fix any issues","Conduct a SERP test to confirm"] },
@@ -1076,7 +1076,7 @@ const TASKS = {
     { cat: "Audit & Report", items: [
       { id:"t21", t:"Run pages through the Logeix Page Auditor", s:["Run: product page, collection, blog page, home page","Fix header issues (AI may be helpful)","Tool: https://logeix.com/audit","Helpful guide — Shopify SEO Ebook: https://drive.google.com/file/d/1mzTqDVBzh5LszQpCgNMAzJ2XOH9D7ULm/view"] },
       { id:"t22", t:"Update the theme changes doc with any manual edits made to the theme code" },
-      { id:"t23", t:"Send the Technical SEO findings doc to the client", s:["Send via email and Trello","Remove all inapplicable blocks and internal instructions before sending"] },
+      { id:"t23", t:"Send the Technical SEO findings doc to the client", s:["Send via email and the client chat","Remove all inapplicable blocks and internal instructions before sending"] },
     ]},
   ],
 
