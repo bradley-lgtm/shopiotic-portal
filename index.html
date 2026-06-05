@@ -730,18 +730,10 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
   <div class="sidebar-label">Clients</div>
   <div class="client-list" id="clientList"></div>
 
-  <!-- TEAM DOCS (owner + worker only, never client portal) -->
-  <div id="teamDocsSection" style="display:none;border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;margin-top:4px;">
-    <div class="sidebar-label" style="display:flex;justify-content:space-between;align-items:center;padding-right:10px;margin-bottom:0;">
-      <span>Team Docs</span>
-      <span id="teamDocsAddBtn"></span>
-    </div>
-    <div id="teamDocsList" style="padding:0 0 4px;"></div>
-  </div>
-
   <div class="sidebar-footer">
     <button class="btn-add-client" id="btnAddClient" onclick="openAddClientModal()">+ Add Client</button>
     <button class="btn-team" id="btnTeam" onclick="openTeamModal()" style="display:none;">👥 Team</button>
+    <button class="btn-team" id="btnTeamDocs" onclick="openTeamDocsModal()" style="display:none;">📁 Team Docs</button>
     <button class="btn-team" onclick="openSettings()" style="margin-top:4px;">⚙️ Settings</button>
   </div>
 </div>
@@ -938,6 +930,34 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
     </div>
     <div id="backlinkNichesWrap" style="margin-bottom:16px;"></div>
     <div id="linksTableWrap" style="overflow-x:auto;"></div>
+  </div>
+</div>
+
+<!-- TEAM DOCS MODAL -->
+<div class="modal-overlay" id="teamDocsModal">
+  <div class="modal" style="width:580px;max-width:97vw;max-height:88vh;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-shrink:0;">
+      <div class="modal-title" style="margin-bottom:0;">📁 Team Docs</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeTeamDocsModal()">✕</button>
+    </div>
+    <p style="font-size:12px;color:var(--gray-500);margin:0 0 16px;flex-shrink:0;">Shared links for the team. Toggle 👁/🔒 to control worker visibility.</p>
+    <div id="teamDocsModalList" style="flex:1;overflow-y:auto;min-height:0;"></div>
+    <div id="teamDocsAddRow" style="display:none;border-top:1px solid var(--gray-200);padding-top:14px;margin-top:12px;flex-shrink:0;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <input id="tdoc_label" class="edit-field-input" placeholder="Label (e.g. Data Studio)" onkeydown="if(event.key==='Enter')addTeamDoc()">
+        <input id="tdoc_url" class="edit-field-input" placeholder="https://..." onkeydown="if(event.key==='Enter')addTeamDoc()">
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <label style="font-size:12px;color:var(--gray-600);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="tdoc_worker" checked> Visible to workers</label>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="hideTeamDocForm()">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="addTeamDoc()">Add Doc</button>
+        </div>
+      </div>
+    </div>
+    <div id="teamDocsOwnerActions" style="display:none;border-top:1px solid var(--gray-200);padding-top:14px;margin-top:12px;flex-shrink:0;">
+      <button class="btn btn-outline btn-sm" onclick="showTeamDocForm()">+ Add Doc</button>
+    </div>
   </div>
 </div>
 
@@ -4572,48 +4592,67 @@ function afterLoad() {
 }
 
 function renderTeamDocs() {
-  const section = document.getElementById('teamDocsSection');
-  if (!section) return;
-  if (S.isClientPortal || !S.currentUser) { section.style.display = 'none'; return; }
-  const isOwner = S.currentUser.role === 'owner';
+  // Show/hide the sidebar button
+  const btn = document.getElementById('btnTeamDocs');
+  if (!btn) return;
+  if (S.isClientPortal || !S.currentUser) { btn.style.display = 'none'; return; }
+  btn.style.display = 'block';
+}
+
+function openTeamDocsModal() {
+  const isOwner = S.currentUser?.role === 'owner';
   const docs = S.teamDocs.filter(d => isOwner || d.workerVisible);
-  section.style.display = 'block';
 
-  const addBtnEl = document.getElementById('teamDocsAddBtn');
-  if (addBtnEl) addBtnEl.innerHTML = isOwner
-    ? `<button onclick="showTeamDocForm()" style="background:none;border:none;cursor:pointer;font-size:11px;color:rgba(255,255,255,0.5);padding:0;">+ Add</button>`
-    : '';
+  const listEl = document.getElementById('teamDocsModalList');
+  if (docs.length === 0) {
+    listEl.innerHTML = `<p style="font-size:13px;color:var(--gray-400);text-align:center;padding:24px 0;">${isOwner ? 'No docs yet — add one below.' : 'No shared docs yet.'}</p>`;
+  } else {
+    listEl.innerHTML = `<table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="font-size:11px;color:var(--gray-400);text-transform:uppercase;letter-spacing:.04em;">
+        <th style="text-align:left;padding:6px 8px;font-weight:600;">Label</th>
+        <th style="text-align:left;padding:6px 8px;font-weight:600;">URL</th>
+        ${isOwner ? `<th style="padding:6px 8px;font-weight:600;text-align:center;">Workers</th><th></th>` : ''}
+      </tr></thead>
+      <tbody>${docs.map(d => `
+        <tr style="border-top:1px solid var(--gray-100);">
+          <td style="padding:9px 8px;font-size:13px;font-weight:500;">${esc(d.label)}</td>
+          <td style="padding:9px 8px;font-size:12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            <a href="${esc(d.url)}" target="_blank" style="color:var(--teal);text-decoration:none;" title="${esc(d.url)}">${esc(d.url)}</a>
+          </td>
+          ${isOwner ? `
+          <td style="padding:9px 8px;text-align:center;">
+            <button title="${d.workerVisible ? 'Visible to workers' : 'Hidden from workers'}" onclick="toggleTeamDocVis('${d.id}')" style="background:none;border:none;cursor:pointer;font-size:15px;">${d.workerVisible ? '👁' : '🔒'}</button>
+          </td>
+          <td style="padding:9px 8px;text-align:right;">
+            <button onclick="removeTeamDoc('${d.id}')" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--gray-400);" title="Delete">✕</button>
+          </td>` : ''}
+        </tr>`).join('')}
+      </tbody></table>`;
+  }
 
-  const listEl = document.getElementById('teamDocsList');
-  listEl.innerHTML = docs.map(d => `
-    <div style="display:flex;align-items:center;gap:4px;padding:3px 12px;">
-      <a href="${esc(d.url)}" target="_blank" style="flex:1;font-size:12px;color:rgba(255,255,255,0.75);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(d.url)}">${esc(d.label)}</a>
-      ${isOwner ? `
-        <button title="${d.workerVisible ? 'Visible to workers — click to hide' : 'Hidden from workers — click to show'}" onclick="toggleTeamDocVis('${d.id}')" style="background:none;border:none;cursor:pointer;font-size:11px;opacity:0.45;flex-shrink:0;padding:0;">${d.workerVisible ? '👁' : '🔒'}</button>
-        <button onclick="removeTeamDoc('${d.id}')" style="background:none;border:none;cursor:pointer;font-size:11px;color:rgba(255,255,255,0.3);flex-shrink:0;padding:0;">✕</button>
-      ` : ''}
-    </div>`).join('') +
-  (isOwner ? `
-    <div id="teamDocForm" style="display:none;padding:6px 12px 8px;">
-      <input id="tdoc_label" placeholder="Label (e.g. Data Studio)" style="width:100%;box-sizing:border-box;margin-bottom:4px;padding:5px 8px;font-size:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:#fff;" onkeydown="if(event.key==='Enter')addTeamDoc()">
-      <input id="tdoc_url" placeholder="https://..." style="width:100%;box-sizing:border-box;margin-bottom:5px;padding:5px 8px;font-size:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:#fff;" onkeydown="if(event.key==='Enter')addTeamDoc()">
-      <label style="font-size:11px;color:rgba(255,255,255,0.5);display:flex;align-items:center;gap:5px;margin-bottom:6px;cursor:pointer;"><input type="checkbox" id="tdoc_worker" checked style="margin:0;"> Workers can see</label>
-      <div style="display:flex;gap:5px;">
-        <button onclick="addTeamDoc()" style="flex:1;padding:4px;font-size:12px;background:var(--teal);border:none;border-radius:4px;color:#fff;cursor:pointer;font-weight:600;">Add</button>
-        <button onclick="hideTeamDocForm()" style="padding:4px 10px;font-size:12px;background:rgba(255,255,255,0.08);border:none;border-radius:4px;color:rgba(255,255,255,0.5);cursor:pointer;">Cancel</button>
-      </div>
-    </div>` : '');
+  document.getElementById('teamDocsAddRow').style.display = 'none';
+  document.getElementById('teamDocsOwnerActions').style.display = isOwner ? 'block' : 'none';
+  document.getElementById('teamDocsModal').classList.add('open');
+}
+
+function closeTeamDocsModal() {
+  document.getElementById('teamDocsModal').classList.remove('open');
 }
 
 function showTeamDocForm() {
-  renderTeamDocs(); // ensure form is in DOM
-  const f = document.getElementById('teamDocForm');
-  if (f) { f.style.display = 'block'; document.getElementById('tdoc_label')?.focus(); }
+  document.getElementById('teamDocsOwnerActions').style.display = 'none';
+  document.getElementById('teamDocsAddRow').style.display = 'block';
+  document.getElementById('tdoc_label').value = '';
+  document.getElementById('tdoc_url').value = '';
+  document.getElementById('tdoc_worker').checked = true;
+  document.getElementById('tdoc_label').focus();
 }
+
 function hideTeamDocForm() {
-  const f = document.getElementById('teamDocForm');
-  if (f) f.style.display = 'none';
+  document.getElementById('teamDocsAddRow').style.display = 'none';
+  document.getElementById('teamDocsOwnerActions').style.display = 'block';
 }
+
 function addTeamDoc() {
   const label = (document.getElementById('tdoc_label')?.value || '').trim();
   const url = (document.getElementById('tdoc_url')?.value || '').trim();
@@ -4621,17 +4660,19 @@ function addTeamDoc() {
   const workerVisible = document.getElementById('tdoc_worker')?.checked !== false;
   S.teamDocs.push({ id: uid(), label, url, workerVisible });
   saveTeamDocs();
-  renderTeamDocs();
+  openTeamDocsModal(); // re-render modal content
 }
+
 function removeTeamDoc(id) {
   if (!confirm('Remove this doc?')) return;
   S.teamDocs = S.teamDocs.filter(d => d.id !== id);
   saveTeamDocs();
-  renderTeamDocs();
+  openTeamDocsModal();
 }
+
 function toggleTeamDocVis(id) {
   const d = S.teamDocs.find(d => d.id === id);
-  if (d) { d.workerVisible = !d.workerVisible; saveTeamDocs(); renderTeamDocs(); }
+  if (d) { d.workerVisible = !d.workerVisible; saveTeamDocs(); openTeamDocsModal(); }
 }
 
 // ═══════════════════════════════════════════
