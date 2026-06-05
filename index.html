@@ -926,6 +926,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
       <div class="modal-title" style="margin-bottom:0;">🔗 Backlink History</div>
       <button class="btn btn-ghost btn-sm" onclick="closeLinksModal()">✕ Close</button>
     </div>
+    <div id="backlinkNichesWrap" style="margin-bottom:16px;"></div>
     <div id="linksTableWrap" style="overflow-x:auto;"></div>
   </div>
 </div>
@@ -986,12 +987,12 @@ const TASKS = {
       { id:"p1o9c", t:"Setup a Claude Code project for the client", s:["Add the client's Shopify store as an integration","Used to fix technical SEO issues in the theme code"] },
     ]},
     { cat: "Reporting Setup", items: [
-      { id:"p1o10", t:"Setup reporting in Data Studio", s:["Setup the monthly report in Data Studio","Setup scheduling for the report","Name the doc and the header with the client's name","Share the analytics dashboard with the client","Store the link to the dashboard in the client portal","Add the client's name and the names, email addresses, and roles of all points of contact to the overview tab in the portal"] },
+      { id:"p1o10", t:"Setup reporting in Data Studio", s:["Setup the weekly report in Data Studio","Setup the monthly report in Data Studio","Setup scheduling for both reports","Name the doc and the header with the client's name","Share the analytics dashboard with the client","Store the link to the dashboard in the client portal","Add the client's name and the names, email addresses, and roles of all points of contact to the overview tab in the portal"] },
       { id:"p1o10b", t:"Embed the Data Studio report in the client portal", s:["Go to the Analytics tab for this client in the Shopiotic Ops Portal","Click '+ Embed Report'","In Looker Studio: File → Embed Report → enable embedding → copy embed code","Paste the embed code into the portal and save","Make sure the dashboard is shared with all points of contact who will want access — they won't be able to see the report otherwise"] },
     ]},
     { cat: "Research & Calls", items: [
       { id:"p1o17", t:"Conduct competitor research", s:["Pay attention to most visited pages","Note commercial page layouts","Build a quick report using AI — dictate your findings and ask it to write it up as an update — send to the client","Store in the overview tab on the client dashboard"] },
-      { id:"p1o18", t:"Scrape the client's website for brand information", s:["Store results in a properly named Google Doc","Store the doc in the overview tab on the client dashboard","You can use the Claude Brain Scraper skill for this","Be sure to do this in the client's Claude project we set up"] },
+      { id:"p1o18", t:"Scrape the client's website for brand information", s:["Store results in a properly named Google Doc","Store the doc in the overview tab on the client dashboard","You can use the Claude Brand Style Scraper skill for this","Be sure to do this in the client's Claude project we set up"] },
       { id:"p1o19", t:"Have the 'Sell Me Your Products' call", s:["Record the call","Store the recording and transcript in the overview tab on the client dashboard","Book the end of month report call — always book at least 3 business days into the next month to give us time to analyze the report and form an action plan"] },
       { id:"p1o11", t:"Setup a Google Doc to track theme edits", s:["Store the doc in the overview tab on the client dashboard"] },
     ]},
@@ -2284,8 +2285,23 @@ function deleteLink(id) {
   save(); renderClient();
 }
 
+function saveBacklinkNiches(val) {
+  const c = getClient(); if (!c) return;
+  c.backlinkNiches = val;
+  save();
+}
+
 function openLinksModal() {
   const c = getClient(); if (!c) return;
+  // Render niches field
+  const niches = c.backlinkNiches || '';
+  const nichesHTML = S.isClientPortal
+    ? (niches ? `<div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:10px 14px;font-size:13px;"><span style="font-weight:600;color:var(--gray-600);">Backlink Niches: </span>${esc(niches)}</div>` : '')
+    : `<div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:10px 14px;">
+        <label style="font-size:12px;font-weight:600;color:var(--gray-600);display:block;margin-bottom:6px;">Client Backlink Niches <span style="font-weight:400;color:var(--gray-400);">(general niches for finding relevant backlink sites)</span></label>
+        <textarea style="width:100%;box-sizing:border-box;border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical;min-height:52px;" placeholder="e.g. home improvement, power tools, DIY, renovation…" oninput="saveBacklinkNiches(this.value)" onkeydown="event.stopPropagation()">${esc(niches)}</textarea>
+      </div>`;
+  document.getElementById('backlinkNichesWrap').innerHTML = nichesHTML;
   const links = (c.links || []).slice().sort((a,b) => (a.date||'').localeCompare(b.date||''));
   const html = links.length ? `
     <div class="links-table">
