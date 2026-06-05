@@ -3419,15 +3419,9 @@ body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#1e293b;back
 /* ── Footer ── */
 .rpt-footer{margin-top:32px;padding-top:14px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;}
 
-/* ── Save button ── */
-.save-btn{position:fixed;top:20px;right:20px;background:linear-gradient(135deg,#0d9488,#6366f1);color:#fff;border:none;padding:12px 24px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;box-shadow:0 4px 20px rgba(13,148,136,0.4);z-index:999;display:flex;align-items:center;gap:8px;}
-.save-btn:hover{opacity:0.9;}
-.save-btn.loading{opacity:0.7;pointer-events:none;}
 </style>
-<scr` + `ipt src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"><\/scr` + `ipt>
 </head>
 <body>
-<button class="save-btn" id="savePdfBtn" onclick="doSavePdf()">⬇ Save as PDF</button>
 <div class="page">
 
   <div class="rpt-header">
@@ -3475,25 +3469,6 @@ body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#1e293b;back
     <span>Generated ${today}</span>
   </div>
 </div>
-<scr` + `ipt>
-function doSavePdf() {
-  const btn = document.getElementById('savePdfBtn');
-  btn.textContent = 'Generating…';
-  btn.classList.add('loading');
-  const el = document.querySelector('.page');
-  html2pdf().set({
-    margin: [10, 12],
-    filename: 'Shopiotic-Report-${esc(c.name).replace(/[^a-z0-9]/gi,'-')}-${new Date().toISOString().slice(0,10)}.pdf',
-    image: { type: 'jpeg', quality: 0.97 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#f8fafc' },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['avoid-all', 'css'] }
-  }).from(el).save().then(() => {
-    btn.textContent = '✓ Downloaded';
-    setTimeout(() => { btn.textContent = '↓ Save as PDF'; btn.classList.remove('loading'); }, 2500);
-  });
-}
-<\/scr` + `ipt>
 </body>
 </html>`;
 
