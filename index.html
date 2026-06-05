@@ -3419,24 +3419,15 @@ body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#1e293b;back
 /* ── Footer ── */
 .rpt-footer{margin-top:32px;padding-top:14px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;}
 
-/* ── Save button (screen only) ── */
-.save-btn{position:fixed;top:20px;right:20px;background:linear-gradient(135deg,#0d9488,#6366f1);color:#fff;border:none;padding:12px 24px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;box-shadow:0 4px 20px rgba(13,148,136,0.4);z-index:999;}
+/* ── Save button ── */
+.save-btn{position:fixed;top:20px;right:20px;background:linear-gradient(135deg,#0d9488,#6366f1);color:#fff;border:none;padding:12px 24px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;box-shadow:0 4px 20px rgba(13,148,136,0.4);z-index:999;display:flex;align-items:center;gap:8px;}
 .save-btn:hover{opacity:0.9;}
-
-@media print{
-  @page{margin:12mm 14mm;size:A4;}
-  body{background:#fff;}
-  .save-btn{display:none!important;}
-  .page{padding:0;max-width:100%;}
-  .phase-block{break-inside:avoid;box-shadow:none;}
-  .rpt-header{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}
-  .s-card,.pbar-wrap{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}
-  body{font-size:11px;}
-}
+.save-btn.loading{opacity:0.7;pointer-events:none;}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
-<button class="save-btn" onclick="window.print()">⬇ Save as PDF</button>
+<button class="save-btn" id="savePdfBtn" onclick="doSavePdf()">⬇ Save as PDF</button>
 <div class="page">
 
   <div class="rpt-header">
@@ -3484,6 +3475,25 @@ body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#1e293b;back
     <span>Generated ${today}</span>
   </div>
 </div>
+<script>
+function doSavePdf() {
+  const btn = document.getElementById('savePdfBtn');
+  btn.textContent = 'Generating…';
+  btn.classList.add('loading');
+  const el = document.querySelector('.page');
+  html2pdf().set({
+    margin: [10, 12],
+    filename: 'Shopiotic-Report-${esc(c.name).replace(/[^a-z0-9]/gi,'-')}-${new Date().toISOString().slice(0,10)}.pdf',
+    image: { type: 'jpeg', quality: 0.97 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#f8fafc' },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['avoid-all', 'css'] }
+  }).from(el).save().then(() => {
+    btn.textContent = '✓ Downloaded';
+    setTimeout(() => { btn.textContent = '⬇ Save as PDF'; btn.classList.remove('loading'); }, 2500);
+  });
+}
+</script>
 </body>
 </html>`;
 
