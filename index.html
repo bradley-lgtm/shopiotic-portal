@@ -660,6 +660,13 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
   outline: none; transition: border-color 0.15s; color: var(--gray-700);
 }
 .contact-row input:focus, .contact-row select:focus { border-color: var(--teal); }
+/* Read-only contact row (client portal) */
+.contact-row-readonly {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+  padding: 8px 0; border-bottom: 1px solid var(--gray-100); font-size: 13px; color: var(--gray-700);
+}
+.contact-row-readonly:last-of-type { border-bottom: none; }
+.contact-row-readonly .cr-role { color: var(--gray-500); }
 /* ── TEMPLATE PANEL ── */
 .tpl-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .tpl-section-title { font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
@@ -865,10 +872,33 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
   /* Toast — full width on mobile */
   .toast { left: 12px; right: 12px; bottom: 16px; max-width: none; }
 
-  /* Contacts — stack to 2 columns + delete button on mobile */
-  .contact-row { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
-  .contact-row > *:nth-child(3) { grid-column: 1; }
-  .contact-row > *:nth-child(4) { grid-column: 2; justify-self: end; align-self: center; }
+  /* Contacts — hide column headers on mobile, stack each contact as a card */
+  .contacts-header { display: none !important; }
+
+  /* Editable contact rows (ops portal) */
+  .contact-row {
+    display: grid;
+    grid-template-columns: 1fr 32px;
+    grid-template-rows: auto auto auto;
+    gap: 6px;
+    padding: 10px 0;
+    align-items: center;
+  }
+  .contact-row > div:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .contact-row > div:nth-child(2) { grid-column: 1; grid-row: 2; }
+  .contact-row > div:nth-child(3) { grid-column: 1; grid-row: 3; }
+  .contact-row > button:nth-child(4) { grid-column: 2; grid-row: 1; align-self: start; margin-top: 2px; }
+
+  /* Read-only contact rows (client portal) */
+  .contact-row-readonly {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 0;
+  }
+  .contact-row-readonly .cr-name { font-weight: 600; font-size: 13px; }
+  .contact-row-readonly .cr-email { font-size: 12px; color: var(--teal-dark); }
+  .contact-row-readonly .cr-role { font-size: 11px; color: var(--gray-400); }
 }
 
 @media (max-width: 480px) {
@@ -2352,12 +2382,12 @@ function renderContactsClientHTML(c) {
       No contacts added yet.<br>
       <span style="font-size:12px;">Want someone added? Message <span class="chat-mention">@BradleyPudney</span> in the Client Chat.</span>
     </div>`;
-  const header = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:6px 0 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;"><span>Name</span><span>Email</span><span>Role</span></div>`;
+  const header = `<div class="contacts-header" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:6px 0 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;"><span>Name</span><span>Email</span><span>Role</span></div>`;
   const rows = contacts.map(ct => `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--gray-100);font-size:13px;color:var(--gray-700);">
-      <span>${esc(ct.name||'')}</span>
-      <span>${esc(ct.email||'')}</span>
-      <span style="color:var(--gray-500);">${esc(ct.role||'')}</span>
+    <div class="contact-row-readonly">
+      <span class="cr-name">${esc(ct.name||'')}</span>
+      <span class="cr-email">${esc(ct.email||'')}</span>
+      <span class="cr-role">${esc(ct.role||'')}</span>
     </div>`).join('');
   return header + rows;
 }
@@ -2365,12 +2395,12 @@ function renderContactsClientHTML(c) {
 function renderContactsHTML(c) {
   const contacts = c.contacts || [];
   if (!contacts.length) return `<div style="font-size:13px;color:var(--gray-400);padding:10px 0;">No contacts yet — click "+ Add Contact" to get started.</div>`;
-  const header = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:8px;padding:6px 0 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;"><span>Name</span><span>Email</span><span>Role</span><span></span></div>`;
+  const header = `<div class="contacts-header" style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:8px;padding:6px 0 4px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;"><span>Name</span><span>Email</span><span>Role</span><span></span></div>`;
   const rows = contacts.map((ct, i) => `
     <div class="contact-row">
       <div><input value="${esc(ct.name||'')}" placeholder="Name" oninput="saveContact(${i},'name',this.value)"></div>
-      <div><input value="${esc(ct.email||'')}" placeholder="email@example.com" oninput="saveContact(${i},'email',this.value)"></div>
-      <div><input value="${esc(ct.role||'')}" placeholder="e.g. SEO Specialist" oninput="saveContact(${i},'role',this.value)"></div>
+      <div><input value="${esc(ct.email||'')}" placeholder="Email" oninput="saveContact(${i},'email',this.value)"></div>
+      <div><input value="${esc(ct.role||'')}" placeholder="Role" oninput="saveContact(${i},'role',this.value)"></div>
       <button class="btn btn-ghost btn-sm" style="padding:4px 6px;color:var(--gray-400);" onclick="removeContact(${i})" title="Remove">🗑️</button>
     </div>`).join('');
   return header + rows;
