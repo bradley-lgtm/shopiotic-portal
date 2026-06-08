@@ -1663,10 +1663,9 @@ function getRecurringStatus(c, key, intervalMonths) {
   const completedCycle = lastDone && lastDone >= currentCycleDue;
 
   if (completedCycle) {
-    // Done — show when the NEXT anchor cycle is due
-    if (daysUntilNext <= 0)  return { status: 'due',      nextDue: nextCycleDue, daysUntil: daysUntilNext, lastDone, neverDone: false };
-    if (daysUntilNext <= 30) return { status: 'upcoming', nextDue: nextCycleDue, daysUntil: daysUntilNext, lastDone, neverDone: false };
-    return                          { status: 'done',     nextDue: nextCycleDue, daysUntil: daysUntilNext, lastDone, neverDone: false };
+    // Task is done for this cycle — always show as done, even if next cycle is coming up soon
+    if (daysUntilNext <= 0) return { status: 'due',  nextDue: nextCycleDue, daysUntil: daysUntilNext, lastDone, neverDone: false };
+    return                         { status: 'done', nextDue: nextCycleDue, daysUntil: daysUntilNext, lastDone, neverDone: false };
   }
 
   if (n === 0) {
