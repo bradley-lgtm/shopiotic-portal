@@ -4274,12 +4274,14 @@ async function initChat(clientId, channel) {
     _streamChannelObj = ch;
 
     // Load React + stream-chat-react from CDN (shared React instance via deps pin)
-    const [React, { createRoot }, SCR] = await Promise.all([
+    const [React, { createRoot }, SCR, SCRE] = await Promise.all([
       import('https://esm.sh/react@18'),
       import('https://esm.sh/react-dom@18/client?deps=react@18'),
       import('https://esm.sh/stream-chat-react@12?deps=stream-chat@8,react@18,react-dom@18'),
+      import('https://esm.sh/stream-chat-react@12/emojis?deps=stream-chat@8,react@18,react-dom@18,emoji-mart').catch(() => null),
     ]);
-    const { Chat, Channel, MessageList, MessageInput, Window, Thread, EmojiPicker } = SCR;
+    const { Chat, Channel, MessageList, MessageInput, Window, Thread } = SCR;
+    const EmojiPicker = SCRE?.EmojiPicker || null;
     const h = React.createElement;
 
     // Custom upload handler — uploads to Supabase Storage instead of
@@ -4305,6 +4307,7 @@ async function initChat(clientId, channel) {
       h(Chat, { client: _streamClient, theme: 'str-chat__theme-light' },
         h(Channel, {
           channel: ch,
+          EmojiPicker: EmojiPicker,
           mentionQueryParams: {
             filters: { id: { $ne: _streamClient.userID } },
             sort: { name: 1 },
@@ -4317,7 +4320,6 @@ async function initChat(clientId, channel) {
               focus: true,
               doImageUploadRequest: supabaseUpload,
               doFileUploadRequest: supabaseUpload,
-              EmojiPicker: EmojiPicker,
             })
           ),
           h(Thread)
