@@ -19,7 +19,30 @@ Deno.serve(async (req) => {
 
   let event: any
   try {
-    event = await req.json()
+    const contentEncoding = req.headers.get('content-encoding') || ''
+    let bodyText: string
+    if (contentEncoding.includes('gzip') || contentEncoding.includes('br')) {
+      const buffer = await req.arrayBuffer()
+      const ds = new DecompressionStream(contentEncoding.includes('br') ? 'deflate-raw' : 'gzip')
+      const writer = ds.writable.getWriter()
+      const reader = ds.readable.getReader()
+      writer.write(new Uint8Array(buffer))
+      writer.close()
+      const chunks: Uint8Array[] = []
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        chunks.push(value)
+      }
+      const total = chunks.reduce((a, c) => a + c.length, 0)
+      const merged = new Uint8Array(total)
+      let offset = 0
+      for (const chunk of chunks) { merged.set(chunk, offset); offset += chunk.length }
+      bodyText = new TextDecoder().decode(merged)
+    } else {
+      bodyText = await req.text()
+    }
+    event = JSON.parse(bodyText)
   } catch (e) {
     console.error('Failed to parse request body as JSON:', e)
     return new Response('Bad JSON', { status: 400 })
