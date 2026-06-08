@@ -3912,6 +3912,64 @@ function openMonthlyReport() {
       </div>`;
   }).join('');
 
+  // ── Recurring Maintenance section (bi-yearly only) ──
+  const recurringMaintenanceHTML = (() => {
+    if (!includeRecurring) return '';
+    const fmtDate = d => d ? d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '';
+    const biYearlyCats = TASKS.recurring.filter(cat => getIntervalMonths(cat.cat) === 6);
+    if (!biYearlyCats.length) return '';
+
+    const rows = [];
+    for (const cat of biYearlyCats) {
+      for (const item of cat.items) {
+        const key = taskKey('rec', item.id);
+        const rs = getRecurringStatus(c, key, 6);
+        // Skip tasks whose first due date hasn't arrived yet (neverDone + status done = not yet due)
+        if (rs.neverDone && rs.status === 'done') continue;
+        let rowClass, icon, badge, subText;
+        if (rs.status === 'done') {
+          rowClass = 'rec-done';   icon = '✓'; badge = 'Up to Date';
+          subText = `Last done ${fmtDate(rs.lastDone)} &nbsp;·&nbsp; Next due ${fmtDate(rs.nextDue)}`;
+        } else if (rs.status === 'due') {
+          rowClass = 'rec-overdue'; icon = '!'; badge = 'Overdue';
+          subText = rs.daysUntil < 0
+            ? `Overdue since ${fmtDate(rs.nextDue)}`
+            : `Due now${rs.lastDone ? ` &nbsp;·&nbsp; Last done ${fmtDate(rs.lastDone)}` : ''}`;
+        } else {
+          rowClass = 'rec-upcoming'; icon = '◷'; badge = 'Upcoming';
+          subText = `Due ${fmtDate(rs.nextDue)} — in ${rs.daysUntil} day${rs.daysUntil === 1 ? '' : 's'}${rs.lastDone ? ` &nbsp;·&nbsp; Last done ${fmtDate(rs.lastDone)}` : ''}`;
+        }
+        rows.push({ name: item.t, rowClass, icon, badge, subText });
+      }
+    }
+    if (!rows.length) return '';
+
+    const rowsDone    = rows.filter(r => r.rowClass === 'rec-done').length;
+    const rowsOverdue = rows.filter(r => r.rowClass === 'rec-overdue').length;
+    const tallyHTML   = `<span class="tally-done">${rowsDone} up to date</span>`
+      + (rowsOverdue > 0 ? ` &nbsp;·&nbsp; <span class="tally-over">${rowsOverdue} overdue</span>` : '');
+
+    const rowsHTML = rows.map(r => `
+      <div class="rec-task-row ${r.rowClass}">
+        <div class="task-icon">${r.icon}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="task-name">${esc(r.name)}</div>
+          <div class="rec-sub">${r.subText}</div>
+        </div>
+        <div class="task-badge">${r.badge}</div>
+      </div>`).join('');
+
+    return `
+      <div class="phase-block" style="margin-top:8px;">
+        <div class="phase-head">
+          <span class="phase-title">🔄 Recurring Maintenance</span>
+          <span class="phase-tally">${tallyHTML}</span>
+        </div>
+        <div class="cat-label">Bi-Yearly Tasks (Every 6 Months)</div>
+        ${rowsHTML}
+      </div>`;
+  })();
+
   const favicon = getFaviconUrl(c.shopUrl);
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -3979,6 +4037,21 @@ body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#1e293b;back
 .task-row.overdue .task-badge{background:#fef3c7;color:#b45309;}
 .custom-pill{font-size:9px;background:#ede9fe;color:#7c3aed;border-radius:3px;padding:1px 5px;margin-left:4px;font-weight:700;vertical-align:middle;}
 
+/* ── Recurring maintenance ── */
+.rec-task-row{display:flex;align-items:flex-start;gap:10px;padding:9px 16px;border-bottom:1px solid #f1f5f9;}
+.rec-task-row:last-child{border-bottom:none;}
+.rec-task-row .task-icon{margin-top:1px;}
+.rec-done .task-icon{background:#dcfce7;color:#16a34a;}
+.rec-done .task-name{color:#334155;}
+.rec-done .task-badge{background:#dcfce7;color:#16a34a;}
+.rec-overdue .task-icon{background:#fef3c7;color:#b45309;}
+.rec-overdue .task-name{color:#78350f;}
+.rec-overdue .task-badge{background:#fef3c7;color:#b45309;}
+.rec-upcoming .task-icon{background:#f1f5f9;color:#64748b;}
+.rec-upcoming .task-name{color:#334155;}
+.rec-upcoming .task-badge{background:#f1f5f9;color:#64748b;}
+.rec-sub{font-size:10px;color:#94a3b8;margin-top:3px;}
+
 /* ── Footer ── */
 .rpt-footer{margin-top:32px;padding-top:14px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;}
 
@@ -4026,6 +4099,8 @@ body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#1e293b;back
   </div>
 
   ${phasesHTML}
+
+  ${recurringMaintenanceHTML}
 
   <div class="rpt-footer">
     <span>Shopiotic SEO Agency &nbsp;·&nbsp; Confidential</span>
