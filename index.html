@@ -2856,6 +2856,12 @@ function getEffectiveBudget(c, phaseKey) {
 }
 
 function calcBudget(c, phaseKey) {
+  // Phase 1 is a one-time budget — completely isolated from the p2/p3 carryover chain
+  if (phaseKey === 'p1o') {
+    const baseBudget = getEffectiveBudget(c, 'p1o');
+    const spent = (c.links || []).filter(l => l.phaseKey === 'p1o').reduce((s, l) => s + (parseFloat(l.cost) || 0), 0);
+    return { baseBudget, carryover: 0, available: baseBudget, spent, remaining: baseBudget - spent };
+  }
   const allMonths = getMonthsInOrder(c);
   let carryover = 0;
   for (const mo of allMonths) {
