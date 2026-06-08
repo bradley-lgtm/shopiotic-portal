@@ -4954,7 +4954,10 @@ async function assignClient(workerId) {
   const sel = document.getElementById('assign_' + workerId);
   const clientId = sel ? sel.value : '';
   if (!clientId) return;
-  const { error } = await _sb.from('client_access').upsert({ user_id: workerId, client_id: clientId }, { onConflict: 'user_id,client_id' });
+  // Check if already assigned to avoid duplicate insert
+  const { data: existing } = await _sb.from('client_access').select('user_id').eq('user_id', workerId).eq('client_id', clientId).maybeSingle();
+  if (existing) { showToast('Already assigned ✓', 'success'); openTeamModal(); return; }
+  const { error } = await _sb.from('client_access').insert({ user_id: workerId, client_id: clientId });
   if (error) { showToast('Failed to assign: ' + error.message, 'error'); return; }
   // Add worker to Stream channels for this client immediately
   try {
