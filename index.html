@@ -65,7 +65,9 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
 #sidebar {
   width: 252px; min-width: 252px;
   background: linear-gradient(180deg, #0e0e12 0%, #09090c 100%);
-  display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+  display: flex; flex-direction: column;
+  height: 100vh; height: 100dvh;
+  overflow: hidden;
   border-right: 1px solid rgba(255,255,255,0.05);
 }
 .sidebar-logo {
@@ -115,7 +117,7 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
 .badge-p1 { background: rgba(124,58,237,0.2); color: #c4b5fd; }
 .badge-p2 { background: rgba(124,58,237,0.35); color: #ddd6fe; }
 .badge-p3 { background: rgba(245,158,11,0.2); color: #fcd34d; }
-.sidebar-footer { padding: 10px 10px 14px; border-top: 1px solid rgba(255,255,255,0.06); }
+.sidebar-footer { padding: 10px 10px 14px; border-top: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; overflow-y: auto; }
 .btn-add-client {
   width: 100%; padding: 9px 12px;
   background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
