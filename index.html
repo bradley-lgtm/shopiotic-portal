@@ -2340,6 +2340,10 @@ function selectClient(id) {
 }
 
 function setTab(tab) {
+  // If leaving the chat tab, properly clean up the React UI so channels get re-watched for badges
+  const leavingChat = S.activeTab === 'chat' && tab !== 'chat' && tab !== 'chat_client_nav';
+  if (leavingChat) cleanupChat();
+
   if (tab === 'chat_client_nav') { S._chatSubTab = 'client'; tab = 'chat'; clearChatBadge('client'); }
   else if (tab === 'chat') { S._chatSubTab = 'team'; clearChatBadge('team'); }
   S.activeTab = tab;
