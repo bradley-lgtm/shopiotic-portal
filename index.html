@@ -806,6 +806,13 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
   /* User badge — hide name/role text, keep avatar */
   #userName, #userRole { display: none !important; }
 
+  /* Client portal topbar: collapse to mobile layout */
+  .cp-topbar-hide-sm { display: none !important; }
+  .cp-cta-desktop { display: none !important; }
+  .cp-util-desktop { display: none !important; }
+  .cp-cta-mobile { display: block !important; }
+  .cp-util-mobile { display: block !important; }
+
   /* Client header — mobile compact layout */
   .client-header { padding: 10px 12px; }
   .client-header-row { flex-wrap: nowrap; gap: 6px; }
@@ -5511,20 +5518,48 @@ async function loadClientPortalForUser() {
 
   document.getElementById('sidebar').style.display = 'none';
   document.getElementById('topbar').innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;">
-      <img src="logo-dark.png" alt="Shopiotic" style="height:39px;width:auto;object-fit:contain;">
-      <span class="topbar-subtitle" style="margin-left:0;">Client Portal</span>
-      <span style="font-size:13px;color:var(--gray-400);margin-left:4px;">· Welcome, <strong style="color:var(--gray-700);">${esc(S.currentUser.firstName || S.currentUser.name)}</strong></span>
+    <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+      <img src="logo-dark.png" alt="Shopiotic" style="height:36px;width:auto;object-fit:contain;flex-shrink:0;">
+      <span class="topbar-subtitle cp-topbar-hide-sm" style="margin-left:0;white-space:nowrap;">Client Portal</span>
+      <span class="cp-topbar-hide-sm" style="font-size:13px;color:var(--gray-400);">· Welcome, <strong style="color:var(--gray-700);">${esc(S.currentUser.firstName || S.currentUser.name)}</strong></span>
     </div>
-    <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
-      <a href="https://shopiotic.com/offers/shopiotic-gmc-add-on" target="_blank" class="btn btn-sm" style="background:transparent;color:#0891b2;border:1.5px solid #0891b2;font-weight:600;white-space:nowrap;text-decoration:none;">🛒 Start Optimizing for Organic Google Shopping</a>
-      <a href="https://shopiotic.com/offers/shopiotic-ai-search-add-on" target="_blank" class="btn btn-sm" style="background:transparent;color:#166534;border:1.5px solid #166534;font-weight:600;white-space:nowrap;text-decoration:none;">✨ Start Optimizing for AI Search</a>
-      <div style="width:1px;height:22px;background:var(--gray-200);margin:0 2px;"></div>
-      <button class="btn btn-outline btn-sm" onclick="openPortalGuide()">📲 Add To Desktop</button>
-      <button class="btn btn-outline btn-sm" onclick="openBugReport()">🐛 Report a Bug</button>
-      <button class="btn btn-outline btn-sm" onclick="startTour()">📖 Tour</button>
-      <button id="client-settings-btn" class="btn btn-outline btn-sm" onclick="openSettings()">⚙️ Settings</button>
-      <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
+    <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0;">
+
+      <!-- CTA buttons: full text on desktop, collapsed on mobile -->
+      <div class="cp-cta-desktop" style="display:flex;gap:6px;align-items:center;">
+        <a href="https://shopiotic.com/offers/shopiotic-gmc-add-on" target="_blank" class="btn btn-sm" style="background:transparent;color:#0891b2;border:1.5px solid #0891b2;font-weight:600;white-space:nowrap;text-decoration:none;">🛒 Start Optimizing for Organic Google Shopping</a>
+        <a href="https://shopiotic.com/offers/shopiotic-ai-search-add-on" target="_blank" class="btn btn-sm" style="background:transparent;color:#166534;border:1.5px solid #166534;font-weight:600;white-space:nowrap;text-decoration:none;">✨ Start Optimizing for AI Search</a>
+        <div style="width:1px;height:22px;background:var(--gray-200);margin:0 2px;"></div>
+      </div>
+      <!-- CTA collapsed button: mobile only -->
+      <div class="cp-cta-mobile" style="display:none;position:relative;">
+        <button onclick="toggleClientOffersMenu(event)" style="background:none;border:1.5px solid #0891b2;color:#0891b2;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">💡 Offers</button>
+        <div id="clientOffersMenu" style="display:none;position:absolute;right:0;top:110%;background:#fff;border:1px solid var(--gray-200);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:500;min-width:230px;overflow:hidden;">
+          <a href="https://shopiotic.com/offers/shopiotic-gmc-add-on" target="_blank" style="display:flex;align-items:center;gap:8px;padding:12px 14px;font-size:13px;font-weight:600;color:#0891b2;text-decoration:none;border-bottom:1px solid var(--gray-100);">🛒 Organic Google Shopping</a>
+          <a href="https://shopiotic.com/offers/shopiotic-ai-search-add-on" target="_blank" style="display:flex;align-items:center;gap:8px;padding:12px 14px;font-size:13px;font-weight:600;color:#166534;text-decoration:none;">✨ AI Search Add-on</a>
+        </div>
+      </div>
+
+      <!-- Utility buttons: full on desktop -->
+      <div class="cp-util-desktop" style="display:flex;gap:6px;align-items:center;">
+        <button class="btn btn-outline btn-sm" onclick="openPortalGuide()">📲 Add To Desktop</button>
+        <button class="btn btn-outline btn-sm" onclick="openBugReport()">🐛 Report a Bug</button>
+        <button class="btn btn-outline btn-sm" onclick="startTour()">📖 Tour</button>
+        <button id="client-settings-btn" class="btn btn-outline btn-sm" onclick="openSettings()">⚙️ Settings</button>
+        <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
+      </div>
+      <!-- Utility collapsed: mobile only -->
+      <div class="cp-util-mobile" style="display:none;position:relative;">
+        <button onclick="toggleClientUtilMenu(event)" style="background:none;border:1px solid var(--gray-200);border-radius:8px;padding:5px 10px;font-size:18px;cursor:pointer;color:var(--gray-500);line-height:1;">···</button>
+        <div id="clientUtilMenu" style="display:none;position:absolute;right:0;top:110%;background:#fff;border:1px solid var(--gray-200);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:500;min-width:170px;overflow:hidden;">
+          <button onclick="openPortalGuide();closeClientMenus()" style="display:block;width:100%;text-align:left;padding:11px 14px;font-size:13px;background:none;border:none;cursor:pointer;border-bottom:1px solid var(--gray-100);">📲 Add To Desktop</button>
+          <button onclick="openBugReport();closeClientMenus()" style="display:block;width:100%;text-align:left;padding:11px 14px;font-size:13px;background:none;border:none;cursor:pointer;border-bottom:1px solid var(--gray-100);">🐛 Report a Bug</button>
+          <button onclick="startTour();closeClientMenus()" style="display:block;width:100%;text-align:left;padding:11px 14px;font-size:13px;background:none;border:none;cursor:pointer;border-bottom:1px solid var(--gray-100);">📖 Tour</button>
+          <button onclick="openSettings();closeClientMenus()" style="display:block;width:100%;text-align:left;padding:11px 14px;font-size:13px;background:none;border:none;cursor:pointer;border-bottom:1px solid var(--gray-100);">⚙️ Settings</button>
+          <button onclick="signOut()" style="display:block;width:100%;text-align:left;padding:11px 14px;font-size:13px;background:none;border:none;cursor:pointer;color:#ef4444;">Sign out</button>
+        </div>
+      </div>
+
     </div>`;
 
   renderClient();
@@ -5651,6 +5686,29 @@ function cleanupTour() {
 function endTour() {
   cleanupTour();
   if (S.currentUser) localStorage.setItem('portal_tour_seen_' + S.currentUser.id, '1');
+}
+
+function toggleClientOffersMenu(e) {
+  e.stopPropagation();
+  closeClientMenus();
+  const m = document.getElementById('clientOffersMenu');
+  if (!m) return;
+  m.style.display = 'block';
+  setTimeout(() => document.addEventListener('click', closeClientMenus, { once: true }), 0);
+}
+function toggleClientUtilMenu(e) {
+  e.stopPropagation();
+  closeClientMenus();
+  const m = document.getElementById('clientUtilMenu');
+  if (!m) return;
+  m.style.display = 'block';
+  setTimeout(() => document.addEventListener('click', closeClientMenus, { once: true }), 0);
+}
+function closeClientMenus() {
+  ['clientOffersMenu','clientUtilMenu'].forEach(id => {
+    const m = document.getElementById(id);
+    if (m) m.style.display = 'none';
+  });
 }
 
 function toggleHeaderMenu(e) {
