@@ -4065,12 +4065,20 @@ function renderCurrentBadges() {
   setChatBadge('client', counts.client);
 }
 
-// Call when user opens a chat tab — zeroes that bucket and updates DOM
+// Call when user opens a chat tab — zeroes that bucket, updates DOM,
+// and tells Stream server so countUnread() is correct on next page load
 function markChatRead(type) {
   const id = S.activeId; if (!id) return;
   if (!_badgeCounts[id]) _badgeCounts[id] = { team: 0, client: 0 };
   _badgeCounts[id][type] = 0;
   setChatBadge(type, 0);
+  // Persist read state to Stream server
+  if (_streamClient?.userID && id) {
+    const safeId = id.replace(/-/g, '');
+    const channelId = type === 'client' ? `client${safeId}` : `team${safeId}`;
+    const ch = _streamClient.channel('messaging', channelId);
+    ch.markRead().catch(() => {});
+  }
 }
 
 function switchChatTab(channel) {
