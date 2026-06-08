@@ -1942,7 +1942,9 @@ function renderHeader(c) {
                 : n.id === 'chat'
                   ? (S.activeTab === 'chat' && S._chatSubTab !== 'client')
                   : S.activeTab === n.id;
-              return `<button id="nav-btn-${n.id}" onclick="setTab('${n.id}')" style="padding:5px 12px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid ${isActive?'var(--teal)':'var(--gray-200)'};background:${isActive?'var(--teal-pale)':'var(--white)'};color:${isActive?'var(--teal-dark)':'var(--gray-500)'};cursor:pointer;font-family:var(--font);transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;">${n.icon} ${n.label}</button>`;
+              const badgeKey = n.id === 'chat' ? 'team' : n.id === 'chat_client_nav' ? 'client' : null;
+              const badge = badgeKey ? `<span id="chat-badge-${badgeKey}" style="display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:1px 5px;margin-left:2px;line-height:1.4;">0</span>` : '';
+              return `<button id="nav-btn-${n.id}" onclick="setTab('${n.id}')" style="padding:5px 12px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid ${isActive?'var(--teal)':'var(--gray-200)'};background:${isActive?'var(--teal-pale)':'var(--white)'};color:${isActive?'var(--teal-dark)':'var(--gray-500)'};cursor:pointer;font-family:var(--font);transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;">${n.icon} ${n.label}${badge}</button>`;
             }).join('')}
           </div>
         </div>
@@ -2322,6 +2324,7 @@ function showEmpty() {
 function selectClient(id) {
   closeSidebar(); // close mobile drawer when client selected
   cleanupChat();
+  clearChatBadge('team'); clearChatBadge('client');
   S.activeId = id;
   S.activeTab = 'overview';
   // Set default months
@@ -2332,11 +2335,13 @@ function selectClient(id) {
   }
   renderSidebar();
   renderClient();
+  // Refresh unread badges for the newly selected client
+  if (id && _streamClient?.userID) refreshChatBadges(id).catch(()=>{});
 }
 
 function setTab(tab) {
-  if (tab === 'chat_client_nav') { S._chatSubTab = 'client'; tab = 'chat'; }
-  else if (tab === 'chat') { S._chatSubTab = 'team'; }
+  if (tab === 'chat_client_nav') { S._chatSubTab = 'client'; tab = 'chat'; clearChatBadge('client'); }
+  else if (tab === 'chat') { S._chatSubTab = 'team'; clearChatBadge('team'); }
   S.activeTab = tab;
   const c = getClient();
   if (tab === 'p2' && c && c.p2months && c.p2months.length) S.p2Month = c.p2months[0];
@@ -3866,6 +3871,8 @@ let _streamConnecting = null;  // in-flight connect promise — prevents double-
 let _streamChannelObj = null;  // currently active Stream channel
 let _streamUnsub      = null;  // current message.new unsubscribe fn
 let _streamReactRoot  = null;  // React root for Stream's pre-built UI
+let _streamBadgeUnsub = null;  // unsubscribe fn for client-level unread listener
+const _unreadCounts   = { team: 0, client: 0 }; // tracked per channel type
 
 // Legacy Supabase chat state (kept for anon portal only)
 let _chatMessages  = [];
@@ -3882,6 +3889,49 @@ function renderChatPage(c, activeChannel) {
         <div class="chat-empty"><div class="chat-empty-icon">💬</div>Connecting…</div>
       </div>
     </div>`;
+}
+
+// ── Unread badge helpers ─────────────────────────────────────────────────────
+function setChatBadge(channelType, count) {
+  _unreadCounts[channelType] = count;
+  const el = document.getElementById('chat-badge-' + channelType);
+  if (!el) return;
+  if (count > 0) {
+    el.textContent = count > 99 ? '99+' : count;
+    el.style.display = 'inline-block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function clearChatBadge(channelType) { setChatBadge(channelType, 0); }
+
+// Poll unread counts from all channels for the current client (called after Stream connects)
+async function refreshChatBadges(clientId) {
+  if (!_streamClient?.userID || !clientId) return;
+  try {
+    for (const type of ['team', 'client']) {
+      const ch = await getStreamChannel(clientId, type);
+      if (ch) setChatBadge(type, ch.countUnread());
+    }
+    // Also listen for any new messages coming in while on other tabs
+    if (_streamBadgeUnsub) { try { _streamBadgeUnsub(); } catch(_) {} }
+    const { unsubscribe } = _streamClient.on('message.new', event => {
+      if (!event.message || !clientId) return;
+      const cid = event.channel_id || '';
+      const safeId = clientId.replace(/-/g, '');
+      if (cid.includes('team' + safeId)) {
+        if (S.activeTab !== 'chat' || S._chatSubTab !== 'team') {
+          setChatBadge('team', (_unreadCounts.team || 0) + 1);
+        }
+      } else if (cid.includes('client' + safeId)) {
+        if (S.activeTab !== 'chat' || S._chatSubTab !== 'client') {
+          setChatBadge('client', (_unreadCounts.client || 0) + 1);
+        }
+      }
+    });
+    _streamBadgeUnsub = unsubscribe;
+  } catch(e) { console.warn('Badge refresh failed:', e); }
 }
 
 function switchChatTab(channel) {
@@ -4881,7 +4931,10 @@ async function onSignedIn(user) {
   if (Notification.permission === 'granted') registerPushSubscription();
   setTimeout(maybeShowNotifPrompt, 2000);
   // Connect Stream Chat in the background — ready before user opens chat tab
-  connectStreamUser().catch(e => console.warn('Stream init:', e));
+  connectStreamUser().then(() => {
+    const c = getClient();
+    if (c) refreshChatBadges(c.id).catch(()=>{});
+  }).catch(e => console.warn('Stream init:', e));
 }
 
 async function loadClientPortalForUser() {
