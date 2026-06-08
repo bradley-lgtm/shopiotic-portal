@@ -6,7 +6,7 @@
 <title>Shopiotic Ops Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/stream-chat/dist/stream-chat.umd.js"></script>
+<!-- Stream Chat loaded dynamically via esm.sh in connectStreamUser() -->
 <style>
 :root {
   /* Sidebar / dark chrome */
@@ -3984,11 +3984,9 @@ async function connectStreamUser() {
       if (!resp.ok) throw new Error(`Token fetch ${resp.status}`);
       const { token, userId } = await resp.json();
 
-      // UMD bundle exposes named exports on window.StreamChat
-      // Try all known patterns for different bundle versions
-      const SC = window.StreamChat?.StreamChat ?? window.StreamChat;
-      if (!SC?.getInstance) throw new Error('Stream SDK not loaded — check CDN');
-      _streamClient = SC.getInstance(STREAM_API_KEY);
+      // Dynamically import Stream Chat SDK (cached after first load)
+      const { StreamChat } = await import('https://esm.sh/stream-chat@8');
+      _streamClient = StreamChat.getInstance(STREAM_API_KEY);
       await _streamClient.connectUser({
         id:    userId,
         name:  S.currentUser?.name  || 'User',
