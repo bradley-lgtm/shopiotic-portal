@@ -8,6 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Buffer polyfill — must load before any Stream SDK modules (they use Buffer in browser) -->
 <script src="https://cdn.jsdelivr.net/npm/buffer@6/index.min.js"></script>
+<script>if (typeof window !== 'undefined' && typeof window.Buffer === 'undefined') { window.Buffer = Buffer; }</script>
 <!-- Stream Chat loaded dynamically via esm.sh in connectStreamUser() -->
 <style>
 :root {
