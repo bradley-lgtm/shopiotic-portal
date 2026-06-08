@@ -5314,6 +5314,7 @@ async function loadClientPortalForUser() {
       <button class="btn btn-outline btn-sm" onclick="openPortalGuide()">📲 Add To Desktop</button>
       <button class="btn btn-outline btn-sm" onclick="startTour()">📖 Tour</button>
       <button id="client-settings-btn" class="btn btn-outline btn-sm" onclick="openSettings()">⚙️ Settings</button>
+      <button class="btn btn-outline btn-sm" onclick="openBugReport()">🐛 Report a Bug</button>
       <button class="btn btn-ghost btn-sm" onclick="signOut()">Sign out</button>
     </div>`;
 
@@ -5441,6 +5442,32 @@ function cleanupTour() {
 function endTour() {
   cleanupTour();
   if (S.currentUser) localStorage.setItem('portal_tour_seen_' + S.currentUser.id, '1');
+}
+
+function openBugReport() {
+  const existing = document.getElementById('bugReportModal');
+  if (existing) { existing.remove(); return; }
+  const modal = document.createElement('div');
+  modal.id = 'bugReportModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:32px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;">
+      <button onclick="document.getElementById('bugReportModal').remove()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af;line-height:1;">×</button>
+      <div style="font-size:28px;margin-bottom:12px;">🐛</div>
+      <h2 style="font-size:18px;font-weight:700;color:#111827;margin:0 0 12px;">Found a bug?</h2>
+      <p style="font-size:14px;color:#4b5563;line-height:1.6;margin:0 0 12px;">
+        Your client portal is still a work in progress — we're constantly improving it and the occasional bug can pop up. We appreciate your patience!
+      </p>
+      <p style="font-size:14px;color:#4b5563;line-height:1.6;margin:0 0 20px;">
+        You can report bugs directly to Bradley at <strong>bradley@shopiotic.com</strong>. If you can include a screenshot of what went wrong, it makes it a lot easier for us to track down and fix quickly.
+      </p>
+      <a href="mailto:bradley@shopiotic.com?subject=Portal Bug Report&body=Hi Bradley,%0D%0A%0D%0AI found a bug in the client portal:%0D%0A%0D%0A[Please describe what happened and attach a screenshot if possible]%0D%0A%0D%0AThanks"
+         style="display:block;text-align:center;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;text-decoration:none;padding:13px 24px;border-radius:8px;font-size:14px;font-weight:700;">
+        📧 Email Bradley
+      </a>
+    </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
 }
 
 function openPortalGuide() {
