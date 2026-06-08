@@ -510,6 +510,11 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 
 /* ── CHAT ── */
 .chat-wrap { display:flex; flex-direction:column; height:100%; max-width:780px; margin:0 auto; }
+/* Stream pre-built UI overrides — fit inside our portal shell */
+#streamChatUI_team, #streamChatUI_client { flex:1; min-height:0; overflow:hidden; }
+#streamChatUI_team .str-chat, #streamChatUI_client .str-chat { height:100%; border-radius:0; box-shadow:none; border:none; }
+#streamChatUI_team .str-chat__main-panel, #streamChatUI_client .str-chat__main-panel { padding:0; }
+#streamChatUI_team .str-chat-channel, #streamChatUI_client .str-chat-channel { height:100%; }
 .chat-header { padding:16px 0 12px; border-bottom:1px solid var(--gray-200); flex-shrink:0; }
 .chat-header-title { font-size:15px; font-weight:700; color:var(--gray-800); letter-spacing:-0.3px; }
 .chat-header-sub { font-size:12px; color:var(--gray-400); margin-top:2px; }
@@ -3856,6 +3861,7 @@ let _streamClient    = null;   // StreamChat client instance (one per session)
 let _streamConnecting = null;  // in-flight connect promise — prevents double-connect
 let _streamChannelObj = null;  // currently active Stream channel
 let _streamUnsub      = null;  // current message.new unsubscribe fn
+let _streamReactRoot  = null;  // React root for Stream's pre-built UI
 
 // Legacy Supabase chat state (kept for anon portal only)
 let _chatMessages  = [];
@@ -3876,18 +3882,8 @@ function renderChatPage(c, activeChannel) {
         <div style="font-size:14px;font-weight:700;color:var(--gray-800);margin-bottom:2px;">${title}</div>
         <div style="font-size:12px;color:var(--gray-400);">${sub}</div>
       </div>
-      <div class="chat-messages" id="chatMessages_${activeChannel}">
+      <div id="streamChatUI_${activeChannel}" style="flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;">
         <div class="chat-empty"><div class="chat-empty-icon">💬</div>Connecting…</div>
-      </div>
-      <div class="chat-input-area">
-        <div class="chat-input-row">
-          <textarea class="chat-input" id="chatInput_${activeChannel}"
-            placeholder="Message… (Enter to send)"
-            rows="1"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage('${activeChannel}');}"
-            oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';"></textarea>
-          <button class="chat-send" onclick="sendMessage('${activeChannel}')">Send</button>
-        </div>
       </div>
     </div>`;
 }
@@ -4037,7 +4033,7 @@ async function initChat(clientId, channel) {
   _chatClientId = clientId;
   _chatChannel  = channel;
 
-  // ── Anon portal (token-based, no login) — keep Supabase for this case ──
+  // ── Anon portal (token-based, no login) — keep legacy Supabase for this case ──
   const isAnonPortal = S.isClientPortal && !S.currentUser;
   if (isAnonPortal) {
     const token = new URLSearchParams(window.location.search).get('token');
@@ -4047,32 +4043,57 @@ async function initChat(clientId, channel) {
     return;
   }
 
-  // ── Stream path ───────────────────────────────────────────────────────────
-  const el = document.getElementById('chatMessages_' + channel);
-  if (el) el.innerHTML = `<div class="chat-empty"><div class="chat-empty-icon">💬</div>Connecting…</div>`;
+  // ── Stream pre-built UI ───────────────────────────────────────────────────
+  const mountEl = document.getElementById('streamChatUI_' + channel);
+  if (!mountEl) return;
 
-  const ch = await getStreamChannel(clientId, channel);
-  if (!ch) {
-    if (el) el.innerHTML = `<div class="chat-empty"><div class="chat-empty-icon">⚠️</div>Could not connect to chat. Please refresh.</div>`;
-    return;
+  try {
+    // Ensure Stream CSS is loaded
+    if (!document.getElementById('stream-chat-css')) {
+      const link = document.createElement('link');
+      link.id   = 'stream-chat-css';
+      link.rel  = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/stream-chat-react/dist/css/v2/index.css';
+      document.head.appendChild(link);
+    }
+
+    // Connect Stream user + get channel
+    await connectStreamUser();
+    if (!_streamClient?.userID) throw new Error('Not connected');
+
+    const ch = await getStreamChannel(clientId, channel);
+    if (!ch) throw new Error('Channel unavailable');
+    _streamChannelObj = ch;
+
+    // Load React + stream-chat-react from CDN (shared React instance via deps pin)
+    const [React, { createRoot }, SCR] = await Promise.all([
+      import('https://esm.sh/react@18'),
+      import('https://esm.sh/react-dom@18/client?deps=react@18'),
+      import('https://esm.sh/stream-chat-react@12?deps=react@18,react-dom@18'),
+    ]);
+    const { Chat, Channel, MessageList, MessageInput, Window, Thread } = SCR;
+    const h = React.createElement;
+
+    // Unmount any previous root
+    if (_streamReactRoot) { try { _streamReactRoot.unmount(); } catch(_){} }
+
+    mountEl.innerHTML = '';
+    _streamReactRoot = createRoot(mountEl);
+    _streamReactRoot.render(
+      h(Chat, { client: _streamClient, theme: 'str-chat__theme-light' },
+        h(Channel, { channel: ch },
+          h(Window, null,
+            h(MessageList),
+            h(MessageInput, { focus: true })
+          ),
+          h(Thread)
+        )
+      )
+    );
+  } catch(e) {
+    console.error('Stream UI init failed:', e);
+    mountEl.innerHTML = `<div class="chat-empty"><div class="chat-empty-icon">⚠️</div>Could not load chat: ${esc(e?.message||'unknown error')}</div>`;
   }
-
-  _streamChannelObj = ch;
-
-  // Load initial messages from channel state
-  _chatMessages = (ch.state.messages || []).map(streamMsgToLocal);
-  renderMessages(_chatMessages, channel);
-
-  // Subscribe to new messages in real time
-  if (_streamUnsub) { try { _streamUnsub(); } catch(_) {} }
-  const { unsubscribe } = ch.on('message.new', event => {
-    if (!event.message) return;
-    // Remove any matching optimistic placeholder, then append
-    _chatMessages = _chatMessages.filter(m => !(m.id?.toString().startsWith('temp_') && m.text === event.message.text && m.user_id === event.message.user?.id));
-    _chatMessages.push(streamMsgToLocal(event.message));
-    renderMessages(_chatMessages, _chatChannel);
-  });
-  _streamUnsub = unsubscribe;
 }
 
 // ── sendMessage ───────────────────────────────────────────────────────────────
@@ -4144,6 +4165,7 @@ async function loadEarlierMessages() {
 // ── cleanupChat ───────────────────────────────────────────────────────────────
 function cleanupChat() {
   if (_streamUnsub) { try { _streamUnsub(); } catch(_) {} _streamUnsub = null; }
+  if (_streamReactRoot) { try { _streamReactRoot.unmount(); } catch(_) {} _streamReactRoot = null; }
   _streamChannelObj = null;
   // Legacy Supabase cleanup (anon portal)
   if (_chatSub) { _chatSub.unsubscribe(); _chatSub = null; }
