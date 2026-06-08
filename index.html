@@ -1229,9 +1229,9 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
 // ═══════════════════════════════════════════
 
 const TIER_CONFIG = {
-  Essentials: { p1collections: 0, p1budget: 0, p2collections: 7,  p3blogs: 2, p3gsc: 2, p2budget: 400,  p3budget: 500,  p2gsc: 0, p2blogs: 0, p3collections: 0 },
-  Core:       { p1collections: 3, p1budget: 0, p2collections: 12, p3blogs: 4, p3gsc: 4, p2budget: 600,  p3budget: 750,  p2gsc: 0, p2blogs: 0, p3collections: 0 },
-  Scale:      { p1collections: 5, p1budget: 0, p2collections: 20, p3blogs: 6, p3gsc: 6, p2budget: 900,  p3budget: 1100, p2gsc: 0, p2blogs: 0, p3collections: 0 },
+  Essentials: { p1collections: 0, p1budget: 0, p1blogs: 0, p1gsc: 0, p2collections: 7,  p3blogs: 2, p3gsc: 2, p2budget: 400,  p3budget: 500,  p2gsc: 0, p2blogs: 0, p3collections: 0 },
+  Core:       { p1collections: 3, p1budget: 0, p1blogs: 0, p1gsc: 0, p2collections: 12, p3blogs: 4, p3gsc: 4, p2budget: 600,  p3budget: 750,  p2gsc: 0, p2blogs: 0, p3collections: 0 },
+  Scale:      { p1collections: 5, p1budget: 0, p1blogs: 0, p1gsc: 0, p2collections: 20, p3blogs: 6, p3gsc: 6, p2budget: 900,  p3budget: 1100, p2gsc: 0, p2blogs: 0, p3collections: 0 },
 };
 
 function tierCfg(client) {
@@ -1309,6 +1309,24 @@ const TASKS = {
       { id:"p1cp3", t:"Add the content to the pages and add FAQ schema" },
       { id:"p1cp4", t:"Publish the collection pages", s:["Submit to GSC for indexing","Notify the client in the client chat"] },
       { id:"p1cp5", t:"Add collection keywords to position tracking in SEMrush" },
+    ]},
+    { cat: "Blogs", qtyGate: 'p1blogs', items: [
+      { id:"bg1", t:"Assign blogs to the writer", s:["Focus on opportunities from hubs of priority pages","Notify the writer in the client chat","Notify the client which blogs will be written"] },
+      { id:"bg1b", t:"Have AI write article drafts (WIP)" },
+      { id:"bg2", t:"Assign internal links to the writer", s:["Pull relevant internal links from the site","Include 5-8 per blog, lean toward priority pages","The writer should use these as a base but can swap as needed"] },
+      { id:"bg3", t:"Writer sends drafts to specialist and client for review", s:["Send via the client chat","Add to the Content Strategy Sheet"] },
+      { id:"bg4", t:"Publish blog articles", s:["Specialist checks the articles before publishing","Add tags","Add meta titles and descriptions","Interlink blog posts with each other and the site"] },
+      { id:"bg5", t:"Add blog target keywords to position tracking in SEMrush" },
+      { id:"bg6", t:"Have AI optimize blog articles for target keywords (WIP)" },
+      { id:"bg7", t:"Submit blogs in GSC for faster indexing", s:["The specialist may need to do this if the writer does not have GSC access"] },
+    ]},
+    { cat: "GSC Optimisations", qtyGate: 'p1gsc', items: [
+      { id:"gc1", t:"Specialist assigns collections for GSC optimization", s:["Focus on priority collections","Focus on collections that have been published for at least 3 months","Add each collection as a tab in the GSC optimization template: GSC Collection Page Optimization Template: https://docs.google.com/spreadsheets/d/1Ybn3TQ0m5o37Ah3Oq-aPXmkxYgFeTG9NmfGoc7_LK00/edit"] },
+      { id:"gc2", t:"Pull a list of top performing keywords in GSC for specific collections", s:["Filter down to the specific collection page","Set history to the last 6 months","Copy and paste the keywords below the graph into the template","Mark selected keywords in green — most relevant with more clicks and impressions","Be careful not to select keywords that might cause cannibalization"] },
+      { id:"gc3", t:"Send keyword lists to the writer and have them adjust the content", s:["Send in the client chat","Notify them which collections they are working on","Avoid keyword stuffing"] },
+      { id:"gc4", t:"Writer sends drafts for specialist and client review", s:["Send via the client chat"] },
+      { id:"gc5", t:"Publish updated collection content" },
+      { id:"gc6", t:"Have AI optimize collection content for GSC keywords (WIP)" },
     ]},
     { cat: "End of Month", items: [
       { id:"p1o35", t:"Notify the client once the Technical SEO audit is complete", s:["Share findings and actions taken to fix issues"] },
@@ -3097,10 +3115,12 @@ function openTplModal(phase) {
   };
 
   const p1Section = phase === 'p1' ? `
-    ${(c.tier === 'Core' || c.tier === 'Scale') ? `
-    <div class="tpl-section-title">📄 Collection Pages</div>
+    <div class="tpl-section-title">📄 Collection Pages <span style="font-size:11px;font-weight:400;color:var(--gray-400)">(0 = off)</span></div>
     ${qtyRow('Collection pages in Phase 1', `Tier default: ${cfg.p1collections}`, 'tpl_qty_p1cp', getQty('p1cp1','p1collections'), cfg.p1collections)}
-    ` : ''}
+    <div class="tpl-section-title" style="margin-top:16px;">✍️ Blog Content <span style="font-size:11px;font-weight:400;color:var(--gray-400)">(optional — 0 = off)</span></div>
+    ${qtyRow('Blogs in Phase 1', `Tier default: ${cfg.p1blogs}. Set > 0 to add blog tasks to the Phase 1 tab.`, 'tpl_p1blogs', getOptQty('p1blogs'), cfg.p1blogs)}
+    <div class="tpl-section-title" style="margin-top:16px;">🔍 GSC Optimisations <span style="font-size:11px;font-weight:400;color:var(--gray-400)">(optional — 0 = off)</span></div>
+    ${qtyRow('Optimisations in Phase 1', `Tier default: ${cfg.p1gsc}. Set > 0 to add GSC optimisation tasks to the Phase 1 tab.`, 'tpl_p1gsc', getOptQty('p1gsc'), cfg.p1gsc)}
     <div class="tpl-section-title" style="margin-top:16px;">🔗 Backlink Budget <span style="font-size:11px;font-weight:400;color:var(--gray-400)">(optional — 0 = off)</span></div>
     <div class="tpl-row">
       <div><div class="tpl-row-label">Phase 1 link budget</div><div class="tpl-row-sub">Set > 0 to show the backlink budget tracker on the Phase 1 tab.</div></div>
@@ -3171,6 +3191,10 @@ function saveTplModal() {
   if (!c.templateData.optQty) c.templateData.optQty = {};
   if (_tplPhase === 'p1') {
     applyQty('tpl_qty_p1cp', ['p1cp1','p1cp2','p1cp3','p1cp4','p1cp5']);
+    const p1blogsEl = document.getElementById('tpl_p1blogs');
+    const p1gscEl   = document.getElementById('tpl_p1gsc');
+    if (p1blogsEl) c.templateData.optQty.p1blogs = parseInt(p1blogsEl.value) || 0;
+    if (p1gscEl)   c.templateData.optQty.p1gsc   = parseInt(p1gscEl.value)   || 0;
     const p1budgetEl = document.getElementById('tpl_p1budget');
     if (p1budgetEl) {
       const bval = parseFloat(p1budgetEl.value);
@@ -3326,6 +3350,12 @@ function getEffectiveQty(c, phaseKey, itemId, qtyKey) {
 
 // Returns effective qty for an optional gated category (p2gsc, p2blogs, p3collections)
 function getEffectiveCategoryQty(c, phaseKey, optKey) {
+  // Phase 1 is not monthly — read directly from templateData.optQty
+  if (phaseKey === 'p1o') {
+    const td = c.templateData;
+    if (td && td.optQty && td.optQty[optKey] != null) return td.optQty[optKey];
+    return (TIER_CONFIG[c && c.tier] || TIER_CONFIG.Essentials)[optKey] || 0;
+  }
   const md = c.monthData && c.monthData[phaseKey];
   if (md && md.optQty && md.optQty[optKey] != null) return md.optQty[optKey];
   const isP2 = phaseKey.startsWith('p2m');
