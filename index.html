@@ -4242,8 +4242,6 @@ async function initChat(clientId, channel) {
       h(Chat, { client: _streamClient, theme: 'str-chat__theme-light' },
         h(Channel, {
           channel: ch,
-          doImageUploadRequest: supabaseUpload,
-          doFileUploadRequest: supabaseUpload,
           mentionQueryParams: {
             filters: { id: { $ne: _streamClient.userID } },
             sort: { name: 1 },
@@ -4252,7 +4250,11 @@ async function initChat(clientId, channel) {
         },
           h(Window, null,
             h(MessageList),
-            h(MessageInput, { focus: true })
+            h(MessageInput, {
+              focus: true,
+              doImageUploadRequest: supabaseUpload,
+              doFileUploadRequest: supabaseUpload,
+            })
           ),
           h(Thread)
         )
