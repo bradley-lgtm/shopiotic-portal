@@ -240,6 +240,11 @@ Deno.serve(async (req) => {
       if (r.status === 'rejected') console.error(`Client ${accessibleClientIds[i]} setup failed:`, r.reason)
     })
 
+    // Create/update the internal team channel (owners + all workers, no clients)
+    const allStaffIds = [...new Set([...ownerIds, ...allWorkerIds])]
+    await upsertChannel('shiopioticinternal', 'Internal Team Chat', allStaffIds, user.id, serverToken)
+      .catch(e => console.warn('Internal channel setup failed:', e))
+
     return new Response(JSON.stringify({ token: userToken, userId: user.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })

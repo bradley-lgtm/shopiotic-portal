@@ -130,6 +130,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
   cursor: pointer; transition: all 0.15s; margin-top: 6px; letter-spacing: -0.1px;
 }
 .btn-team:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.8); }
+.btn-team.active { background: rgba(124,58,237,0.35); color: #fff; border-color: rgba(124,58,237,0.6); }
 /* ── TEAM MODAL ── */
 .team-modal { width: 580px; max-width: 97vw; max-height: 88vh; display: flex; flex-direction: column; }
 .worker-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--gray-100); }
@@ -866,6 +867,7 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 
   <div class="sidebar-footer">
     <button class="btn-add-client" id="btnAddClient" onclick="openAddClientModal()">+ Add Client</button>
+    <button class="btn-team" id="btnInternalChat" onclick="openInternalChat()" style="display:none;">💬 Team Chat</button>
     <button class="btn-team" id="btnTeam" onclick="openTeamModal()" style="display:none;">👥 Team</button>
     <button class="btn-team" id="btnTeamDocs" onclick="openTeamDocsModal()" style="display:none;">📁 Team Docs</button>
     <button class="btn-team" onclick="openSettings()" style="margin-top:4px;">⚙️ Settings</button>
@@ -2349,6 +2351,7 @@ function showEmpty() {
 function selectClient(id) {
   closeSidebar(); // close mobile drawer when client selected
   cleanupChat();
+  document.getElementById('btnInternalChat')?.classList.remove('active');
   S.activeId = id;
   S.activeTab = 'overview';
   // Set default months
@@ -4488,6 +4491,126 @@ function cleanupChat() {
   // so it survives React unmounting — no need to re-call refreshChatBadges here.
 }
 
+// ── Internal Team Chat ────────────────────────────────────────────────────────
+// A single persistent channel for all owners + workers (no client)
+const INTERNAL_CHANNEL_ID = 'shiopioticinternal';
+
+async function openInternalChat() {
+  // Deselect any active client, clean up existing chat
+  S.activeId = null;
+  cleanupChat();
+
+  // Highlight the button as active
+  document.querySelectorAll('.client-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('btnInternalChat').classList.add('active');
+
+  // Render a shell into the main area
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div style="display:flex;flex-direction:column;height:100vh;overflow:hidden;">
+      <div style="padding:16px 24px 12px;border-bottom:1px solid var(--gray-200);background:var(--white);flex-shrink:0;">
+        <div style="font-size:20px;font-weight:700;color:var(--gray-900);">💬 Internal Team Chat</div>
+        <div style="font-size:13px;color:var(--gray-400);margin-top:2px;">Private channel for owners &amp; workers only — clients cannot see this.</div>
+      </div>
+      <div id="internalChatMount" style="flex:1;min-height:0;overflow:hidden;"></div>
+    </div>`;
+
+  const mountEl = document.getElementById('internalChatMount');
+
+  try {
+    await connectStreamUser();
+    if (!_streamClient?.userID) throw new Error('Not connected to Stream');
+
+    // Ensure the channel exists and is watched
+    const ch = _streamClient.channel('messaging', INTERNAL_CHANNEL_ID);
+    await ch.watch();
+    ch.markRead().catch(() => {});
+    _streamChannelObj = ch;
+
+    // Load Stream React UI (same pattern as initChat)
+    if (!document.getElementById('stream-chat-css')) {
+      const link = document.createElement('link');
+      link.id  = 'stream-chat-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/stream-chat-react/dist/css/v2/index.css';
+      document.head.appendChild(link);
+    }
+
+    const [React, { createRoot }, SCR] = await Promise.all([
+      import('https://esm.sh/react@18'),
+      import('https://esm.sh/react-dom@18/client?deps=react@18'),
+      import('https://esm.sh/stream-chat-react@12?deps=stream-chat@8,react@18,react-dom@18'),
+    ]);
+    const { Chat, Channel, MessageList, MessageInput, Window, Thread, useMessageInputContext } = SCR;
+    const h = React.createElement;
+
+    // Reuse the same custom emoji picker
+    const EMOJI_CATEGORIES = [
+      { label: '😀', emojis: ['😀','😂','🤣','😊','😍','🥰','😘','😎','🤔','😅','😭','😤','🤯','🥳','😴','🤗','😬','🙄','😏','😢','😡','🤩','😇','🤭','😶','😑','🙃','😜','🤪','😋'] },
+      { label: '👍', emojis: ['👍','👎','👏','🙌','🤝','🙏','✌️','🤞','👌','🤌','💪','🫶','❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','❤️‍🔥','💯','✅','❌','⚡','🔥','⭐','🎉','🎊'] },
+      { label: '🍕', emojis: ['🍕','🍔','🌮','🌯','🥗','🍣','🍜','🍝','🍛','🍲','🥘','🫕','🍗','🥩','🥚','🧇','🥞','🧈','🍞','🥐','🧀','🥓','🌭','🥪','🫔','🍱','🍿','🧂','🥫','🍫'] },
+      { label: '⚽', emojis: ['⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🏸','🥊','🥋','⛳','🎿','🛷','🏂','🏋️','🤼','🤸','⛹️','🤺','🏇','🧘','🏄','🚴','🏊','🤽','🧗','🥇','🎮'] },
+      { label: '✈️', emojis: ['✈️','🚀','🛸','🚁','🛺','🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🛻','🚐','🚚','🛵','🏍️','🚲','🛴','🛹','🛼','🚨','🚥','⛵','🚢','🗺️','🗼','🏰'] },
+    ];
+    function InternalEmojiPicker() {
+      const [open, setOpen] = React.useState(false);
+      const [tab, setTab_] = React.useState(0);
+      const { insertText } = useMessageInputContext();
+      const ref = React.useRef(null);
+      React.useEffect(() => {
+        if (!open) return;
+        function handler(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+      }, [open]);
+      return h('div', { ref, style: { position: 'relative', display: 'inline-block' } },
+        h('button', { type: 'button', title: 'Emoji', onClick: () => setOpen(o => !o),
+          style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '4px 6px', borderRadius: '6px', lineHeight: 1, color: open ? '#7c3aed' : '#888' } }, '😊'),
+        open && h('div', { style: { position: 'absolute', bottom: '40px', right: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', width: '300px', zIndex: 9999, overflow: 'hidden' } },
+          h('div', { style: { display: 'flex', overflowX: 'auto', borderBottom: '1px solid #f3f4f6', padding: '6px 6px 0', gap: '2px' } },
+            EMOJI_CATEGORIES.map((cat, i) => h('button', { key: i, type: 'button', onClick: () => setTab_(i), title: cat.label,
+              style: { background: tab === i ? '#f3f0ff' : 'none', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '4px 6px', borderRadius: '6px', flexShrink: 0 } }, cat.emojis[0]))
+          ),
+          h('div', { style: { padding: '8px', display: 'flex', flexWrap: 'wrap', gap: '2px', maxHeight: '180px', overflowY: 'auto' } },
+            EMOJI_CATEGORIES[tab].emojis.map(e => h('button', { key: e, type: 'button', onClick: () => { insertText(e); setOpen(false); },
+              style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', padding: '4px', borderRadius: '6px', lineHeight: 1 },
+              onMouseEnter: ev => ev.currentTarget.style.background = '#f3f4f6',
+              onMouseLeave: ev => ev.currentTarget.style.background = 'none' }, e))
+          )
+        )
+      );
+    }
+
+    async function supabaseUpload(file) {
+      const ext = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
+      const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await _sb.storage.from('chat-attachements').upload(safeName, file, { contentType: file.type || 'application/octet-stream', upsert: false });
+      if (error) throw new Error('Upload failed: ' + error.message);
+      const { data: { publicUrl } } = _sb.storage.from('chat-attachements').getPublicUrl(safeName);
+      return { file: publicUrl };
+    }
+
+    if (_streamReactRoot) { try { _streamReactRoot.unmount(); } catch(_) {} }
+    mountEl.innerHTML = '';
+    _streamReactRoot = createRoot(mountEl);
+    _streamReactRoot.render(
+      h(Chat, { client: _streamClient, theme: 'str-chat__theme-light' },
+        h(Channel, { channel: ch, EmojiPicker: InternalEmojiPicker,
+          mentionQueryParams: { filters: { id: { $ne: _streamClient.userID } }, sort: { name: 1 }, options: { limit: 20, presence: false } } },
+          h(Window, null,
+            h(MessageList),
+            h(MessageInput, { focus: true, doImageUploadRequest: supabaseUpload, doFileUploadRequest: supabaseUpload })
+          ),
+          h(Thread)
+        )
+      )
+    );
+  } catch(e) {
+    console.error('Internal chat failed:', e);
+    mountEl.innerHTML = `<div style="padding:40px;text-align:center;color:#9ca3af;">Could not load chat: ${esc(e?.message || 'unknown error')}</div>`;
+  }
+}
+
 // ═══════════════════════════════════════════
 //  NOTIFICATIONS
 // ═══════════════════════════════════════════
@@ -5563,6 +5686,7 @@ function renderUserBadge() {
   const isOwner = u.role === 'owner';
   document.getElementById('btnAddClient').style.display = isOwner ? 'block' : 'none';
   document.getElementById('btnTeam').style.display = isOwner ? 'block' : 'none';
+  document.getElementById('btnInternalChat').style.display = 'block';
 }
 
 async function signOut() {
