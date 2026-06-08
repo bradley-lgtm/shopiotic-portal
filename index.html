@@ -4614,6 +4614,10 @@ async function openInternalChat() {
     await connectStreamUser();
     if (!_streamClient?.userID) throw new Error('Not connected to Stream');
 
+    // Race-condition guard: user may have navigated to a client while we were awaiting.
+    // If so, abandon — selectClient already hid internalChatView and set up clientView.
+    if (S.activeId !== null) return;
+
     // Ensure the channel exists and is watched
     const ch = _streamClient.channel('messaging', INTERNAL_CHANNEL_ID);
     await ch.watch();
@@ -4634,6 +4638,10 @@ async function openInternalChat() {
       import('https://esm.sh/react-dom@18/client?deps=react@18'),
       import('https://esm.sh/stream-chat-react@12?deps=stream-chat@8,react@18,react-dom@18'),
     ]);
+
+    // Second guard after the longest await (module imports can take several seconds on first load)
+    if (S.activeId !== null) return;
+
     const { Chat, Channel, MessageList, MessageInput, Window, Thread, useMessageInputContext } = SCR;
     const h = React.createElement;
 
