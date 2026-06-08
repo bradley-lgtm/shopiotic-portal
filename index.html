@@ -1670,9 +1670,9 @@ function getRecurringStatus(c, key, intervalMonths) {
   }
 
   if (n === 0) {
-    // Before first due date — not yet due
+    // Before first due date — treat as not yet due (same as 'done' visually)
     if (daysUntilNext <= 30) return { status: 'upcoming', nextDue: nextCycleDue, daysUntil: daysUntilNext, lastDone: null, neverDone: true };
-    return                          { status: 'pending',  nextDue: nextCycleDue, daysUntil: daysUntilNext, lastDone: null, neverDone: true };
+    return                          { status: 'done',     nextDue: nextCycleDue, daysUntil: daysUntilNext, lastDone: null, neverDone: true };
   }
 
   // n >= 1 and not completed: OVERDUE — show the missed anchor date
@@ -1864,21 +1864,17 @@ function renderRecurringCategories(categories) {
     const taskHTML = cat.items.map(item => {
       const key = taskKey('rec', item.id);
       const { status, nextDue, daysUntil, lastDone, neverDone } = getRecurringStatus(c, key, intervalMonths);
-      if (status === 'done' || status === 'pending') catNotDue++;
+      if (status === 'done') catNotDue++;
 
-      const isDone     = status === 'done';
-      const isDue      = status === 'due';
+      const isDone   = status === 'done';
+      const isDue    = status === 'due';
       const isUpcoming = status === 'upcoming';
-      const isPending  = status === 'pending';
 
       // Status indicator + sub-label
-      const dot = isDue ? '🔴' : isUpcoming ? '🟡' : isPending ? '⏳' : '✅';
+      const dot = isDue ? '🔴' : isUpcoming ? '🟡' : '✅';
       let subLabel = '';
-      if (isPending) {
-        const mo = Math.round(daysUntil / 30);
-        subLabel = `First due ${fmtDate(nextDue)}${mo > 1 ? ` (in ${mo} mo)` : ''}`;
-      } else if (isDue && neverDone) {
-        subLabel = nextDue ? `Due ${fmtDate(nextDue)} — not yet completed` : 'Due now — never done';
+      if (isDue && neverDone) {
+        subLabel = nextDue ? `First due ${fmtDate(nextDue)} — not yet completed` : 'Due now — never done';
       } else if (isDue) {
         subLabel = `Overdue since ${fmtDate(nextDue)}${lastDone ? ` · last done ${fmtDate(lastDone)}` : ''}`;
       } else if (isUpcoming) {
@@ -1898,17 +1894,15 @@ function renderRecurringCategories(categories) {
       const noteSection = S.isClientPortal ? '' : `<div class="task-note-area ${hasNote ? 'open' : ''}" id="note_rec_${item.id}"><textarea class="task-note-input" placeholder="Add a note…" oninput="saveTaskNote('${key}',this.value)" onkeydown="event.stopPropagation()">${noteVal}</textarea></div>`;
       const noteBtn = S.isClientPortal ? '' : `<button class="task-note-btn ${hasNote ? 'has-note' : ''}" title="Note" onclick="event.stopPropagation();toggleNote('note_rec_${item.id}')">📎</button>`;
 
-      const rowOpacity = (isDone || isPending) ? '0.65' : '1';
-      const subLabelColor = isDue ? '#ef4444' : isUpcoming ? '#d97706' : 'var(--gray-400)';
       return `
-        <div class="task-item task-row" style="opacity:${rowOpacity};">
+        <div class="task-item task-row" style="opacity:${isDone?'0.65':'1'};">
           <div class="task-check ${isDone?'done':''}" onclick="toggleRecurringTask('${key}')" style="cursor:pointer;flex-shrink:0;"></div>
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <span class="task-label ${isDone?'done':''}">${dot} ${esc(item.t)}</span>
               ${hasSubs ? `<span class="expand-toggle" onclick="expandToggle(this)" style="font-size:11px;color:var(--teal);cursor:pointer;">▼ show details</span>` : ''}
             </div>
-            <div style="font-size:11px;color:${subLabelColor};margin-top:3px;">${subLabel}</div>
+            <div style="font-size:11px;color:${isDue?'#ef4444':isUpcoming?'#d97706':'var(--gray-400)'};margin-top:3px;">${subLabel}</div>
             ${subsHTML}
             ${noteSection}
           </div>
