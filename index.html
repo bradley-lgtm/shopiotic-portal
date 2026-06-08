@@ -510,11 +510,13 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
 
 /* ── CHAT ── */
 .chat-wrap { display:flex; flex-direction:column; height:100%; max-width:780px; margin:0 auto; }
-/* Stream pre-built UI overrides — fit inside our portal shell */
-#streamChatUI_team, #streamChatUI_client { flex:1; min-height:0; overflow:hidden; }
-#streamChatUI_team .str-chat, #streamChatUI_client .str-chat { height:100%; border-radius:0; box-shadow:none; border:none; }
-#streamChatUI_team .str-chat__main-panel, #streamChatUI_client .str-chat__main-panel { padding:0; }
-#streamChatUI_team .str-chat-channel, #streamChatUI_client .str-chat-channel { height:100%; }
+/* Stream pre-built UI — fill full chat area, no chrome */
+.chat-wrap { padding:0 !important; }
+[id^="streamChatUI_"] { flex:1; min-height:0; overflow:hidden; height:100%; }
+[id^="streamChatUI_"] .str-chat { height:100%; border-radius:0; box-shadow:none; border:none; background:transparent; }
+[id^="streamChatUI_"] .str-chat-channel { height:100%; }
+[id^="streamChatUI_"] .str-chat__main-panel { padding:0; }
+[id^="streamChatUI_"] .str-chat__container { height:100%; }
 .chat-header { padding:16px 0 12px; border-bottom:1px solid var(--gray-200); flex-shrink:0; }
 .chat-header-title { font-size:15px; font-weight:700; color:var(--gray-800); letter-spacing:-0.3px; }
 .chat-header-sub { font-size:12px; color:var(--gray-400); margin-top:2px; }
@@ -3872,16 +3874,8 @@ let _chatOffset = 0;
 const CHAT_PAGE = 50;
 
 function renderChatPage(c, activeChannel) {
-  const isTeam   = activeChannel === 'team';
-  const isPortal = S.isClientPortal;
-  const title    = isTeam ? '💬 Team Chat' : (isPortal ? '💬 Chat' : '📢 Client Chat');
-  const sub      = isTeam ? 'Internal — visible to team only' : (isPortal ? 'Chat directly with your Shopiotic team' : 'Client-facing — client can see this channel');
   return `
-    <div class="chat-wrap" id="chatWrap_${activeChannel}" style="padding-top:4px;">
-      <div style="padding:10px 0 8px;flex-shrink:0;border-bottom:1px solid var(--gray-200);">
-        <div style="font-size:14px;font-weight:700;color:var(--gray-800);margin-bottom:2px;">${title}</div>
-        <div style="font-size:12px;color:var(--gray-400);">${sub}</div>
-      </div>
+    <div class="chat-wrap" id="chatWrap_${activeChannel}" style="padding-top:0;max-width:100%;">
       <div id="streamChatUI_${activeChannel}" style="flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;">
         <div class="chat-empty"><div class="chat-empty-icon">💬</div>Connecting…</div>
       </div>
@@ -4064,6 +4058,12 @@ async function initChat(clientId, channel) {
     const ch = await getStreamChannel(clientId, channel);
     if (!ch) throw new Error('Channel unavailable');
     _streamChannelObj = ch;
+
+    // Polyfill Buffer (needed by Stream SDK for file uploads in browsers)
+    if (!window.Buffer) {
+      const { Buffer } = await import('https://esm.sh/buffer');
+      window.Buffer = Buffer;
+    }
 
     // Load React + stream-chat-react from CDN (shared React instance via deps pin)
     const [React, { createRoot }, SCR] = await Promise.all([
