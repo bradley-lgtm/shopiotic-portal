@@ -4025,7 +4025,7 @@ async function initAllBadges() {
     const channels = await _streamClient.queryChannels(
       { type: 'messaging', id: { $in: ids } },
       {},
-      { state: true, watch: false, presence: false }
+      { state: true, watch: true, presence: false }
     );
     for (const ch of channels) {
       const info = _channelMap[ch.id];
