@@ -4269,9 +4269,12 @@ async function initChat(clientId, channel) {
       const s = document.createElement('style');
       s.id = 'stream-chat-overrides';
       s.textContent = `
-        .str-chat__message-reaction-list { order: 1; }
-        .str-chat__message-bubble { order: 0; }
-        .str-chat__message-inner { flex-direction: column; }
+        .str-chat__message-reactions-host {
+          grid-row: 3;
+        }
+        .str-chat__message-bubble {
+          grid-row: 2;
+        }
       `;
       document.head.appendChild(s);
     }
