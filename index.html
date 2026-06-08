@@ -4356,12 +4356,8 @@ function cleanupChat() {
   _chatMessages = []; _chatChannel = null; _chatClientId = null;
   _chatTotal = 0; _chatOffset = 0;
   _mentionState = { active: false, query: '', start: 0, members: [] };
-  // Re-watch channels in background after React UI unmounts (stopWatching is called on unmount)
-  // so that the badge message.new listener keeps working
-  const c = getClient();
-  if (c && _streamClient?.userID) {
-    setTimeout(() => refreshChatBadges(c.id).catch(()=>{}), 300);
-  }
+  // Note: _streamBadgeUnsub is a global client listener, not a channel watch,
+  // so it survives React unmounting — no need to re-call refreshChatBadges here.
 }
 
 // ═══════════════════════════════════════════
