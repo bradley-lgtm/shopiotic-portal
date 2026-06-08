@@ -1641,7 +1641,7 @@ function getRecurringStatus(c, key, intervalMonths) {
   const daysUntil = Math.ceil((nextDue - today) / (1000 * 60 * 60 * 24));
   const neverDone = log.length === 0;
   if (daysUntil <= 0)  return { status: 'due',      nextDue, daysUntil, lastDone, neverDone };
-  if (daysUntil <= 45) return { status: 'upcoming', nextDue, daysUntil, lastDone, neverDone };
+  if (daysUntil <= 30) return { status: 'upcoming', nextDue, daysUntil, lastDone, neverDone };
   return                      { status: 'done',     nextDue, daysUntil, lastDone, neverDone };
 }
 
