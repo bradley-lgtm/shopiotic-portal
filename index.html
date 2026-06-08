@@ -2377,6 +2377,8 @@ function setTab(tab) {
   renderHeader(c);
   renderTabs(getClient());
   renderContent(getClient());
+  // Re-apply badge counts after renderTabs recreates the badge DOM elements
+  if (_streamClient?.userID) renderCurrentBadges();
 }
 
 function setP2Month(m) {
