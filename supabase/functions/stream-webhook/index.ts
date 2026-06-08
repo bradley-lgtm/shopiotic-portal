@@ -1,14 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // ---------------------------------------------------------------------------
-// Stream Chat webhook handler — fires on message.new events.
-// Sends an email via Resend when a user is @mentioned.
-//
-// Required secrets (set via Supabase dashboard → Edge Functions → Secrets):
-//   STREAM_WEBHOOK_SECRET  — from Stream dashboard → Webhooks → signing secret
-//   RESEND_API_KEY         — your Resend API key
-//   SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY — auto-provided by Supabase
+// Stream Chat webhook — fires on message.new events.
+// Sends a Resend email to any @mentioned users.
 // ---------------------------------------------------------------------------
+
+const PORTAL_URL = 'https://bradley-lgtm.github.io/shopiotic-portal/'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,9 +17,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
 
-  const body = await req.text()
+  const bodyText = await req.text()
 
-  // Verify Stream webhook signature
+  // Optional: verify Stream webhook signature if secret is set
   const webhookSecret = Deno.env.get('STREAM_WEBHOOK_SECRET')
   if (webhookSecret) {
     const signature = req.headers.get('x-signature') || ''
@@ -30,8 +27,8 @@ Deno.serve(async (req) => {
       'raw', new TextEncoder().encode(webhookSecret),
       { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
     )
-    const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body))
-    const expected = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2,'0')).join('')
+    const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(bodyText))
+    const expected = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('')
     if (signature !== expected) {
       console.warn('Webhook signature mismatch — ignoring')
       return new Response('Unauthorized', { status: 401 })
@@ -39,11 +36,13 @@ Deno.serve(async (req) => {
   }
 
   let event: any
-  try { event = JSON.parse(body) } catch {
+  try { event = JSON.parse(bodyText) } catch {
     return new Response('Bad JSON', { status: 400 })
   }
 
-  // Only handle message.new events that have mentions
+  console.log('Stream event type:', event.type)
+
+  // Only handle message.new with mentions
   if (event.type !== 'message.new') {
     return new Response(JSON.stringify({ ok: true, skipped: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -52,7 +51,9 @@ Deno.serve(async (req) => {
 
   const message = event.message
   const mentionedUsers: Array<{ id: string; name?: string }> = message?.mentioned_users || []
+
   if (!mentionedUsers.length) {
+    console.log('No mentions in message, skipping')
     return new Response(JSON.stringify({ ok: true, no_mentions: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
@@ -60,41 +61,53 @@ Deno.serve(async (req) => {
 
   // Don't notify the sender of their own mention
   const senderId = message?.user?.id
+  const senderName = message?.user?.name || 'Someone'
+  const messageText = message?.text || ''
   const toNotify = mentionedUsers.filter(u => u.id !== senderId)
+
   if (!toNotify.length) {
     return new Response(JSON.stringify({ ok: true, self_mention: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 
-  // Look up emails from Supabase profiles
+  // Get client name from channel ID
+  // Channel IDs are like teamABCDEF or clientABCDEF
+  const channelId: string = event.channel_id || ''
+  const safeClientId = channelId.replace(/^(team|client)/, '')
+  const isClientChat = channelId.startsWith('client')
+  const channelLabel = isClientChat ? 'Client Chat' : 'Team Chat'
+
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   )
+
+  // Get client name
+  let clientName = 'a client'
+  if (safeClientId) {
+    const { data: clientRow } = await supabase
+      .from('shopiotic_clients')
+      .select('name, data')
+      .eq('id', safeClientId)
+      .maybeSingle()
+    clientName = clientRow?.name || clientRow?.data?.name || clientName
+  }
+
+  // Get profiles (email + name) for all mentioned users
   const userIds = toNotify.map(u => u.id)
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('id, name, email:id') // we'll get email from auth.users join
+    .select('id, email, name, first_name, last_name')
     .in('id', userIds)
 
-  // Get emails via auth.admin (service role required)
-  const emails: Array<{ name: string; email: string }> = []
-  for (const uid of userIds) {
-    const { data: { user } } = await supabase.auth.admin.getUserById(uid)
-    if (user?.email) {
-      const prof = profiles?.find(p => p.id === uid)
-      emails.push({ name: prof?.name || user.email, email: user.email })
-    }
-  }
-
-  if (!emails.length) {
-    return new Response(JSON.stringify({ ok: true, no_emails: true }), {
+  if (!profiles?.length) {
+    console.log('No profiles found for mentioned users')
+    return new Response(JSON.stringify({ ok: true, no_profiles: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 
-  // Send email via Resend
   const resendKey = Deno.env.get('RESEND_API_KEY')
   if (!resendKey) {
     console.error('RESEND_API_KEY not set')
@@ -103,12 +116,47 @@ Deno.serve(async (req) => {
     })
   }
 
-  const senderName = message?.user?.name || 'Someone'
-  const channelName = event.channel_id?.includes('client') ? 'Client Chat' : 'Team Chat'
-  const msgText = message?.text || ''
+  const results = await Promise.allSettled(profiles.map(async (profile) => {
+    if (!profile.email) {
+      console.log('No email for profile', profile.id)
+      return
+    }
 
-  const results = await Promise.allSettled(emails.map(({ name, email }) =>
-    fetch('https://api.resend.com/emails', {
+    const firstName = profile.first_name || profile.name?.split(' ')[0] || 'there'
+    const safeText = messageText.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+    const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="margin:0;padding:0;background:#f4f4f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:520px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+    <div style="background:#0d0d0f;padding:24px 32px;text-align:center;">
+      <img src="https://bradley-lgtm.github.io/shopiotic-portal/logo-white.png"
+           alt="Shopiotic" style="height:32px;width:auto;">
+    </div>
+    <div style="padding:32px;">
+      <p style="font-size:16px;color:#18181f;margin:0 0 8px;font-weight:600;">Hey ${firstName} 👋</p>
+      <p style="font-size:14px;color:#48485c;margin:0 0 20px;line-height:1.6;">
+        <strong>${senderName}</strong> mentioned you in the <strong>${clientName}</strong> ${channelLabel}.
+      </p>
+      <div style="background:#f5f3ff;border-left:3px solid #7c3aed;border-radius:0 8px 8px 0;padding:14px 16px;margin:0 0 24px;">
+        <div style="font-size:11px;color:#9898b0;margin-bottom:4px;">${senderName}</div>
+        <div style="font-size:14px;color:#323244;line-height:1.5;">${safeText}</div>
+      </div>
+      <a href="${PORTAL_URL}" style="display:block;text-align:center;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;text-decoration:none;padding:13px 24px;border-radius:8px;font-size:14px;font-weight:700;">
+        Reply in Portal →
+      </a>
+    </div>
+    <div style="padding:16px 32px;background:#f9f9fb;border-top:1px solid #e8e8f0;text-align:center;">
+      <p style="font-size:11px;color:#9898b0;margin:0;">
+        You're receiving this because you were @mentioned in the Shopiotic Ops Portal.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`
+
+    const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${resendKey}`,
@@ -116,34 +164,20 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         from: 'Shopiotic Portal <notifications@shopiotic.com>',
-        to: [email],
-        subject: `${senderName} mentioned you in ${channelName}`,
-        html: `
-          <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#f9f9f9;">
-            <div style="background:#fff;border-radius:12px;padding:28px 24px;border:1px solid #e5e7eb;">
-              <div style="font-size:22px;font-weight:700;color:#1a1a2e;margin-bottom:4px;">💬 You were mentioned</div>
-              <div style="font-size:14px;color:#6b7280;margin-bottom:24px;">${senderName} mentioned you in <strong>${channelName}</strong></div>
-              <div style="background:#f3f4f6;border-radius:8px;padding:16px;font-size:15px;color:#374151;border-left:4px solid #7c3aed;">
-                ${msgText.replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-              </div>
-              <div style="margin-top:24px;">
-                <a href="https://bradley-lgtm.github.io/shopiotic-portal/"
-                   style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">
-                  Open Portal →
-                </a>
-              </div>
-              <div style="margin-top:20px;font-size:12px;color:#9ca3af;">Shopiotic Ops Portal • You received this because you were mentioned in a chat message.</div>
-            </div>
-          </div>
-        `,
+        to: profile.email,
+        subject: `💬 ${senderName} mentioned you in ${clientName}`,
+        html,
       }),
     })
-  ))
+
+    const result = await res.json()
+    console.log('Email sent to', profile.email, '→', res.status, result?.id || result?.message)
+  }))
 
   const sent = results.filter(r => r.status === 'fulfilled').length
-  console.log(`Mention emails sent: ${sent}/${emails.length}`)
+  console.log(`Mention emails: ${sent}/${profiles.length} sent`)
 
-  return new Response(JSON.stringify({ ok: true, sent, total: emails.length }), {
+  return new Response(JSON.stringify({ ok: true, sent, total: profiles.length }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   })
 })
