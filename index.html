@@ -764,14 +764,17 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
 
 /* ── MOBILE RESPONSIVE ── */
 
-/* Client portal topbar: collapse at a wider breakpoint so long CTA buttons
-   don't overflow onto the logo before the 768px mobile breakpoint kicks in */
-@media (max-width: 1100px) {
+/* Client portal topbar: two-stage collapse
+   Stage 1 (≤1375px): utility buttons (Add To Desktop, Bug, Tour, Settings, Sign out) → ··· menu
+   Stage 2 (≤800px):  CTA offer buttons → 💡 Offers menu + hide subtitle/welcome */
+@media (max-width: 1375px) {
+  .cp-util-desktop { display: none !important; }
+  .cp-util-mobile { display: block !important; }
+}
+@media (max-width: 800px) {
   .cp-topbar-hide-sm { display: none !important; }
   .cp-cta-desktop { display: none !important; }
-  .cp-util-desktop { display: none !important; }
   .cp-cta-mobile { display: block !important; }
-  .cp-util-mobile { display: block !important; }
 }
 
 /* Hamburger button — hidden on desktop */
