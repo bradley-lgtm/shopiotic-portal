@@ -1133,10 +1133,10 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
 <div class="modal-overlay" id="tplModal">
   <div class="modal" style="width:460px;max-width:97vw;max-height:90vh;display:flex;flex-direction:column;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;">
-      <div class="modal-title" style="margin-bottom:0;">⚙️ Manage Ongoing Template</div>
+      <div class="modal-title" style="margin-bottom:0;" id="tplModalTitle">⚙️ Manage Template</div>
       <button class="btn btn-ghost btn-sm" onclick="closeTplModal()">✕</button>
     </div>
-    <p style="font-size:12px;color:var(--gray-500);margin:0 0 14px;flex-shrink:0;">Default deliverable quantities and budget for every new month going forward. Past months unaffected.</p>
+    <p style="font-size:12px;color:var(--gray-500);margin:0 0 14px;flex-shrink:0;" id="tplModalDesc"></p>
     <div id="tplPanelContent" style="overflow-y:auto;flex:1;"></div>
     <div class="modal-actions" style="flex-shrink:0;">
       <button class="btn btn-outline" onclick="closeTplModal()">Cancel</button>
@@ -3139,6 +3139,12 @@ function openTplModal(phase) {
     </div>` : '';
 
   document.getElementById('tplPanelContent').innerHTML = p1Section + p2Section + budgetSection;
+  document.getElementById('tplModalTitle').textContent = phase === 'p1'
+    ? '⚙️ Manage Onboarding Template'
+    : '⚙️ Manage Ongoing Template';
+  document.getElementById('tplModalDesc').textContent = phase === 'p1'
+    ? 'Default deliverable quantities and budget for Phase 1 onboarding.'
+    : 'Default deliverable quantities and budget for every new month going forward. Past months unaffected.';
   document.getElementById('tplModal').classList.add('open');
 }
 
