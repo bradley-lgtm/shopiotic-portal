@@ -6,13 +6,16 @@
 <title>Shopiotic Ops Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- Buffer polyfill — required by stream-chat crypto/form-data internals in browser -->
-<script type="module">
-  import { Buffer } from 'https://esm.sh/buffer@6';
-  globalThis.Buffer = Buffer;
-  window.Buffer = Buffer;
+<!-- Buffer polyfill — required by stream-chat crypto internals in browser -->
+<script>
   window.global = window;
   window.process = window.process || { env: {} };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/buffer@6/index.min.js"></script>
+<script>
+  // Expose Buffer globally so stream-chat's bundled crypto can find it
+  window.Buffer = window.Buffer || Buffer.Buffer || Buffer;
+  globalThis.Buffer = window.Buffer;
 </script>
 <!-- Stream Chat loaded dynamically via esm.sh in connectStreamUser() -->
 <style>
@@ -4219,20 +4222,6 @@ async function initChat(clientId, channel) {
     const { Chat, Channel, MessageList, MessageInput, Window, Thread } = SCR;
     const h = React.createElement;
 
-    // Custom upload handler — bypasses Stream's broken Buffer-based uploader
-    // by uploading directly to Supabase Storage and returning the public URL
-    async function supabaseUpload(file) {
-      const ext = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
-      const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await _sb.storage.from('chat-attachements').upload(safeName, file, {
-        contentType: file.type || 'application/octet-stream',
-        upsert: false,
-      });
-      if (error) throw new Error('Upload failed: ' + error.message);
-      const { data: { publicUrl } } = _sb.storage.from('chat-attachements').getPublicUrl(safeName);
-      return { file: publicUrl };
-    }
-
     // Unmount any previous root
     if (_streamReactRoot) { try { _streamReactRoot.unmount(); } catch(_){} }
 
@@ -4250,11 +4239,7 @@ async function initChat(clientId, channel) {
         },
           h(Window, null,
             h(MessageList),
-            h(MessageInput, {
-              focus: true,
-              doImageUploadRequest: supabaseUpload,
-              doFileUploadRequest: supabaseUpload,
-            })
+            h(MessageInput, { focus: true })
           ),
           h(Thread)
         )
