@@ -3992,7 +3992,6 @@ function renderChatPage(c, activeChannel) {
 
 // ── Unread badge helpers ─────────────────────────────────────────────────────
 function setChatBadge(channelType, count) {
-  _unreadCounts[channelType] = count;
   const el = document.getElementById('chat-badge-' + channelType);
   if (!el) return;
   if (count > 0) {
