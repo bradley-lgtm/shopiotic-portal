@@ -4127,7 +4127,14 @@ async function initChat(clientId, channel) {
     _streamReactRoot = createRoot(mountEl);
     _streamReactRoot.render(
       h(Chat, { client: _streamClient, theme: 'str-chat__theme-light' },
-        h(Channel, { channel: ch },
+        h(Channel, {
+          channel: ch,
+          mentionQueryParams: {
+            filters: { id: { $ne: _streamClient.userID } },
+            sort: { name: 1 },
+            limit: 20,
+          },
+        },
           h(Window, null,
             h(MessageList),
             h(MessageInput, { focus: true })
