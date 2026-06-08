@@ -4178,7 +4178,7 @@ async function connectStreamUser() {
         id:    userId,
         name:  streamName,
         color: u?.color || '#7c3aed',
-        ...(u?.avatarUrl ? { image: u.avatarUrl } : {}),
+        ...(u?.avatarUrl?.startsWith('https://') ? { image: u.avatarUrl } : {}),
       }, token);
     } catch (e) {
       console.error('Stream connect failed:', e);
