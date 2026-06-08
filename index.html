@@ -2626,7 +2626,7 @@ async function autoSendChatMessage(clientId, text) {
   const u = S.currentUser; if (!u) return;
   try {
     await connectStreamUser();
-    const ch = await getStreamChannel(clientId, 'team');
+    const ch = await getStreamChannel(clientId, 'client');
     if (ch) await ch.sendMessage({ text });
   } catch(e) { console.error('autoSendChatMessage failed:', e); }
 }
