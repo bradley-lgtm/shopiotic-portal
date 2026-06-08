@@ -6,6 +6,7 @@
 <title>Shopiotic Ops Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/stream-chat/dist/stream-chat.umd.js"></script>
 <style>
 :root {
   /* Sidebar / dark chrome */
@@ -2572,8 +2573,16 @@ function renderBudgetWidget(c, phaseKey) {
     </div>`;
 }
 
-// Post an automated message to the team chat on behalf of the current user
+// Post an automated message to the team chat (used by backlinks, etc.)
 async function autoSendChatMessage(clientId, text) {
+  const u = S.currentUser; if (!u) return;
+  try {
+    await connectStreamUser();
+    const ch = await getStreamChannel(clientId, 'team');
+    if (ch) await ch.sendMessage({ text });
+  } catch(e) { console.error('autoSendChatMessage failed:', e); }
+}
+async function _autoSendChatMessage_UNUSED(clientId, text) {
   const u = S.currentUser; if (!u || !_sb) return;
   await _sb.from('messages').insert({
     client_id: clientId,
@@ -3839,30 +3848,51 @@ function setupGlobalNotifications(userId) {
     })
     .subscribe();
 }
-let _chatMessages = [];
-let _chatChannel = null;
-let _chatClientId = null;
-let _chatTotal = 0;
+// ── STREAM CHAT ──────────────────────────────────────────────────────────────
+const STREAM_API_KEY        = '39s5shwef5jf';
+const STREAM_FUNCTIONS_URL  = 'https://hxqwfjqvrghnvduldfss.supabase.co/functions/v1';
+
+let _streamClient    = null;   // StreamChat client instance (one per session)
+let _streamConnecting = null;  // in-flight connect promise — prevents double-connect
+let _streamChannelObj = null;  // currently active Stream channel
+let _streamUnsub      = null;  // current message.new unsubscribe fn
+
+// Legacy Supabase chat state (kept for anon portal only)
+let _chatMessages  = [];
+let _chatChannel   = null;
+let _chatClientId  = null;
+let _chatTotal     = 0;
 let _chatOffset = 0;
 const CHAT_PAGE = 50;
 
 function renderChatPage(c, activeChannel) {
-  const isTeam = activeChannel === 'team';
-  const sub = isTeam ? 'Internal — visible to team only' : (S.isClientPortal ? 'Chat directly with your Shopiotic team' : 'Client-facing — client can see and reply');
+  const isTeam    = activeChannel === 'team';
+  const isPortal  = S.isClientPortal;
+  const showTabs  = !isPortal; // ops users see Team / Client tabs
+  const title     = isTeam ? '💬 Team Chat' : (isPortal ? '💬 Chat' : '📢 Client Chat');
+  const sub       = isTeam ? 'Internal — visible to team only' : (isPortal ? 'Chat directly with your Shopiotic team' : 'Client-facing — client can see this channel');
+  const tabs      = showTabs ? `
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--gray-200);margin-bottom:0;flex-shrink:0;">
+      <button onclick="switchChatTab('team')"   style="flex:1;padding:9px 0;font-size:12px;font-weight:${isTeam ?'700':'500'};color:${isTeam ?'var(--teal)':'var(--gray-400)'};background:none;border:none;border-bottom:2px solid ${isTeam ?'var(--teal)':'transparent'};cursor:pointer;font-family:var(--font);">Team</button>
+      <button onclick="switchChatTab('client')" style="flex:1;padding:9px 0;font-size:12px;font-weight:${!isTeam?'700':'500'};color:${!isTeam?'var(--teal)':'var(--gray-400)'};background:none;border:none;border-bottom:2px solid ${!isTeam?'var(--teal)':'transparent'};cursor:pointer;font-family:var(--font);">Client</button>
+    </div>` : '';
   return `
     <div class="chat-wrap" id="chatWrap_${activeChannel}" style="padding-top:4px;">
-      <div style="padding:4px 0 10px;flex-shrink:0;border-bottom:1px solid var(--gray-200);margin-bottom:4px;">
-        <div style="font-size:14px;font-weight:700;color:var(--gray-800);margin-bottom:2px;">${isTeam ? '💬 Team Chat' : (S.isClientPortal ? '💬 General Chat' : '📢 Client Chat')}</div>
+      ${tabs}
+      <div style="padding:10px 0 8px;flex-shrink:0;border-bottom:1px solid var(--gray-200);">
+        <div style="font-size:14px;font-weight:700;color:var(--gray-800);margin-bottom:2px;">${title}</div>
         <div style="font-size:12px;color:var(--gray-400);">${sub}</div>
       </div>
       <div class="chat-messages" id="chatMessages_${activeChannel}">
-        <div class="chat-empty"><div class="chat-empty-icon">💬</div>Loading messages…</div>
+        <div class="chat-empty"><div class="chat-empty-icon">💬</div>Connecting…</div>
       </div>
       <div class="chat-input-area">
         <div class="chat-input-row">
-          <textarea class="chat-input" id="chatInput_${activeChannel}" placeholder="Message… (Enter to send, @name to mention)" rows="1"
-            onkeydown="this._channel='${activeChannel}';"
-            this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';"></textarea>
+          <textarea class="chat-input" id="chatInput_${activeChannel}"
+            placeholder="Message… (Enter to send)"
+            rows="1"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage('${activeChannel}');}"
+            oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';"></textarea>
           <button class="chat-send" onclick="sendMessage('${activeChannel}')">Send</button>
         </div>
       </div>
@@ -3878,6 +3908,20 @@ function switchChatTab(channel) {
   initChat(c.id, channel);
 }
 
+// Convert a Stream message object to the local display format
+function streamMsgToLocal(msg) {
+  return {
+    id:           msg.id,
+    user_id:      msg.user?.id || null,
+    sender_name:  msg.user?.name || 'Unknown',
+    sender_color: msg.user?.color || '#7c3aed',
+    sender_image: msg.user?.image || null,
+    text:         msg.text || '',
+    created_at:   typeof msg.created_at === 'string' ? msg.created_at : msg.created_at?.toISOString?.() || new Date().toISOString(),
+    _fromStream:  true,
+  };
+}
+
 function renderMessages(messages, channel) {
   const el = document.getElementById('chatMessages_' + channel);
   if (!el) return;
@@ -3885,27 +3929,29 @@ function renderMessages(messages, channel) {
     el.innerHTML = `<div class="chat-empty"><div class="chat-empty-icon">${channel==='team'?'💬':'📢'}</div>No messages yet. Say something!</div>`;
     return;
   }
-  const hasEarlier = !(S.isClientPortal && !S.currentUser) && _chatOffset > 0;
-  const loadBtn = hasEarlier ? `<div style="text-align:center;padding:8px 0 16px;"><button onclick="loadEarlierMessages()" style="font-size:12px;color:var(--gray-400);background:none;border:1px solid var(--gray-200);border-radius:20px;padding:5px 14px;cursor:pointer;font-family:var(--font);">⬆ Load earlier messages</button></div>` : '';
-  const prevScrollHeight = el.scrollHeight;
-  const myId = S.currentUser ? S.currentUser.id : null;
+  // "Load earlier" — show if Stream channel has messages before our oldest
+  const hasEarlier = _streamChannelObj && messages.length >= 25;
+  const loadBtn = hasEarlier
+    ? `<div style="text-align:center;padding:8px 0 16px;"><button onclick="loadEarlierMessages()" style="font-size:12px;color:var(--gray-400);background:none;border:1px solid var(--gray-200);border-radius:20px;padding:5px 14px;cursor:pointer;font-family:var(--font);">⬆ Load earlier messages</button></div>`
+    : '';
+  const myId = S.currentUser?.id || null;
   el.innerHTML = loadBtn + messages.map(m => {
-    const isMe = m.user_id === myId || (!m.user_id && m.sender_name === (S.currentUser ? S.currentUser.name : ''));
+    const isMe     = m.user_id === myId;
     const initials = (m.sender_name||'?').charAt(0).toUpperCase();
-    const color = m.sender_color || '#7c3aed';
-    const time = new Date(m.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
-    const date = new Date(m.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'});
-    const text = formatChatText(m.text);
-    // Check if sender has notifications paused / has avatar
-    const senderMember = _mentionState.members ? _mentionState.members.find(p => p.id === m.user_id) : null;
-    const senderPaused = senderMember?.notifications_paused_until && new Date(senderMember.notifications_paused_until) > new Date();
-    const senderAvatar = (isMe && S.currentUser?.avatarUrl) || senderMember?.avatar_url || null;
+    const color    = m.sender_color || '#7c3aed';
+    const time     = new Date(m.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    const date     = new Date(m.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    const text     = formatChatText(m.text);
+    // Avatar — prefer sender_image (Stream), then own avatarUrl, then initials
+    const avatar = m.sender_image || (isMe ? S.currentUser?.avatarUrl : null);
     return `
       <div class="chat-msg ${isMe?'mine':''}">
-        <div class="chat-avatar" style="${senderAvatar ? 'overflow:hidden;padding:0;background:transparent;' : 'background:'+color}">${senderAvatar ? `<img src="${senderAvatar}" style="width:100%;height:100%;object-fit:cover;">` : initials}</div>
+        <div class="chat-avatar" style="${avatar?'overflow:hidden;padding:0;background:transparent;':'background:'+color}">
+          ${avatar ? `<img src="${avatar}" style="width:100%;height:100%;object-fit:cover;">` : initials}
+        </div>
         <div class="chat-bubble-wrap">
           <div class="chat-meta">
-            <span class="chat-sender">${esc(m.sender_name||'Unknown')}${senderPaused ? ' <span title="Notifications paused">🔕</span>' : ''}</span>
+            <span class="chat-sender">${esc(m.sender_name||'Unknown')}</span>
             <span>${date} · ${time}</span>
           </div>
           <div class="chat-bubble">${text}</div>
@@ -3916,114 +3962,141 @@ function renderMessages(messages, channel) {
 }
 
 function formatChatText(text) {
-  // Escape HTML, linkify URLs, highlight @mentions
-  let safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  safe = safe.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">$1</a>');
+  let safe = (text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  safe = safe.replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">$1</a>');
   const myTag = S.currentUser ? getMentionTag(S.currentUser).toLowerCase() : null;
-  safe = safe.replace(/@(\w+)/g, (match, tag) => {
+  safe = safe.replace(/@(\w+)/g, (_, tag) => {
     const isMe = myTag && tag.toLowerCase() === myTag;
-    const isChannel = tag.toLowerCase() === 'channel';
-    return `<span class="chat-mention${(isMe || isChannel) ? ' chat-mention-me' : ''}">@${tag}</span>`;
+    return `<span class="chat-mention${isMe?' chat-mention-me':''}">${'@'+tag}</span>`;
   });
   return safe;
 }
 
-async function initChat(clientId, channel) {
-  // Unsubscribe from previous channel
-  if (_chatSub) { _chatSub.unsubscribe(); _chatSub = null; }
-  _chatClientId = clientId;
-  _chatChannel = channel;
+// ── STREAM CHAT CORE ─────────────────────────────────────────────────────────
 
-  // Load existing messages
-  const isAnonPortal = S.isClientPortal && !S.currentUser; // token-based portal, no session
+// Connect the current user to Stream (called once after login; safe to call multiple times)
+async function connectStreamUser() {
+  if (_streamClient?.userID) return; // already connected
+  if (_streamConnecting) return _streamConnecting; // in-flight
+
+  _streamConnecting = (async () => {
+    try {
+      const { data: { session } } = await _sb.auth.getSession();
+      if (!session) return;
+
+      const resp = await fetch(`${STREAM_FUNCTIONS_URL}/generate-stream-token`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+      });
+      if (!resp.ok) throw new Error(`Token fetch ${resp.status}`);
+      const { token, userId } = await resp.json();
+
+      const SC = window.StreamChat?.StreamChat || window.StreamChat;
+      _streamClient = SC.getInstance(STREAM_API_KEY);
+      await _streamClient.connectUser({
+        id:    userId,
+        name:  S.currentUser?.name  || 'User',
+        image: S.currentUser?.avatarUrl || undefined,
+        color: S.currentUser?.color || '#7c3aed',
+      }, token);
+    } catch (e) {
+      console.error('Stream connect failed:', e);
+      _streamClient     = null;
+      _streamConnecting = null;
+    }
+  })();
+
+  return _streamConnecting;
+}
+
+// Disconnect Stream (called on sign-out only)
+async function disconnectStream() {
+  if (_streamUnsub)  { try { _streamUnsub(); } catch(_){} _streamUnsub = null; }
+  _streamChannelObj = null;
+  if (_streamClient?.userID) {
+    try { await _streamClient.disconnectUser(); } catch(_) {}
+    _streamClient = null;
+  }
+  _streamConnecting = null;
+}
+
+// Get (or create) the Stream channel for a given client + channel-type
+async function getStreamChannel(clientId, channelType) {
+  if (!_streamClient?.userID) await connectStreamUser();
+  if (!_streamClient?.userID) return null;
+
+  // Channel IDs: strip hyphens from UUID so they're clean; max 64 chars is fine
+  const safeId    = clientId.replace(/-/g, '');
+  const channelId = `${channelType}${safeId}`; // e.g. "teamabc123..." / "clientabc123..."
+
+  const ch = _streamClient.channel('messaging', channelId, {
+    name:    channelType === 'team' ? 'Team Chat' : 'Client Chat',
+    members: [_streamClient.userID],
+  });
+  await ch.watch();
+  return ch;
+}
+
+// ── initChat ─────────────────────────────────────────────────────────────────
+async function initChat(clientId, channel) {
+  _chatClientId = clientId;
+  _chatChannel  = channel;
+
+  // ── Anon portal (token-based, no login) — keep Supabase for this case ──
+  const isAnonPortal = S.isClientPortal && !S.currentUser;
   if (isAnonPortal) {
-    // Use anon RPC for token-based client portal (no login)
     const token = new URLSearchParams(window.location.search).get('token');
     const { data } = await _sb.rpc('get_client_messages', { p_token: token });
     _chatMessages = data || [];
-  } else {
-    const PAGE = 50;
-    const { data, count } = await _sb.from('messages')
-      .select('*', { count: 'exact' })
-      .eq('client_id', clientId).eq('channel', channel)
-      .order('created_at', { ascending: false })
-      .limit(PAGE);
-    _chatMessages = (data || []).reverse();
-    _chatTotal = count || 0;
-    _chatOffset = Math.max(0, _chatTotal - PAGE);
+    renderMessages(_chatMessages, channel);
+    return;
   }
+
+  // ── Stream path ───────────────────────────────────────────────────────────
+  const el = document.getElementById('chatMessages_' + channel);
+  if (el) el.innerHTML = `<div class="chat-empty"><div class="chat-empty-icon">💬</div>Connecting…</div>`;
+
+  const ch = await getStreamChannel(clientId, channel);
+  if (!ch) {
+    if (el) el.innerHTML = `<div class="chat-empty"><div class="chat-empty-icon">⚠️</div>Could not connect to chat. Please refresh.</div>`;
+    return;
+  }
+
+  _streamChannelObj = ch;
+
+  // Load initial messages from channel state
+  _chatMessages = (ch.state.messages || []).map(streamMsgToLocal);
   renderMessages(_chatMessages, channel);
 
-  // Eagerly load member profiles (avatars, colours) so they show immediately
-  // without waiting for someone to type '@'
-  if (!isAnonPortal && S.currentUser) {
-    loadChatMembers(clientId).then(members => {
-      _mentionState.members = members;
-      renderMessages(_chatMessages, channel); // re-render with avatars now available
-    });
-  }
-
-  // Wire up @mention autocomplete
-  setTimeout(() => {
-    const input = document.getElementById('chatInput_' + channel);
-    if (input) setupMentionAutocomplete(input, channel);
-  }, 100);
-
-  // Subscribe to realtime for workers/owner
-  if (!isAnonPortal && S.currentUser?.role !== 'client') {
-    _chatSub = _sb.channel(`chat_${clientId}_${channel}_${Date.now()}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-        const msg = payload.new;
-        if (msg.client_id !== clientId || msg.channel !== _chatChannel) return;
-        const exists = _chatMessages.find(m =>
-          m.user_id === msg.user_id && m.text === msg.text && m.id.toString().startsWith('temp_')
-        );
-        if (exists) {
-          _chatMessages = _chatMessages.map(m => m === exists ? msg : m);
-        } else {
-          _chatMessages.push(msg);
-        }
-        renderMessages(_chatMessages, _chatChannel);
-      })
-      .subscribe();
-  }
-
-  // Polling fallback for clients (realtime RLS blocks postgres_changes for client role)
-  if (!isAnonPortal && S.currentUser?.role === 'client') {
-    _chatPoll = setInterval(async () => {
-      const latest = _chatMessages.filter(m => !m.id.toString().startsWith('temp_')).slice(-1)[0];
-      const since = latest ? latest.created_at : new Date(0).toISOString();
-      const { data } = await _sb.from('messages')
-        .select('*').eq('client_id', clientId).eq('channel', channel)
-        .gt('created_at', since).order('created_at', { ascending: true });
-      if (data && data.length) {
-        const newMsgs = data.filter(m => !_chatMessages.find(e => e.id === m.id));
-        if (newMsgs.length) {
-          _chatMessages = [..._chatMessages.filter(m => !m.id.toString().startsWith('temp_')), ..._chatMessages.filter(m => m.id.toString().startsWith('temp_')), ...newMsgs];
-          renderMessages(_chatMessages, _chatChannel);
-        }
-      }
-    }, 3000);
-  }
+  // Subscribe to new messages in real time
+  if (_streamUnsub) { try { _streamUnsub(); } catch(_) {} }
+  const { unsubscribe } = ch.on('message.new', event => {
+    if (!event.message) return;
+    // Remove any matching optimistic placeholder, then append
+    _chatMessages = _chatMessages.filter(m => !(m.id?.toString().startsWith('temp_') && m.text === event.message.text && m.user_id === event.message.user?.id));
+    _chatMessages.push(streamMsgToLocal(event.message));
+    renderMessages(_chatMessages, _chatChannel);
+  });
+  _streamUnsub = unsubscribe;
 }
 
+// ── sendMessage ───────────────────────────────────────────────────────────────
 async function sendMessage(channel) {
   const input = document.getElementById('chatInput_' + channel);
   if (!input) return;
   const text = input.value.trim();
   if (!text) return;
 
-  const c = getClient(); if (!c) return;
   input.value = '';
   input.style.height = 'auto';
 
+  // ── Anon portal ───────────────────────────────────────────────────────────
   const isAnonPortal = S.isClientPortal && !S.currentUser;
   if (isAnonPortal) {
-    // Use anon RPC for token-based portal (no login)
     let senderName = localStorage.getItem('client_portal_name');
     if (!senderName) {
       senderName = prompt('Your name (shown with your message):');
-      if (!senderName || !senderName.trim()) return;
+      if (!senderName?.trim()) return;
       localStorage.setItem('client_portal_name', senderName.trim());
     }
     const token = new URLSearchParams(window.location.search).get('token');
@@ -4031,72 +4104,58 @@ async function sendMessage(channel) {
     const { data } = await _sb.rpc('get_client_messages', { p_token: token });
     _chatMessages = data || [];
     renderMessages(_chatMessages, channel);
-  } else {
-    const u = S.currentUser;
-    // Optimistic update — show immediately without waiting for realtime
-    const optimistic = {
-      id: 'temp_' + Date.now(),
-      client_id: c.id,
-      user_id: u.id,
-      sender_name: u.name,
-      sender_color: u.color,
-      text,
-      channel,
-      created_at: new Date().toISOString(),
-    };
-    _chatMessages.push(optimistic);
-    renderMessages(_chatMessages, channel);
+    return;
+  }
 
-    // Ensure members are loaded for mention parsing (in case autocomplete wasn't used)
-    if (!_mentionState.members.length && text.includes('@')) {
-      _mentionState.members = await loadChatMembers(c.id);
-    }
-    const mentionedIds = parseMentions(text, _mentionState.members || []);
-    const { error } = await _sb.from('messages').insert({
-      client_id: c.id,
-      user_id: u.id,
-      sender_name: u.name,
-      sender_color: u.color,
-      text,
-      channel,
-      mentions: mentionedIds,
-    });
-    if (error) {
-      // Remove optimistic message on failure
-      _chatMessages = _chatMessages.filter(m => m.id !== optimistic.id);
-      renderMessages(_chatMessages, channel);
-      showToast('Failed to send: ' + error.message, 'error');
-    }
+  // ── Stream path ───────────────────────────────────────────────────────────
+  if (!_streamChannelObj) { showToast('Not connected to chat — please wait', 'error'); return; }
+
+  // Optimistic bubble
+  const u = S.currentUser;
+  const optimistic = {
+    id: 'temp_' + Date.now(), user_id: u.id,
+    sender_name: u.name, sender_color: u.color, sender_image: u.avatarUrl || null,
+    text, created_at: new Date().toISOString(),
+  };
+  _chatMessages.push(optimistic);
+  renderMessages(_chatMessages, channel);
+
+  try {
+    await _streamChannelObj.sendMessage({ text });
+  } catch (e) {
+    _chatMessages = _chatMessages.filter(m => m.id !== optimistic.id);
+    renderMessages(_chatMessages, channel);
+    showToast('Send failed — please try again', 'error');
   }
 }
 
-// Clean up realtime when switching clients or tabs
+// ── loadEarlierMessages ───────────────────────────────────────────────────────
 async function loadEarlierMessages() {
-  if (!_chatClientId || _chatOffset <= 0) return;
-  const newOffset = Math.max(0, _chatOffset - CHAT_PAGE);
-  const { data } = await _sb.from('messages')
-    .select('*')
-    .eq('client_id', _chatClientId).eq('channel', _chatChannel)
-    .order('created_at', { ascending: true })
-    .range(newOffset, _chatOffset - 1);
-  _chatOffset = newOffset;
-  _chatMessages = [...(data || []), ..._chatMessages];
-  const el = document.getElementById('chatMessages_' + _chatChannel);
-  const prevHeight = el ? el.scrollHeight : 0;
-  renderMessages(_chatMessages, _chatChannel);
-  // Maintain scroll position after prepending
-  if (el) el.scrollTop = el.scrollHeight - prevHeight;
+  if (!_streamChannelObj || !_chatMessages.length) return;
+  const oldest = _chatMessages.find(m => !m.id?.toString().startsWith('temp_'));
+  if (!oldest) return;
+  try {
+    const el  = document.getElementById('chatMessages_' + _chatChannel);
+    const pre = el?.scrollHeight || 0;
+    const { messages } = await _streamChannelObj.query({ messages: { limit: 25, id_lt: oldest.id } });
+    if (messages?.length) {
+      _chatMessages = [...messages.map(streamMsgToLocal), ..._chatMessages];
+      renderMessages(_chatMessages, _chatChannel);
+      if (el) el.scrollTop = el.scrollHeight - pre;
+    }
+  } catch(e) { console.error('loadEarlierMessages:', e); }
 }
 
+// ── cleanupChat ───────────────────────────────────────────────────────────────
 function cleanupChat() {
+  if (_streamUnsub) { try { _streamUnsub(); } catch(_) {} _streamUnsub = null; }
+  _streamChannelObj = null;
+  // Legacy Supabase cleanup (anon portal)
   if (_chatSub) { _chatSub.unsubscribe(); _chatSub = null; }
   if (_chatPoll) { clearInterval(_chatPoll); _chatPoll = null; }
-  _chatMessages = [];
-  _chatChannel = null;
-  _chatClientId = null;
-  _chatTotal = 0;
-  _chatOffset = 0;
-  _mentionState = { active: false, query: '', start: 0, members: [] }; // reset so members reload for new client/channel
+  _chatMessages = []; _chatChannel = null; _chatClientId = null;
+  _chatTotal = 0; _chatOffset = 0;
+  _mentionState = { active: false, query: '', start: 0, members: [] };
 }
 
 // ═══════════════════════════════════════════
@@ -4797,6 +4856,7 @@ async function onSignedIn(user) {
 
   // Client users get the client portal view, not the ops portal
   if (S.currentUser.role === 'client') {
+    connectStreamUser().catch(e => console.warn('Stream init (client):', e));
     await loadClientPortalForUser();
     return;
   }
@@ -4807,6 +4867,8 @@ async function onSignedIn(user) {
   setupGlobalNotifications(S.currentUser.id);
   if (Notification.permission === 'granted') registerPushSubscription();
   setTimeout(maybeShowNotifPrompt, 2000);
+  // Connect Stream Chat in the background — ready before user opens chat tab
+  connectStreamUser().catch(e => console.warn('Stream init:', e));
 }
 
 async function loadClientPortalForUser() {
@@ -5092,6 +5154,7 @@ function renderUserBadge() {
 }
 
 async function signOut() {
+  await disconnectStream();
   await _sb.auth.signOut();
   window.location.href = window.location.pathname; // reload clean, no URL params
 }
