@@ -4124,7 +4124,7 @@ async function connectStreamUser() {
       const { token, userId } = await resp.json();
 
       // Dynamically import Stream Chat SDK (cached after first load)
-      const { StreamChat } = await import('https://esm.sh/stream-chat@8');
+      const { StreamChat } = await import('https://esm.sh/stream-chat@8?bundle&target=es2020');
       _streamClient = StreamChat.getInstance(STREAM_API_KEY);
       // Build display name: prefer first+last (spaced), fall back to name field
       const u = S.currentUser;
@@ -4214,10 +4214,24 @@ async function initChat(clientId, channel) {
     const [React, { createRoot }, SCR] = await Promise.all([
       import('https://esm.sh/react@18'),
       import('https://esm.sh/react-dom@18/client?deps=react@18'),
-      import('https://esm.sh/stream-chat-react@12?deps=stream-chat@8,react@18,react-dom@18'),
+      import('https://esm.sh/stream-chat-react@12?deps=stream-chat@8,react@18,react-dom@18&bundle&target=es2020'),
     ]);
     const { Chat, Channel, MessageList, MessageInput, Window, Thread } = SCR;
     const h = React.createElement;
+
+    // Custom upload handler — bypasses Stream's broken Buffer-based uploader
+    // by uploading directly to Supabase Storage and returning the public URL
+    async function supabaseUpload(file) {
+      const ext = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
+      const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await _sb.storage.from('chat-attachements').upload(safeName, file, {
+        contentType: file.type || 'application/octet-stream',
+        upsert: false,
+      });
+      if (error) throw new Error('Upload failed: ' + error.message);
+      const { data: { publicUrl } } = _sb.storage.from('chat-attachements').getPublicUrl(safeName);
+      return { file: publicUrl };
+    }
 
     // Unmount any previous root
     if (_streamReactRoot) { try { _streamReactRoot.unmount(); } catch(_){} }
@@ -4228,6 +4242,8 @@ async function initChat(clientId, channel) {
       h(Chat, { client: _streamClient, theme: 'str-chat__theme-light' },
         h(Channel, {
           channel: ch,
+          doImageUploadRequest: supabaseUpload,
+          doFileUploadRequest: supabaseUpload,
           mentionQueryParams: {
             filters: { id: { $ne: _streamClient.userID } },
             sort: { name: 1 },
