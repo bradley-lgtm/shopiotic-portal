@@ -529,6 +529,22 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
 [id^="streamChatUI_"] .str-chat-channel { height:100%; }
 [id^="streamChatUI_"] .str-chat__main-panel { padding:0; }
 [id^="streamChatUI_"] .str-chat__container { height:100%; }
+/* Mobile: thread panel goes full-screen instead of splitting */
+@media (max-width: 768px) {
+  .str-chat__thread {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 500 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+  }
+  /* Keep main panel visible but hidden behind thread (avoids layout shift) */
+  .str-chat__channel:has(.str-chat__thread) .str-chat__main-panel-inner {
+    visibility: hidden;
+  }
+}
 .chat-header { padding:16px 0 12px; border-bottom:1px solid var(--gray-200); flex-shrink:0; }
 .chat-header-title { font-size:15px; font-weight:700; color:var(--gray-800); letter-spacing:-0.3px; }
 .chat-header-sub { font-size:12px; color:var(--gray-400); margin-top:2px; }
