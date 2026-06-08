@@ -4956,6 +4956,18 @@ async function assignClient(workerId) {
   if (!clientId) return;
   const { error } = await _sb.from('client_access').upsert({ user_id: workerId, client_id: clientId }, { onConflict: 'user_id' });
   if (error) { showToast('Failed to assign: ' + error.message, 'error'); return; }
+  // Add worker to Stream channels for this client immediately
+  try {
+    const session = await _sb.auth.getSession();
+    const token = session?.data?.session?.access_token;
+    if (token) {
+      await fetch(`${STREAM_FUNCTIONS_URL}/manage-stream-member`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId, userId: workerId, action: 'add' }),
+      });
+    }
+  } catch (e) { console.warn('Stream add member failed (non-fatal):', e); }
   showToast('Client assigned ✓', 'success');
   openTeamModal(); // refresh
 }
@@ -4964,6 +4976,18 @@ async function revokeAccess(workerId, clientId) {
   if (!confirm('Remove this client from the worker?')) return;
   const { error } = await _sb.from('client_access').delete().eq('user_id', workerId).eq('client_id', clientId);
   if (error) { showToast('Failed to revoke: ' + error.message, 'error'); return; }
+  // Remove worker from Stream channels for this client
+  try {
+    const session = await _sb.auth.getSession();
+    const token = session?.data?.session?.access_token;
+    if (token) {
+      await fetch(`${STREAM_FUNCTIONS_URL}/manage-stream-member`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId, userId: workerId, action: 'remove' }),
+      });
+    }
+  } catch (e) { console.warn('Stream remove member failed (non-fatal):', e); }
   showToast('Access removed ✓', 'success');
   openTeamModal(); // refresh
 }
