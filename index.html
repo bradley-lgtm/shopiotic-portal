@@ -4003,31 +4003,40 @@ function setChatBadge(channelType, count) {
 
 function clearChatBadge(channelType) { setChatBadge(channelType, 0); }
 
-// Set up real-time badge listener for new messages on the current client's channels
+// Fetch unread counts for both chat channels and update badges
 async function refreshChatBadges(clientId) {
   if (!_streamClient?.userID || !clientId) return;
   try {
-    // Watch both channels in the background so message.new events fire
-    for (const type of ['team', 'client']) {
-      try { await getStreamChannel(clientId, type); } catch(_) {}
+    const safeId = clientId.replace(/-/g, '');
+    const channels = await _streamClient.queryChannels(
+      { type: 'messaging', id: { $in: [`team${safeId}`, `client${safeId}`] } },
+      {},
+      { state: true, watch: false, presence: false }
+    );
+    for (const ch of channels) {
+      const unread = ch.countUnread();
+      if (ch.id === `team${safeId}`) {
+        // Don't show badge if user is currently viewing team chat
+        if (S.activeTab === 'chat' && S._chatSubTab !== 'client') setChatBadge('team', 0);
+        else setChatBadge('team', unread);
+      } else if (ch.id === `client${safeId}`) {
+        // Don't show badge if user is currently viewing client chat
+        if (S.activeTab === 'chat' && S._chatSubTab === 'client') setChatBadge('client', 0);
+        else setChatBadge('client', unread);
+      }
     }
-    // Listen for new messages — badge count is managed purely client-side
+    // Also listen for new messages arriving in real time
     if (_streamBadgeUnsub) { try { _streamBadgeUnsub(); } catch(_) {} }
     const { unsubscribe } = _streamClient.on('message.new', event => {
       if (!event.message || !clientId) return;
-      // Skip own messages
       if (event.message.user?.id === _streamClient.userID) return;
-      // event.cid format: "livestream:teamXXX"
       const cid = event.cid || '';
-      const safeId = clientId.replace(/-/g, '');
       if (cid === `messaging:team${safeId}`) {
-        if (S.activeTab !== 'chat' || S._chatSubTab !== 'team') {
+        if (S.activeTab !== 'chat' || S._chatSubTab === 'client')
           setChatBadge('team', (_unreadCounts.team || 0) + 1);
-        }
       } else if (cid === `messaging:client${safeId}`) {
-        if (S.activeTab !== 'chat' || S._chatSubTab !== 'client') {
+        if (S.activeTab !== 'chat' || S._chatSubTab !== 'client')
           setChatBadge('client', (_unreadCounts.client || 0) + 1);
-        }
       }
     });
     _streamBadgeUnsub = unsubscribe;
