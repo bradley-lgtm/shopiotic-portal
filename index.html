@@ -1875,11 +1875,14 @@ function renderRecurringCategories(categories) {
         </div>`;
     }).join('');
 
+    const total = cat.items.length;
+    const p = pct(catNotDue, total);
     return `
       <div class="category-card" style="margin-bottom:14px;">
         <div class="category-head">
           <div class="category-head-title">${esc(cat.cat)}</div>
-          <div class="category-head-count">${catNotDue}/${cat.items.length}</div>
+          <div class="cat-progress-bar"><div class="cat-progress-fill" style="width:${p}%"></div></div>
+          <div class="cat-progress-text">${catNotDue}/${total}</div>
         </div>
         <div>${taskHTML}</div>
       </div>`;
