@@ -5115,8 +5115,10 @@ async function onSignedIn(user) {
 
   // Client users get the client portal view, not the ops portal
   if (S.currentUser.role === 'client') {
-    connectStreamUser().catch(e => console.warn('Stream init (client):', e));
     await loadClientPortalForUser();
+    connectStreamUser().then(() => {
+      initAllBadges().catch(e => console.warn('Badge init (client):', e));
+    }).catch(e => console.warn('Stream init (client):', e));
     return;
   }
 
