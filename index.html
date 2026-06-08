@@ -6,6 +6,8 @@
 <title>Shopiotic Ops Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Buffer polyfill — must load before any Stream SDK modules (they use Buffer in browser) -->
+<script src="https://cdn.jsdelivr.net/npm/buffer@6/index.min.js"></script>
 <!-- Stream Chat loaded dynamically via esm.sh in connectStreamUser() -->
 <style>
 :root {
@@ -4059,17 +4061,11 @@ async function initChat(clientId, channel) {
     if (!ch) throw new Error('Channel unavailable');
     _streamChannelObj = ch;
 
-    // Polyfill Buffer (needed by Stream SDK for file uploads in browsers)
-    if (!window.Buffer) {
-      const { Buffer } = await import('https://esm.sh/buffer');
-      window.Buffer = Buffer;
-    }
-
     // Load React + stream-chat-react from CDN (shared React instance via deps pin)
     const [React, { createRoot }, SCR] = await Promise.all([
       import('https://esm.sh/react@18'),
       import('https://esm.sh/react-dom@18/client?deps=react@18'),
-      import('https://esm.sh/stream-chat-react@12?deps=react@18,react-dom@18'),
+      import('https://esm.sh/stream-chat-react@12?deps=stream-chat@8,react@18,react-dom@18'),
     ]);
     const { Chat, Channel, MessageList, MessageInput, Window, Thread } = SCR;
     const h = React.createElement;
