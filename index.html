@@ -2350,6 +2350,7 @@ function selectClient(id) {
   closeSidebar(); // close mobile drawer when client selected
   cleanupChat();
   clearChatBadge('team'); clearChatBadge('client');
+  if (_streamBadgeUnsub) { try { _streamBadgeUnsub(); } catch(_) {} _streamBadgeUnsub = null; }
   S.activeId = id;
   S.activeTab = 'overview';
   // Set default months
