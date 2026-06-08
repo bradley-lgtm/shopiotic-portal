@@ -17,26 +17,11 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
 
-  const bodyText = await req.text()
-
-  // Optional: verify Stream webhook signature if secret is set
-  const webhookSecret = Deno.env.get('STREAM_WEBHOOK_SECRET')
-  if (webhookSecret) {
-    const signature = req.headers.get('x-signature') || ''
-    const key = await crypto.subtle.importKey(
-      'raw', new TextEncoder().encode(webhookSecret),
-      { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-    )
-    const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(bodyText))
-    const expected = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('')
-    if (signature !== expected) {
-      console.warn('Webhook signature mismatch — ignoring')
-      return new Response('Unauthorized', { status: 401 })
-    }
-  }
-
   let event: any
-  try { event = JSON.parse(bodyText) } catch {
+  try {
+    event = await req.json()
+  } catch (e) {
+    console.error('Failed to parse request body as JSON:', e)
     return new Response('Bad JSON', { status: 400 })
   }
 
