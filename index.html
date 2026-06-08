@@ -1968,7 +1968,7 @@ function renderCategories(phaseKey, categories) {
 
   return resolvedCats.filter(cat => {
     if (cat.tierMin && TIER_ORDER.indexOf(cat.tierMin) > clientTierIdx) return false;
-    if (cat.qtyGate && isMonthly) return getEffectiveCategoryQty(c, phaseKey, cat.qtyGate) > 0;
+    if (cat.qtyGate && (isMonthly || phaseKey === 'p1o')) return getEffectiveCategoryQty(c, phaseKey, cat.qtyGate) > 0;
     return true;
   }).map(cat => {
     const items = cat.items;
