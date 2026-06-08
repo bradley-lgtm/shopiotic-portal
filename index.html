@@ -4025,9 +4025,8 @@ async function getStreamChannel(clientId, channelType) {
   const safeId    = clientId.replace(/-/g, '');
   const channelId = `${channelType}${safeId}`; // e.g. "teamabc123..." / "clientabc123..."
 
-  const ch = _streamClient.channel('messaging', channelId, {
-    name:    channelType === 'team' ? 'Team Chat' : 'Client Chat',
-    members: [_streamClient.userID],
+  const ch = _streamClient.channel('team', channelId, {
+    name: channelType === 'team' ? 'Team Chat' : 'Client Chat',
   });
   await ch.watch();
   return ch;
