@@ -3846,7 +3846,7 @@ function openMonthlyReport() {
     { label:'Tech SEO Audit',      key:'p1t', cats:TASKS.phase1_tech,        pp:'' },
     ...(includeP2Setup ? [{ label:'Phase 2 Setup', key:'p2s', cats:TASKS.phase2_setup, pp:'' }] : []),
     ...(includeP3Setup ? [{ label:'Phase 3 Setup', key:'p3s', cats:TASKS.phase3_setup, pp:'' }] : []),
-    ...(includeRecurring ? [{ label:'Recurring Tasks', key:'rec', cats:TASKS.recurring, pp:'' }] : []),
+    // Recurring handled separately in recurringMaintenanceHTML below
   ];
   const allPhases = [...staticPhases, ...reportMonths];
 
