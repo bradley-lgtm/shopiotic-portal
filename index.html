@@ -4124,7 +4124,7 @@ async function connectStreamUser() {
       const { token, userId } = await resp.json();
 
       // Dynamically import Stream Chat SDK (cached after first load)
-      const { StreamChat } = await import('https://esm.sh/stream-chat@8?bundle&target=es2020');
+      const { StreamChat } = await import('https://esm.sh/stream-chat@8');
       _streamClient = StreamChat.getInstance(STREAM_API_KEY);
       // Build display name: prefer first+last (spaced), fall back to name field
       const u = S.currentUser;
@@ -4214,7 +4214,7 @@ async function initChat(clientId, channel) {
     const [React, { createRoot }, SCR] = await Promise.all([
       import('https://esm.sh/react@18'),
       import('https://esm.sh/react-dom@18/client?deps=react@18'),
-      import('https://esm.sh/stream-chat-react@12?deps=stream-chat@8,react@18,react-dom@18&bundle&target=es2020'),
+      import('https://esm.sh/stream-chat-react@12?deps=stream-chat@8,react@18,react-dom@18'),
     ]);
     const { Chat, Channel, MessageList, MessageInput, Window, Thread } = SCR;
     const h = React.createElement;
