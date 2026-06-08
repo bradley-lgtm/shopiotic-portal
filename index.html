@@ -4264,6 +4264,17 @@ async function initChat(clientId, channel) {
       link.href = 'https://cdn.jsdelivr.net/npm/stream-chat-react/dist/css/v2/index.css';
       document.head.appendChild(link);
     }
+    // Move reactions below messages (Stream defaults to above)
+    if (!document.getElementById('stream-chat-overrides')) {
+      const s = document.createElement('style');
+      s.id = 'stream-chat-overrides';
+      s.textContent = `
+        .str-chat__message-reaction-list { order: 1; }
+        .str-chat__message-bubble { order: 0; }
+        .str-chat__message-inner { flex-direction: column; }
+      `;
+      document.head.appendChild(s);
+    }
 
     // Connect Stream user + get channel
     await connectStreamUser();
