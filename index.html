@@ -3866,19 +3866,12 @@ let _chatOffset = 0;
 const CHAT_PAGE = 50;
 
 function renderChatPage(c, activeChannel) {
-  const isTeam    = activeChannel === 'team';
-  const isPortal  = S.isClientPortal;
-  const showTabs  = !isPortal; // ops users see Team / Client tabs
-  const title     = isTeam ? '💬 Team Chat' : (isPortal ? '💬 Chat' : '📢 Client Chat');
-  const sub       = isTeam ? 'Internal — visible to team only' : (isPortal ? 'Chat directly with your Shopiotic team' : 'Client-facing — client can see this channel');
-  const tabs      = showTabs ? `
-    <div style="display:flex;gap:0;border-bottom:1px solid var(--gray-200);margin-bottom:0;flex-shrink:0;">
-      <button onclick="switchChatTab('team')"   style="flex:1;padding:9px 0;font-size:12px;font-weight:${isTeam ?'700':'500'};color:${isTeam ?'var(--teal)':'var(--gray-400)'};background:none;border:none;border-bottom:2px solid ${isTeam ?'var(--teal)':'transparent'};cursor:pointer;font-family:var(--font);">Team</button>
-      <button onclick="switchChatTab('client')" style="flex:1;padding:9px 0;font-size:12px;font-weight:${!isTeam?'700':'500'};color:${!isTeam?'var(--teal)':'var(--gray-400)'};background:none;border:none;border-bottom:2px solid ${!isTeam?'var(--teal)':'transparent'};cursor:pointer;font-family:var(--font);">Client</button>
-    </div>` : '';
+  const isTeam   = activeChannel === 'team';
+  const isPortal = S.isClientPortal;
+  const title    = isTeam ? '💬 Team Chat' : (isPortal ? '💬 Chat' : '📢 Client Chat');
+  const sub      = isTeam ? 'Internal — visible to team only' : (isPortal ? 'Chat directly with your Shopiotic team' : 'Client-facing — client can see this channel');
   return `
     <div class="chat-wrap" id="chatWrap_${activeChannel}" style="padding-top:4px;">
-      ${tabs}
       <div style="padding:10px 0 8px;flex-shrink:0;border-bottom:1px solid var(--gray-200);">
         <div style="font-size:14px;font-weight:700;color:var(--gray-800);margin-bottom:2px;">${title}</div>
         <div style="font-size:12px;color:var(--gray-400);">${sub}</div>
@@ -3991,7 +3984,10 @@ async function connectStreamUser() {
       if (!resp.ok) throw new Error(`Token fetch ${resp.status}`);
       const { token, userId } = await resp.json();
 
-      const SC = window.StreamChat?.StreamChat || window.StreamChat;
+      // UMD bundle exposes named exports on window.StreamChat
+      // Try all known patterns for different bundle versions
+      const SC = window.StreamChat?.StreamChat ?? window.StreamChat;
+      if (!SC?.getInstance) throw new Error('Stream SDK not loaded — check CDN');
       _streamClient = SC.getInstance(STREAM_API_KEY);
       await _streamClient.connectUser({
         id:    userId,
@@ -4001,6 +3997,7 @@ async function connectStreamUser() {
       }, token);
     } catch (e) {
       console.error('Stream connect failed:', e);
+      showToast('Chat connection failed: ' + (e?.message || e), 'error');
       _streamClient     = null;
       _streamConnecting = null;
     }
