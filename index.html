@@ -1229,9 +1229,9 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
 // ═══════════════════════════════════════════
 
 const TIER_CONFIG = {
-  Essentials: { p1collections: 0,  p2collections: 7,  p3blogs: 2, p3gsc: 2, p2budget: 400,  p3budget: 500,  p2gsc: 0, p2blogs: 0, p3collections: 0 },
-  Core:       { p1collections: 3,  p2collections: 12, p3blogs: 4, p3gsc: 4, p2budget: 600,  p3budget: 750,  p2gsc: 0, p2blogs: 0, p3collections: 0 },
-  Scale:      { p1collections: 5,  p2collections: 20, p3blogs: 6, p3gsc: 6, p2budget: 900,  p3budget: 1100, p2gsc: 0, p2blogs: 0, p3collections: 0 },
+  Essentials: { p1collections: 0, p1budget: 0, p2collections: 7,  p3blogs: 2, p3gsc: 2, p2budget: 400,  p3budget: 500,  p2gsc: 0, p2blogs: 0, p3collections: 0 },
+  Core:       { p1collections: 3, p1budget: 0, p2collections: 12, p3blogs: 4, p3gsc: 4, p2budget: 600,  p3budget: 750,  p2gsc: 0, p2blogs: 0, p3collections: 0 },
+  Scale:      { p1collections: 5, p1budget: 0, p2collections: 20, p3blogs: 6, p3gsc: 6, p2budget: 900,  p3budget: 1100, p2gsc: 0, p2blogs: 0, p3collections: 0 },
 };
 
 function tierCfg(client) {
@@ -2409,14 +2409,20 @@ function renderContent(c) {
 
   if (S.activeTab === 'p1o') {
     const [d,t] = phaseProgress('p1o', TASKS.phase1_onboarding);
+    const p1budget = getEffectiveBudget(c, 'p1o');
+    const p1BudgetWidget = p1budget > 0 ? renderBudgetWidget(c, 'p1o') : '';
     area.innerHTML = `
-      <div class="phase-banner">
-        <div class="phase-banner-icon">🚀</div>
-        <div class="phase-banner-body">
-          <div class="phase-banner-title">Phase 1 — Onboarding <span style="color:var(--teal)">(Month 1 · Duration: 1 month)</span></div>
-          <div class="phase-banner-desc">Sets the foundation: billing, access, dashboard setup, keyword research, backlink strategy, technical audit, and on-page optimisation.</div>
+      <div class="phase-banner" style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="phase-banner-icon">🚀</div>
+          <div class="phase-banner-body">
+            <div class="phase-banner-title">Phase 1 — Onboarding <span style="color:var(--teal)">(Month 1 · Duration: 1 month)</span></div>
+            <div class="phase-banner-desc">Sets the foundation: billing, access, dashboard setup, keyword research, backlink strategy, technical audit, and on-page optimisation.</div>
+          </div>
         </div>
+        ${S.isClientPortal ? '' : `<button class="btn btn-outline btn-sm" style="flex-shrink:0;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:#fff;" onclick="openTplModal('p1')">⚙️ Manage Template</button>`}
       </div>
+      ${p1BudgetWidget}
       ${renderCategories('p1o', TASKS.phase1_onboarding)}
       ${renderNotes(c)}`;
   }
@@ -2825,6 +2831,11 @@ function getMonthsInOrder(c) {
 // Get the effective budget for a phaseKey — checks for per-month override first
 function getEffectiveBudget(c, phaseKey) {
   const cfg = tierCfg(c);
+  // Phase 1 budget is optional, stored only in templateData
+  if (phaseKey === 'p1o') {
+    const tplOverride = c.templateData?.budgetOverride?.p1budget;
+    return tplOverride != null ? tplOverride : cfg.p1budget;
+  }
   const isp2 = phaseKey.startsWith('p2');
   const tierBase = isp2 ? cfg.p2budget : cfg.p3budget;
   // Month-level override always wins regardless of past/present
@@ -2896,18 +2907,20 @@ function renderBudgetWidget(c, phaseKey) {
   return `
     <div class="add-link-form">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <div class="add-link-form-title" style="margin-bottom:0;">💰 Link Budget — ${phaseKey.startsWith('p2') ? 'Phase 2' : 'Phase 3'}</div>
-        ${S.isClientPortal ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="openBudgetOverride('${phaseKey}')">✏️ ${hasOverride ? 'Edit override' : 'Override budget'}</button>`}
+        <div class="add-link-form-title" style="margin-bottom:0;">💰 Link Budget — ${phaseKey === 'p1o' ? 'Phase 1' : phaseKey.startsWith('p2') ? 'Phase 2' : 'Phase 3'}</div>
+        ${S.isClientPortal || phaseKey === 'p1o' ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="openBudgetOverride('${phaseKey}')">✏️ ${hasOverride ? 'Edit override' : 'Override budget'}</button>`}
       </div>
       <div class="budget-widget" style="margin-bottom:12px;">
         <div class="budget-stat">
-          <span class="budget-stat-label">Base Budget${hasOverride ? ' <span style="color:var(--teal);font-size:10px;">(overridden)</span>' : ''}</span>
+          <span class="budget-stat-label">Budget${hasOverride ? ' <span style="color:var(--teal);font-size:10px;">(overridden)</span>' : ''}</span>
           <span class="budget-stat-value">$${baseBudget}</span>
         </div>
+        ${phaseKey !== 'p1o' ? `
         <div class="budget-divider"></div>
         <div class="budget-stat"><span class="budget-stat-label">Carryover</span><span class="budget-stat-value" style="color:${carryoverColor};font-size:15px;">${carryoverLabel}</span></div>
         <div class="budget-divider"></div>
         <div class="budget-stat"><span class="budget-stat-label">Available</span><span class="budget-stat-value">$${available.toFixed(0)}</span></div>
+        ` : ''}
         <div class="budget-divider"></div>
         <div class="budget-stat"><span class="budget-stat-label">Spent</span><span class="budget-stat-value">$${spent.toFixed(0)}</span></div>
         <div class="budget-divider"></div>
@@ -3061,9 +3074,9 @@ function openTplModal(phase) {
     return (e && e.qty != null) ? e.qty : cfg[cfgKey];
   };
 
-  // Budget override stored in templateData.budgetOverride (p2 or p3)
-  const budgetKey = phase === 'p2' ? 'p2budget' : 'p3budget';
-  const tierBudget = cfg[phase === 'p2' ? 'p2budget' : 'p3budget'];
+  // Budget override stored in templateData.budgetOverride (p1, p2, or p3)
+  const budgetKey = phase === 'p1' ? 'p1budget' : phase === 'p2' ? 'p2budget' : 'p3budget';
+  const tierBudget = cfg[budgetKey];
   const budgetOverride = td.budgetOverride && td.budgetOverride[budgetKey] != null ? td.budgetOverride[budgetKey] : tierBudget;
 
   // One quantity row per deliverable type
@@ -3082,6 +3095,22 @@ function openTplModal(phase) {
     return cfg[key] || 0;
   };
 
+  const p1Section = phase === 'p1' ? `
+    ${(c.tier === 'Core' || c.tier === 'Scale') ? `
+    <div class="tpl-section-title">📄 Collection Pages</div>
+    ${qtyRow('Collection pages in Phase 1', `Tier default: ${cfg.p1collections}`, 'tpl_qty_p1cp', getQty('p1cp1','p1collections'), cfg.p1collections)}
+    ` : ''}
+    <div class="tpl-section-title" style="margin-top:16px;">🔗 Backlink Budget <span style="font-size:11px;font-weight:400;color:var(--gray-400)">(optional — 0 = off)</span></div>
+    <div class="tpl-row">
+      <div><div class="tpl-row-label">Phase 1 link budget</div><div class="tpl-row-sub">Set > 0 to show the backlink budget tracker on the Phase 1 tab.</div></div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:14px;color:var(--gray-500);">$</span>
+        <input class="tpl-qty-input" id="tpl_p1budget" type="number" min="0" value="${budgetOverride}" style="width:100px;">
+        <button class="tpl-reset" onclick="document.getElementById('tpl_p1budget').value=0" title="Set to 0 (disabled)">↺</button>
+      </div>
+    </div>
+  ` : '';
+
   const p2Section = phase === 'p2' ? `
     <div class="tpl-section-title">📄 Collection Pages</div>
     ${qtyRow('Collection pages per month', `Tier default: ${cfg.p2collections}`, 'tpl_qty_cp', getQty('cp1','p2collections'), cfg.p2collections)}
@@ -3089,7 +3118,7 @@ function openTplModal(phase) {
     ${qtyRow('Blogs per month', 'Default: 0 (disabled). Set > 0 to add blog tasks to this and future months.', 'tpl_p2blogs', getOptQty('p2blogs'), 0)}
     <div class="tpl-section-title" style="margin-top:16px;">🔍 GSC Optimisations <span style="font-size:11px;font-weight:400;color:var(--gray-400)">(optional — 0 = off)</span></div>
     ${qtyRow('Optimisations per month', 'Default: 0 (disabled). Set > 0 to add GSC optimisation tasks to this and future months.', 'tpl_p2gsc', getOptQty('p2gsc'), 0)}
-  ` : `
+  ` : phase === 'p3' ? `
     <div class="tpl-section-title">📄 Collection Pages <span style="font-size:11px;font-weight:400;color:var(--gray-400)">(optional — 0 = off)</span></div>
     ${qtyRow('Collection pages per month', 'Default: 0 (disabled). Enable if client adds new products and needs new collections in Phase 3.', 'tpl_p3collections', getOptQty('p3collections'), 0)}
     <div class="tpl-section-title" style="margin-top:16px;">✍️ Blog Content</div>
@@ -3098,7 +3127,7 @@ function openTplModal(phase) {
     ${qtyRow('Optimisations per month', `Tier default: ${cfg.p3gsc}`, 'tpl_qty_gc', getQty('gc1','p3gsc'), cfg.p3gsc)}
   `;
 
-  const budgetSection = `
+  const budgetSection = phase !== 'p1' ? `
     <div class="tpl-section-title" style="margin-top:16px;">💰 Monthly Link Budget</div>
     <div class="tpl-row">
       <div><div class="tpl-row-label">Default monthly budget</div><div class="tpl-row-sub">Tier default: $${tierBudget}</div></div>
@@ -3107,9 +3136,9 @@ function openTplModal(phase) {
         <input class="tpl-qty-input" id="tpl_budget" type="number" min="0" value="${budgetOverride}" style="width:100px;">
         <button class="tpl-reset" onclick="document.getElementById('tpl_budget').value=${tierBudget}" title="Reset to tier default">↺</button>
       </div>
-    </div>`;
+    </div>` : '';
 
-  document.getElementById('tplPanelContent').innerHTML = p2Section + budgetSection;
+  document.getElementById('tplPanelContent').innerHTML = p1Section + p2Section + budgetSection;
   document.getElementById('tplModal').classList.add('open');
 }
 
@@ -3133,7 +3162,17 @@ function saveTplModal() {
   };
 
   if (!c.templateData.optQty) c.templateData.optQty = {};
-  if (_tplPhase === 'p2') {
+  if (_tplPhase === 'p1') {
+    applyQty('tpl_qty_p1cp', ['p1cp1','p1cp2','p1cp3','p1cp4','p1cp5']);
+    const p1budgetEl = document.getElementById('tpl_p1budget');
+    if (p1budgetEl) {
+      const bval = parseFloat(p1budgetEl.value);
+      if (!isNaN(bval)) {
+        if (!c.templateData.budgetOverride) c.templateData.budgetOverride = {};
+        c.templateData.budgetOverride.p1budget = bval;
+      }
+    }
+  } else if (_tplPhase === 'p2') {
     applyQty('tpl_qty_cp', ['cp1','cp2','cp3','cp4','cp5']);
     const p2blogsEl = document.getElementById('tpl_p2blogs');
     const p2gscEl = document.getElementById('tpl_p2gsc');
@@ -3146,7 +3185,7 @@ function saveTplModal() {
     if (p3cpEl) c.templateData.optQty.p3collections = parseInt(p3cpEl.value) || 0;
   }
 
-  // Budget
+  // Budget (p2 / p3 only — p1 handled above)
   const budgetEl = document.getElementById('tpl_budget');
   if (budgetEl) {
     const bval = parseFloat(budgetEl.value);
