@@ -764,6 +764,16 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
 
 /* ── MOBILE RESPONSIVE ── */
 
+/* Client portal topbar: collapse at a wider breakpoint so long CTA buttons
+   don't overflow onto the logo before the 768px mobile breakpoint kicks in */
+@media (max-width: 1100px) {
+  .cp-topbar-hide-sm { display: none !important; }
+  .cp-cta-desktop { display: none !important; }
+  .cp-util-desktop { display: none !important; }
+  .cp-cta-mobile { display: block !important; }
+  .cp-util-mobile { display: block !important; }
+}
+
 /* Hamburger button — hidden on desktop */
 #sidebarToggle {
   display: none; flex-direction: column; justify-content: center; align-items: center;
@@ -806,12 +816,6 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
   /* User badge — hide name/role text, keep avatar */
   #userName, #userRole { display: none !important; }
 
-  /* Client portal topbar: collapse to mobile layout */
-  .cp-topbar-hide-sm { display: none !important; }
-  .cp-cta-desktop { display: none !important; }
-  .cp-util-desktop { display: none !important; }
-  .cp-cta-mobile { display: block !important; }
-  .cp-util-mobile { display: block !important; }
 
   /* Client header — mobile compact layout */
   .client-header { padding: 10px 12px; }
