@@ -4073,12 +4073,16 @@ async function getStreamChannel(clientId, channelType) {
   const safeId    = clientId.replace(/-/g, '');
   const channelId = `${channelType}${safeId}`;
 
-  // Fetch all team member IDs (owner + worker roles) to add as members
-  // This makes messaging channels work (permissions) AND enables @mention suggestions
+  // Build member list: all owners + workers assigned to this specific client
   let memberIds = [_streamClient.userID];
   try {
-    const { data } = await _sb.from('profiles').select('id').in('role', ['owner', 'worker']);
-    if (data?.length) memberIds = [...new Set([...memberIds, ...data.map(p => p.id)])];
+    const [ownersRes, assignedRes] = await Promise.all([
+      _sb.from('profiles').select('id').eq('role', 'owner'),
+      _sb.from('client_access').select('user_id').eq('client_id', clientId),
+    ]);
+    const ownerIds   = (ownersRes.data  || []).map(p => p.id);
+    const workerIds  = (assignedRes.data || []).map(p => p.user_id);
+    memberIds = [...new Set([...memberIds, ...ownerIds, ...workerIds])];
   } catch(_) {}
 
   const ch = _streamClient.channel('messaging', channelId, {
