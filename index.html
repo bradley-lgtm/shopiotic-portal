@@ -1618,31 +1618,66 @@ function getIntervalMonths(catName) {
 
 function getRecurringStatus(c, key, intervalMonths) {
   // Migrate old boolean done flag to recurringLog
-  if (c.done && c.done[key]) {
+  if (c.done?.[key]) {
     if (!c.recurringLog) c.recurringLog = {};
-    if (!c.recurringLog[key]) {
-      c.recurringLog[key] = [new Date().toISOString().split('T')[0]];
-    }
+    if (!c.recurringLog[key]) c.recurringLog[key] = [new Date().toISOString().split('T')[0]];
     delete c.done[key];
   }
   const log = (c.recurringLog || {})[key] || [];
   const today = new Date(); today.setHours(0,0,0,0);
-  let nextDue, lastDone = null;
-  if (log.length === 0) {
-    const startDate = c.startDate ? new Date(c.startDate + 'T00:00:00') : null;
-    if (!startDate) return { status: 'due', nextDue: null, daysUntil: 0, lastDone: null, neverDone: true };
-    nextDue = new Date(startDate);
+  const startDate = c.startDate ? new Date(c.startDate + 'T00:00:00') : null;
+  const lastDoneStr = log[log.length - 1];
+  const lastDone = lastDoneStr ? new Date(lastDoneStr + 'T00:00:00') : null;
+  const MS_DAY = 1000 * 60 * 60 * 24;
+
+  if (!startDate) {
+    // No start date — fall back to log-based (drifting) calculation
+    if (!lastDone) return { status: 'due', nextDue: null, daysUntil: 0, lastDone: null, neverDone: true };
+    const nextDue = new Date(lastDone);
     nextDue.setMonth(nextDue.getMonth() + intervalMonths);
-  } else {
-    lastDone = new Date(log[log.length - 1] + 'T00:00:00');
-    nextDue = new Date(lastDone);
-    nextDue.setMonth(nextDue.getMonth() + intervalMonths);
+    const daysUntil = Math.ceil((nextDue - today) / MS_DAY);
+    if (daysUntil <= 0)  return { status: 'due',      nextDue, daysUntil, lastDone, neverDone: false };
+    if (daysUntil <= 30) return { status: 'upcoming', nextDue, daysUntil, lastDone, neverDone: false };
+    return                      { status: 'done',     nextDue, daysUntil, lastDone, neverDone: false };
   }
-  const daysUntil = Math.ceil((nextDue - today) / (1000 * 60 * 60 * 24));
-  const neverDone = log.length === 0;
-  if (daysUntil <= 0)  return { status: 'due',      nextDue, daysUntil, lastDone, neverDone };
-  if (daysUntil <= 30) return { status: 'upcoming', nextDue, daysUntil, lastDone, neverDone };
-  return                      { status: 'done',     nextDue, daysUntil, lastDone, neverDone };
+
+  // ── Anchor-based: due dates are always startDate + n*interval ──
+  // How many full intervals have elapsed since startDate?
+  const yearsDiff  = today.getFullYear() - startDate.getFullYear();
+  const monthsDiff = yearsDiff * 12 + today.getMonth() - startDate.getMonth();
+  const dayAdj     = today.getDate() < startDate.getDate() ? -1 : 0;
+  const elapsed    = Math.max(0, monthsDiff + dayAdj);
+  const n          = Math.floor(elapsed / intervalMonths); // completed cycles
+
+  // The most recent anchor due date (may be in the past)
+  const currentCycleDue = new Date(startDate);
+  currentCycleDue.setMonth(currentCycleDue.getMonth() + n * intervalMonths);
+
+  // The next anchor due date (always in the future)
+  const nextCycleDue = new Date(startDate);
+  nextCycleDue.setMonth(nextCycleDue.getMonth() + (n + 1) * intervalMonths);
+  const daysUntilNext = Math.ceil((nextCycleDue - today) / MS_DAY);
+
+  // Task is "complete for this cycle" if lastDone falls on or after currentCycleDue
+  // (for n=0, currentCycleDue === startDate, so any completion counts)
+  const completedCycle = lastDone && lastDone >= currentCycleDue;
+
+  if (completedCycle) {
+    // Done — show when the NEXT anchor cycle is due
+    if (daysUntilNext <= 0)  return { status: 'due',      nextDue: nextCycleDue, daysUntil: daysUntilNext, lastDone, neverDone: false };
+    if (daysUntilNext <= 30) return { status: 'upcoming', nextDue: nextCycleDue, daysUntil: daysUntilNext, lastDone, neverDone: false };
+    return                          { status: 'done',     nextDue: nextCycleDue, daysUntil: daysUntilNext, lastDone, neverDone: false };
+  }
+
+  if (n === 0) {
+    // Before first due date — not yet due
+    if (daysUntilNext <= 30) return { status: 'upcoming', nextDue: nextCycleDue, daysUntil: daysUntilNext, lastDone: null, neverDone: true };
+    return                          { status: 'pending',  nextDue: nextCycleDue, daysUntil: daysUntilNext, lastDone: null, neverDone: true };
+  }
+
+  // n >= 1 and not completed: OVERDUE — show the missed anchor date
+  const daysOverdue = Math.ceil((today - currentCycleDue) / MS_DAY);
+  return { status: 'due', nextDue: currentCycleDue, daysUntil: -daysOverdue, lastDone, neverDone: !lastDone };
 }
 
 function recurringProgress(categories) {
@@ -1829,17 +1864,21 @@ function renderRecurringCategories(categories) {
     const taskHTML = cat.items.map(item => {
       const key = taskKey('rec', item.id);
       const { status, nextDue, daysUntil, lastDone, neverDone } = getRecurringStatus(c, key, intervalMonths);
-      if (status === 'done') catNotDue++;
+      if (status === 'done' || status === 'pending') catNotDue++;
 
-      const isDone   = status === 'done';
-      const isDue    = status === 'due';
+      const isDone     = status === 'done';
+      const isDue      = status === 'due';
       const isUpcoming = status === 'upcoming';
+      const isPending  = status === 'pending';
 
       // Status indicator + sub-label
-      const dot = isDue ? '🔴' : isUpcoming ? '🟡' : '✅';
+      const dot = isDue ? '🔴' : isUpcoming ? '🟡' : isPending ? '⏳' : '✅';
       let subLabel = '';
-      if (isDue && neverDone) {
-        subLabel = nextDue ? `First due ${fmtDate(nextDue)} — not yet completed` : 'Due now — never done';
+      if (isPending) {
+        const mo = Math.round(daysUntil / 30);
+        subLabel = `First due ${fmtDate(nextDue)}${mo > 1 ? ` (in ${mo} mo)` : ''}`;
+      } else if (isDue && neverDone) {
+        subLabel = nextDue ? `Due ${fmtDate(nextDue)} — not yet completed` : 'Due now — never done';
       } else if (isDue) {
         subLabel = `Overdue since ${fmtDate(nextDue)}${lastDone ? ` · last done ${fmtDate(lastDone)}` : ''}`;
       } else if (isUpcoming) {
@@ -1859,15 +1898,17 @@ function renderRecurringCategories(categories) {
       const noteSection = S.isClientPortal ? '' : `<div class="task-note-area ${hasNote ? 'open' : ''}" id="note_rec_${item.id}"><textarea class="task-note-input" placeholder="Add a note…" oninput="saveTaskNote('${key}',this.value)" onkeydown="event.stopPropagation()">${noteVal}</textarea></div>`;
       const noteBtn = S.isClientPortal ? '' : `<button class="task-note-btn ${hasNote ? 'has-note' : ''}" title="Note" onclick="event.stopPropagation();toggleNote('note_rec_${item.id}')">📎</button>`;
 
+      const rowOpacity = (isDone || isPending) ? '0.65' : '1';
+      const subLabelColor = isDue ? '#ef4444' : isUpcoming ? '#d97706' : 'var(--gray-400)';
       return `
-        <div class="task-item task-row" style="opacity:${isDone?'0.65':'1'};">
+        <div class="task-item task-row" style="opacity:${rowOpacity};">
           <div class="task-check ${isDone?'done':''}" onclick="toggleRecurringTask('${key}')" style="cursor:pointer;flex-shrink:0;"></div>
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <span class="task-label ${isDone?'done':''}">${dot} ${esc(item.t)}</span>
               ${hasSubs ? `<span class="expand-toggle" onclick="expandToggle(this)" style="font-size:11px;color:var(--teal);cursor:pointer;">▼ show details</span>` : ''}
             </div>
-            <div style="font-size:11px;color:${isDue?'#ef4444':isUpcoming?'#d97706':'var(--gray-400)'};margin-top:3px;">${subLabel}</div>
+            <div style="font-size:11px;color:${subLabelColor};margin-top:3px;">${subLabel}</div>
             ${subsHTML}
             ${noteSection}
           </div>
