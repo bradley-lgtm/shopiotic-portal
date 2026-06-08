@@ -4074,6 +4074,8 @@ async function getStreamChannel(clientId, channelType) {
     name: channelType === 'team' ? 'Team Chat' : 'Client Chat',
   });
   await ch.watch();
+  // Add current user as a channel member so they appear in @mention suggestions
+  try { await ch.addMembers([_streamClient.userID]); } catch(_) {}
   return ch;
 }
 
@@ -4133,9 +4135,9 @@ async function initChat(clientId, channel) {
         h(Channel, {
           channel: ch,
           mentionQueryParams: {
-            filters: {},
+            filters: { id: { $ne: _streamClient.userID } },
             sort: { name: 1 },
-            options: { limit: 20 },
+            options: { limit: 20, presence: false },
           },
         },
           h(Window, null,
