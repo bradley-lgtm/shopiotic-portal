@@ -4954,7 +4954,7 @@ async function assignClient(workerId) {
   const sel = document.getElementById('assign_' + workerId);
   const clientId = sel ? sel.value : '';
   if (!clientId) return;
-  const { error } = await _sb.from('client_access').upsert({ user_id: workerId, client_id: clientId }, { onConflict: 'user_id' });
+  const { error } = await _sb.from('client_access').upsert({ user_id: workerId, client_id: clientId }, { onConflict: 'user_id,client_id' });
   if (error) { showToast('Failed to assign: ' + error.message, 'error'); return; }
   // Add worker to Stream channels for this client immediately
   try {
