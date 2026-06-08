@@ -82,25 +82,12 @@ Deno.serve(async (req) => {
   // Get client name from channel ID
   // Channel IDs are like teamABCDEF or clientABCDEF
   const channelId: string = event.channel_id || ''
-  const safeClientId = channelId.replace(/^(team|client)/, '')
-  const isClientChat = channelId.startsWith('client')
-  const channelLabel = isClientChat ? 'Client Chat' : 'Team Chat'
+  const channelLabel = channelId.startsWith('client') ? 'Client Chat' : 'Team Chat'
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   )
-
-  // Get client name
-  let clientName = 'a client'
-  if (safeClientId) {
-    const { data: clientRow } = await supabase
-      .from('shopiotic_clients')
-      .select('name, data')
-      .eq('id', safeClientId)
-      .maybeSingle()
-    clientName = clientRow?.name || clientRow?.data?.name || clientName
-  }
 
   // Get profiles (email + name) for all mentioned users
   const userIds = toNotify.map(u => u.id)
@@ -145,7 +132,7 @@ Deno.serve(async (req) => {
     <div style="padding:32px;">
       <p style="font-size:16px;color:#18181f;margin:0 0 8px;font-weight:600;">Hey ${firstName} 👋</p>
       <p style="font-size:14px;color:#48485c;margin:0 0 20px;line-height:1.6;">
-        <strong>${senderName}</strong> mentioned you in the <strong>${clientName}</strong> ${channelLabel}.
+        <strong>${senderName}</strong> mentioned you in <strong>${channelLabel}</strong>.
       </p>
       <div style="background:#f5f3ff;border-left:3px solid #7c3aed;border-radius:0 8px 8px 0;padding:14px 16px;margin:0 0 24px;">
         <div style="font-size:11px;color:#9898b0;margin-bottom:4px;">${senderName}</div>
@@ -173,7 +160,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: 'Shopiotic Portal <notifications@shopiotic.com>',
         to: profile.email,
-        subject: `💬 ${senderName} mentioned you in ${clientName}`,
+        subject: `💬 ${senderName} mentioned you in ${channelLabel}`,
         html,
       }),
     })
