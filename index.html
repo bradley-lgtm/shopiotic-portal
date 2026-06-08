@@ -1573,6 +1573,23 @@ function toggleTask(key) {
   save(); renderClient(); renderSidebar();
 }
 
+function toggleRecurringTask(key) {
+  const c = getClient(); if (!c) return;
+  if (!c.recurringLog) c.recurringLog = {};
+  const log = c.recurringLog[key] || [];
+  const today = new Date().toISOString().split('T')[0];
+  const lastEntry = log[log.length - 1];
+  if (lastEntry === today) {
+    // Same-day undo
+    const newLog = log.slice(0, -1);
+    if (newLog.length === 0) delete c.recurringLog[key];
+    else c.recurringLog[key] = newLog;
+  } else {
+    c.recurringLog[key] = [...log, today];
+  }
+  save(); renderClient(); renderSidebar();
+}
+
 function expandToggle(el) {
   const sub = el.closest('.task-item').querySelector('.subtasks');
   if (!sub) return;
@@ -1593,7 +1610,58 @@ function linkify(text) {
 
 function taskKey(phaseKey, taskId) { return phaseKey + '_' + taskId; }
 
+// ── Recurring task helpers ────────────────────────────────────────────────
+function getIntervalMonths(catName) {
+  const m = catName.match(/Every (\d+) Month/i);
+  return m ? parseInt(m[1]) : 12;
+}
+
+function getRecurringStatus(c, key, intervalMonths) {
+  // Migrate old boolean done flag to recurringLog
+  if (c.done && c.done[key]) {
+    if (!c.recurringLog) c.recurringLog = {};
+    if (!c.recurringLog[key]) {
+      c.recurringLog[key] = [new Date().toISOString().split('T')[0]];
+    }
+    delete c.done[key];
+  }
+  const log = (c.recurringLog || {})[key] || [];
+  const today = new Date(); today.setHours(0,0,0,0);
+  let nextDue, lastDone = null;
+  if (log.length === 0) {
+    const startDate = c.startDate ? new Date(c.startDate + 'T00:00:00') : null;
+    if (!startDate) return { status: 'due', nextDue: null, daysUntil: 0, lastDone: null, neverDone: true };
+    nextDue = new Date(startDate);
+    nextDue.setMonth(nextDue.getMonth() + intervalMonths);
+  } else {
+    lastDone = new Date(log[log.length - 1] + 'T00:00:00');
+    nextDue = new Date(lastDone);
+    nextDue.setMonth(nextDue.getMonth() + intervalMonths);
+  }
+  const daysUntil = Math.ceil((nextDue - today) / (1000 * 60 * 60 * 24));
+  const neverDone = log.length === 0;
+  if (daysUntil <= 0)  return { status: 'due',      nextDue, daysUntil, lastDone, neverDone };
+  if (daysUntil <= 45) return { status: 'upcoming', nextDue, daysUntil, lastDone, neverDone };
+  return                      { status: 'done',     nextDue, daysUntil, lastDone, neverDone };
+}
+
+function recurringProgress(categories) {
+  const c = getClient(); if (!c) return [0, 0];
+  let total = 0, notDue = 0;
+  for (const cat of categories) {
+    const months = getIntervalMonths(cat.cat);
+    for (const item of cat.items) {
+      total++;
+      const key = taskKey('rec', item.id);
+      const { status } = getRecurringStatus(c, key, months);
+      if (status === 'done') notDue++;
+    }
+  }
+  return [notDue, total];
+}
+
 function phaseProgress(phaseKey, categories) {
+  if (phaseKey === 'rec') return recurringProgress(categories);
   const c = getClient(); if (!c) return [0,0];
   let total = 0, done = 0;
   for (const cat of categories) {
@@ -1666,7 +1734,15 @@ function overallProgress(client) {
   countCats('p1t', TASKS.phase1_tech);
   countCats('p2s', TASKS.phase2_setup);
   countCats('p3s', TASKS.phase3_setup);
-  countCats('rec', TASKS.recurring);
+  // Recurring: count tasks that are not currently due as "done"
+  for (const cat of TASKS.recurring) {
+    const months = getIntervalMonths(cat.cat);
+    for (const item of cat.items) {
+      total++;
+      const { status } = getRecurringStatus(client, taskKey('rec', item.id), months);
+      if (status === 'done') done++;
+    }
+  }
   for (const m of (client.p2months || [])) countMonthCats('p2m' + m, TASKS.phase2_monthly);
   for (const m of (client.p3months || [])) countMonthCats('p3m' + m, TASKS.phase3_monthly);
   return [done, total];
@@ -1743,7 +1819,75 @@ const TIER_QTY = {
 
 const TIER_ORDER = ['Essentials','Core','Scale'];
 
+function renderRecurringCategories(categories) {
+  const c = getClient(); if (!c) return '';
+  const fmtDate = d => d ? d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '';
+
+  return categories.map(cat => {
+    const intervalMonths = getIntervalMonths(cat.cat);
+    let catNotDue = 0;
+    const taskHTML = cat.items.map(item => {
+      const key = taskKey('rec', item.id);
+      const { status, nextDue, daysUntil, lastDone, neverDone } = getRecurringStatus(c, key, intervalMonths);
+      if (status === 'done') catNotDue++;
+
+      const isDone   = status === 'done';
+      const isDue    = status === 'due';
+      const isUpcoming = status === 'upcoming';
+
+      // Status indicator + sub-label
+      const dot = isDue ? '🔴' : isUpcoming ? '🟡' : '✅';
+      let subLabel = '';
+      if (isDue && neverDone) {
+        subLabel = nextDue ? `First due ${fmtDate(nextDue)} — not yet completed` : 'Due now — never done';
+      } else if (isDue) {
+        subLabel = `Overdue since ${fmtDate(nextDue)}${lastDone ? ` · last done ${fmtDate(lastDone)}` : ''}`;
+      } else if (isUpcoming) {
+        subLabel = `Due in ${daysUntil} day${daysUntil===1?'':'s'} — ${fmtDate(nextDue)}${lastDone ? ` · last done ${fmtDate(lastDone)}` : ''}`;
+      } else {
+        subLabel = `Done ${fmtDate(lastDone)} · next due ${fmtDate(nextDue)} (in ${Math.round(daysUntil/30)} mo)`;
+      }
+
+      const hasSubs = item.s && item.s.length > 0;
+      const subsHTML = hasSubs ? `
+        <div class="subtasks" id="sub_rec_${item.id}">
+          ${item.s.map(d => `<div class="subtask-detail">${linkify(d)}</div>`).join('')}
+        </div>` : '';
+
+      const noteVal = (c.taskNotes && c.taskNotes[key]) ? c.taskNotes[key] : '';
+      const hasNote = noteVal.length > 0;
+      const noteSection = S.isClientPortal ? '' : `<div class="task-note-area ${hasNote ? 'open' : ''}" id="note_rec_${item.id}"><textarea class="task-note-input" placeholder="Add a note…" oninput="saveTaskNote('${key}',this.value)" onkeydown="event.stopPropagation()">${noteVal}</textarea></div>`;
+      const noteBtn = S.isClientPortal ? '' : `<button class="task-note-btn ${hasNote ? 'has-note' : ''}" title="Note" onclick="event.stopPropagation();toggleNote('note_rec_${item.id}')">📎</button>`;
+
+      return `
+        <div class="task-item task-row" style="opacity:${isDone?'0.65':'1'};">
+          <div class="task-check ${isDone?'done':''}" onclick="toggleRecurringTask('${key}')" style="cursor:pointer;flex-shrink:0;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <span class="task-label ${isDone?'done':''}">${dot} ${esc(item.t)}</span>
+              ${hasSubs ? `<span class="expand-toggle" onclick="expandToggle(this)" style="font-size:11px;color:var(--teal);cursor:pointer;">▼ show details</span>` : ''}
+            </div>
+            <div style="font-size:11px;color:${isDue?'#ef4444':isUpcoming?'#d97706':'var(--gray-400)'};margin-top:3px;">${subLabel}</div>
+            ${subsHTML}
+            ${noteSection}
+          </div>
+          ${noteBtn}
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="category-card" style="margin-bottom:14px;">
+        <div class="category-head">
+          <div class="category-head-title">${esc(cat.cat)}</div>
+          <div class="category-head-count">${catNotDue}/${cat.items.length}</div>
+        </div>
+        <div>${taskHTML}</div>
+      </div>`;
+  }).join('');
+}
+
 function renderCategories(phaseKey, categories) {
+  if (phaseKey === 'rec') return renderRecurringCategories(categories);
   const c = getClient(); if (!c) return '';
   const cfg = tierCfg(c);
   const clientTierIdx = TIER_ORDER.indexOf(c.tier);
