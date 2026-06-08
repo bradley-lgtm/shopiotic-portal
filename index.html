@@ -539,6 +539,23 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
     max-width: 100% !important;
     border-radius: 0 !important;
     border-left: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background: #fff !important;
+  }
+  /* Thread inner layout: make message list fill available space */
+  .str-chat__thread .str-chat__thread-list {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+  }
+  /* Thread header stays at top */
+  .str-chat__thread .str-chat__thread-header {
+    flex-shrink: 0 !important;
+  }
+  /* Thread input stays at bottom */
+  .str-chat__thread .str-chat__message-input {
+    flex-shrink: 0 !important;
   }
   /* Keep main panel visible but hidden behind thread (avoids layout shift) */
   .str-chat__channel:has(.str-chat__thread) .str-chat__main-panel-inner {
