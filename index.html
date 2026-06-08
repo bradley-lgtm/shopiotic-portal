@@ -4633,7 +4633,31 @@ async function saveProfileSettings() {
 
   const fullName = (first + ' ' + last).trim();
   const updates = { first_name: first, last_name: last, name: fullName };
-  if (_pendingAvatar !== undefined) updates.avatar_url = _pendingAvatar || null;
+
+  // If a new avatar was set, upload it to Storage and use the public URL
+  // (base64 data URIs are rejected by Stream's API)
+  if (_pendingAvatar !== undefined) {
+    if (_pendingAvatar) {
+      try {
+        const res = await fetch(_pendingAvatar);
+        const blob = await res.blob();
+        const ext = 'jpg';
+        const path = `avatars/${S.currentUser.id}.${ext}`;
+        const { error: upErr } = await _sb.storage.from('chat-attachements').upload(path, blob, {
+          contentType: 'image/jpeg', upsert: true,
+        });
+        if (upErr) throw upErr;
+        const { data: { publicUrl } } = _sb.storage.from('chat-attachements').getPublicUrl(path);
+        updates.avatar_url = publicUrl;
+        _pendingAvatar = publicUrl; // store URL so S.currentUser gets the URL not base64
+      } catch(e) {
+        console.warn('Avatar upload failed, storing base64 fallback:', e);
+        updates.avatar_url = _pendingAvatar;
+      }
+    } else {
+      updates.avatar_url = null;
+    }
+  }
 
   const { error } = await _sb.from('profiles').update(updates).eq('id', S.currentUser.id);
 
