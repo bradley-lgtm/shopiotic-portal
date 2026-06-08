@@ -3990,7 +3990,8 @@ async function connectStreamUser() {
       await _streamClient.connectUser({
         id:    userId,
         name:  S.currentUser?.name  || 'User',
-        image: S.currentUser?.avatarUrl || undefined,
+        // Note: avatarUrl is base64 — too large for Stream's 5KB user data limit
+        // Avatars are rendered from Supabase profile data instead
         color: S.currentUser?.color || '#7c3aed',
       }, token);
     } catch (e) {
