@@ -3906,7 +3906,7 @@ function openMonthlyReport() {
       <div class="phase-block">
         <div class="phase-head">
           <span class="phase-title">${esc(ph.label)}</span>
-          <span class="phase-tally">${phDone} done${phOver > 0 ? ` &nbsp;·&nbsp; <span class="tally-over">${phOver} overdue</span>` : ''}</span>
+          <span class="phase-tally"><span class="tally-done">${phDone} done</span>${phOver > 0 ? ` &nbsp;·&nbsp; <span class="tally-over">${phOver} overdue</span>` : ''}</span>
         </div>
         ${catsHTML}
       </div>`;
@@ -3959,6 +3959,7 @@ body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#1e293b;back
 .phase-head{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;background:linear-gradient(90deg,#f5f3ff,#faf5ff);border-bottom:1.5px solid #c4b5fd;}
 .phase-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.6px;color:#6d28d9;}
 .phase-tally{font-size:11px;color:#64748b;font-weight:500;}
+.tally-done{color:#16a34a;font-weight:700;}
 .tally-over{color:#b45309;font-weight:700;}
 
 /* ── Category ── */
