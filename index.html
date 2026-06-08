@@ -908,6 +908,13 @@ body { font-family: var(--font); background: var(--gray-100); color: var(--gray-
       <div class="phase-tabs" id="phaseTabs"></div>
       <div class="content-area" id="contentArea"></div>
     </div>
+    <div id="internalChatView" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+      <div style="padding:16px 24px 12px;border-bottom:1px solid var(--gray-200);background:var(--white);flex-shrink:0;">
+        <div style="font-size:20px;font-weight:700;color:var(--gray-900);">💬 Internal Team Chat</div>
+        <div style="font-size:13px;color:var(--gray-400);margin-top:2px;">Private channel for owners &amp; workers only — clients cannot see this.</div>
+      </div>
+      <div id="internalChatMount" style="flex:1;min-height:0;overflow:hidden;"></div>
+    </div>
   </div>
 </div>
 
@@ -2346,12 +2353,14 @@ function renderClient() {
 function showEmpty() {
   document.getElementById('emptyState').style.display = 'flex';
   document.getElementById('clientView').style.display = 'none';
+  document.getElementById('internalChatView').style.display = 'none';
 }
 
 function selectClient(id) {
   closeSidebar(); // close mobile drawer when client selected
   cleanupChat();
   document.getElementById('btnInternalChat')?.classList.remove('active');
+  document.getElementById('internalChatView').style.display = 'none';
   S.activeId = id;
   S.activeTab = 'overview';
   // Set default months
@@ -4500,20 +4509,14 @@ async function openInternalChat() {
   S.activeId = null;
   cleanupChat();
 
-  // Highlight the button as active
+  // Highlight the button, deselect clients
   document.querySelectorAll('.client-item').forEach(el => el.classList.remove('active'));
   document.getElementById('btnInternalChat').classList.add('active');
 
-  // Render a shell into the main area
-  const main = document.getElementById('main');
-  main.innerHTML = `
-    <div style="display:flex;flex-direction:column;height:100vh;overflow:hidden;">
-      <div style="padding:16px 24px 12px;border-bottom:1px solid var(--gray-200);background:var(--white);flex-shrink:0;">
-        <div style="font-size:20px;font-weight:700;color:var(--gray-900);">💬 Internal Team Chat</div>
-        <div style="font-size:13px;color:var(--gray-400);margin-top:2px;">Private channel for owners &amp; workers only — clients cannot see this.</div>
-      </div>
-      <div id="internalChatMount" style="flex:1;min-height:0;overflow:hidden;"></div>
-    </div>`;
+  // Show internalChatView, hide others
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('clientView').style.display = 'none';
+  document.getElementById('internalChatView').style.display = 'flex';
 
   const mountEl = document.getElementById('internalChatMount');
 
