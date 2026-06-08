@@ -4132,20 +4132,10 @@ async function initChat(clientId, channel) {
       h(Chat, { client: _streamClient, theme: 'str-chat__theme-light' },
         h(Channel, {
           channel: ch,
-          // Provide mention suggestions from our Supabase profiles (not Stream's member index)
-          mentionQueryParams: { filters: {}, sort: { name: 1 }, limit: 20 },
-          onMentionsQueryParams: async (query) => {
-            // Search Supabase profiles by name, return as Stream user objects
-            const { data } = await _sb.from('profiles')
-              .select('id, name, avatar_url')
-              .ilike('name', `%${query}%`)
-              .neq('id', S.currentUser?.id)
-              .limit(10);
-            return (data || []).map(p => ({
-              id: p.id,
-              name: p.name || p.id,
-              image: p.avatar_url || null,
-            }));
+          mentionQueryParams: {
+            filters: {},
+            sort: { name: 1 },
+            options: { limit: 20 },
           },
         },
           h(Window, null,
