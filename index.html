@@ -790,6 +790,22 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
   .client-header-details { gap: 10px; margin-top: 4px; }
   .overall-progress { max-width: 100%; margin-top: 10px; }
 
+  /* On mobile: stack progress bar above nav buttons, nav scrolls horizontally */
+  .client-header-row > div:first-child > div:nth-child(3) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .client-header-row > div:first-child > div:nth-child(3) > .overall-progress {
+    max-width: 100%;
+    order: -1;
+  }
+  .client-header-row > div:first-child > div:nth-child(3) > div:last-child {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+
   /* Phase tabs */
   .phase-tabs { padding: 0 8px; }
   .phase-tab { padding: 10px 8px; font-size: 11px; gap: 4px; }
