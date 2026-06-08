@@ -6,9 +6,17 @@
 <title>Shopiotic Ops Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- Buffer polyfill — must load before any Stream SDK modules (they use Buffer in browser) -->
+<!-- Buffer polyfill — required by stream-chat crypto internals in browser -->
+<script>
+  window.global = window;
+  window.process = window.process || { env: {} };
+</script>
 <script src="https://cdn.jsdelivr.net/npm/buffer@6/index.min.js"></script>
-<script>if (typeof window !== 'undefined' && typeof window.Buffer === 'undefined') { window.Buffer = Buffer; }</script>
+<script>
+  // Expose Buffer globally so stream-chat's bundled crypto can find it
+  window.Buffer = window.Buffer || Buffer.Buffer || Buffer;
+  globalThis.Buffer = window.Buffer;
+</script>
 <!-- Stream Chat loaded dynamically via esm.sh in connectStreamUser() -->
 <style>
 :root {
