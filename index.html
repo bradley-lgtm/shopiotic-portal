@@ -1951,7 +1951,7 @@ function renderHeader(c) {
                 : n.id === 'chat'
                   ? (S.activeTab === 'chat' && S._chatSubTab !== 'client')
                   : S.activeTab === n.id;
-              const badgeKey = n.id === 'chat' ? 'team' : n.id === 'chat_client_nav' ? 'client' : null;
+              const badgeKey = n.id === 'chat' ? (S.isClientPortal ? 'client' : 'team') : n.id === 'chat_client_nav' ? 'client' : null;
               const badge = badgeKey ? `<span id="chat-badge-${badgeKey}" style="display:none;background:#22c55e;color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:1px 5px;margin-left:2px;line-height:1.4;">0</span>` : '';
               return `<button id="nav-btn-${n.id}" onclick="setTab('${n.id}')" style="padding:5px 12px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid ${isActive?'var(--teal)':'var(--gray-200)'};background:${isActive?'var(--teal-pale)':'var(--white)'};color:${isActive?'var(--teal-dark)':'var(--gray-500)'};cursor:pointer;font-family:var(--font);transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;">${n.icon} ${n.label}${badge}</button>`;
             }).join('')}
@@ -2369,7 +2369,11 @@ function setTab(tab) {
   if (leavingChat) cleanupChat();
 
   if (tab === 'chat_client_nav') { S._chatSubTab = 'client'; tab = 'chat'; markChatRead('client'); }
-  else if (tab === 'chat') { S._chatSubTab = 'team'; markChatRead('team'); }
+  else if (tab === 'chat') {
+    // Client portal only has the client channel; ops portal defaults to team channel
+    if (S.isClientPortal) { S._chatSubTab = 'client'; markChatRead('client'); }
+    else { S._chatSubTab = 'team'; markChatRead('team'); }
+  }
   S.activeTab = tab;
   const c = getClient();
   if (tab === 'p2' && c && c.p2months && c.p2months.length) S.p2Month = c.p2months[0];
