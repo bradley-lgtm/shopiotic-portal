@@ -783,28 +783,18 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
   /* User badge — hide name/role text, keep avatar */
   #userName, #userRole { display: none !important; }
 
-  /* Client header */
-  .client-header { padding: 12px 14px; }
-  .client-header-row { flex-wrap: wrap; gap: 8px; }
-  .client-header-name { font-size: 18px; }
-  .client-header-details { gap: 10px; margin-top: 4px; }
-  .overall-progress { max-width: 100%; margin-top: 10px; }
+  /* Client header — mobile compact layout */
+  .client-header { padding: 10px 12px; }
+  .client-header-row { flex-wrap: nowrap; gap: 6px; }
+  .client-header-name { font-size: 16px; }
+  .client-header-details { gap: 8px; margin-top: 3px; }
+  .overall-progress { max-width: 100%; margin-top: 6px; }
 
-  /* On mobile: stack progress bar above nav buttons, nav scrolls horizontally */
-  .client-header-row > div:first-child > div:nth-child(3) {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-  .client-header-row > div:first-child > div:nth-child(3) > .overall-progress {
-    max-width: 100%;
-    order: -1;
-  }
-  .client-header-row > div:first-child > div:nth-child(3) > div:last-child {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 2px;
-  }
+  /* Show mobile elements, hide desktop elements */
+  .header-actions-desktop { display: none !important; }
+  .header-actions-mobile { display: block !important; }
+  .header-details-desktop { display: none !important; }
+  .header-details-mobile { display: block !important; }
 
   /* Phase tabs */
   .phase-tabs { padding: 0 8px; }
@@ -1956,44 +1946,70 @@ function renderHeader(c) {
     { id:'chat', icon:'💬', label: S.isClientPortal ? 'General Chat' : 'Team Chat' },
     ...(S.isClientPortal ? [] : [{ id:'chat_client_nav', icon:'📢', label:'Client Chat' }]),
   ];
+  const navButtonsHtml = navItems.map(n => {
+    const isActive = n.id === 'chat_client_nav'
+      ? (S.activeTab === 'chat' && S._chatSubTab === 'client')
+      : n.id === 'chat'
+        ? (S.activeTab === 'chat' && (S.isClientPortal || S._chatSubTab !== 'client'))
+        : S.activeTab === n.id;
+    const badgeKey = n.id === 'chat' ? (S.isClientPortal ? 'client' : 'team') : n.id === 'chat_client_nav' ? 'client' : null;
+    const badge = badgeKey ? `<span id="chat-badge-${badgeKey}" style="display:none;background:#22c55e;color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:1px 5px;margin-left:2px;line-height:1.4;">0</span>` : '';
+    return `<button id="nav-btn-${n.id}" onclick="setTab('${n.id}')" style="padding:5px 12px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid ${isActive?'var(--teal)':'var(--gray-200)'};background:${isActive?'var(--teal-pale)':'var(--white)'};color:${isActive?'var(--teal-dark)':'var(--gray-500)'};cursor:pointer;font-family:var(--font);transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">${n.icon} ${n.label}${badge}</button>`;
+  }).join('');
+
   document.getElementById('clientHeader').innerHTML = `
     <div class="client-header-row">
-      <div class="client-header-info" style="flex:1">
-        <div style="display:flex;align-items:center;gap:10px;">
-          ${c.shopUrl ? `<img src="${getFaviconUrl(c.shopUrl)}" width="28" height="28" style="border-radius:6px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.12);" onerror="this.style.display='none'">` : ''}
-          <div class="client-header-name">${esc(c.name)}</div>
+      <div class="client-header-info" style="flex:1;min-width:0;">
+
+        <!-- Row 1: name + desktop actions -->
+        <div style="display:flex;align-items:center;gap:10px;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+            ${c.shopUrl ? `<img src="${getFaviconUrl(c.shopUrl)}" width="26" height="26" style="border-radius:5px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.12);" onerror="this.style.display='none'">` : ''}
+            <div class="client-header-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.name)}</div>
+          </div>
+          <!-- Desktop action buttons -->
+          <div class="header-actions-desktop" style="display:flex;gap:6px;flex-shrink:0;">
+            <button id="btn-all-backlinks" class="btn btn-outline btn-sm" onclick="openLinksModal()">🔗 All Backlinks</button>
+            ${S.isClientPortal ? '' : `
+            <button class="btn btn-outline btn-sm" onclick="openInviteModal('${c.id}')">✉️ Invite Client</button>
+            <button class="btn btn-outline btn-sm" onclick="openEditClientModal('${c.id}')">✏️ Edit</button>
+            <button class="btn btn-danger-ghost btn-sm" onclick="deleteClient('${c.id}')">🗑️</button>`}
+          </div>
+          <!-- Mobile ··· menu -->
+          <div class="header-actions-mobile" style="display:none;position:relative;flex-shrink:0;">
+            <button onclick="toggleHeaderMenu(event)" style="background:none;border:1px solid var(--gray-200);border-radius:8px;padding:4px 10px;font-size:18px;cursor:pointer;color:var(--gray-500);line-height:1;">···</button>
+            <div id="headerMobileMenu" style="display:none;position:absolute;right:0;top:110%;background:#fff;border:1px solid var(--gray-200);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:200;min-width:160px;overflow:hidden;">
+              <button id="btn-all-backlinks" onclick="openLinksModal();closeHeaderMenu()" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:13px;background:none;border:none;cursor:pointer;border-bottom:1px solid var(--gray-100);">🔗 All Backlinks</button>
+              ${S.isClientPortal ? '' : `
+              <button onclick="openInviteModal('${c.id}');closeHeaderMenu()" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:13px;background:none;border:none;cursor:pointer;border-bottom:1px solid var(--gray-100);">✉️ Invite Client</button>
+              <button onclick="openEditClientModal('${c.id}');closeHeaderMenu()" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:13px;background:none;border:none;cursor:pointer;border-bottom:1px solid var(--gray-100);">✏️ Edit</button>
+              <button onclick="deleteClient('${c.id}')" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:13px;background:none;border:none;cursor:pointer;color:#ef4444;">🗑️ Delete</button>`}
+            </div>
+          </div>
         </div>
-        <div class="client-header-details">
+
+        <!-- Row 2: details — desktop shows full, mobile shows compact -->
+        <div class="client-header-details header-details-desktop">
           ${c.shopUrl ? `<div class="client-detail"><a href="${c.shopUrl.startsWith('http') ? c.shopUrl : 'https://' + c.shopUrl}" target="_blank" rel="noopener" style="color:inherit;font-weight:600;">${c.shopUrl}</a></div>` : ''}
           <div class="client-detail">📦 Plan: <strong>${c.tier || 'Essentials'}</strong> ${S.isClientPortal ? '' : `<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:1px 7px;margin-left:4px;" onclick="openEditClientModal('${c.id}')">Change Plan</button>`}</div>
           <div class="client-detail">📅 Started: <strong>${started}</strong></div>
           <div class="client-detail">✅ <strong>${done}/${total}</strong> tasks done</div>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;margin-top:12px;">
-          <div class="overall-progress" style="max-width:300px;flex:1;">
-            <div class="progress-label"><span>Overall Progress</span><span>${p}%</span></div>
-            <div class="progress-bar"><div class="progress-fill" style="width:${p}%"></div></div>
-          </div>
-          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
-            ${navItems.map(n => {
-              const isActive = n.id === 'chat_client_nav'
-                ? (S.activeTab === 'chat' && S._chatSubTab === 'client')
-                : n.id === 'chat'
-                  ? (S.activeTab === 'chat' && (S.isClientPortal || S._chatSubTab !== 'client'))
-                  : S.activeTab === n.id;
-              const badgeKey = n.id === 'chat' ? (S.isClientPortal ? 'client' : 'team') : n.id === 'chat_client_nav' ? 'client' : null;
-              const badge = badgeKey ? `<span id="chat-badge-${badgeKey}" style="display:none;background:#22c55e;color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:1px 5px;margin-left:2px;line-height:1.4;">0</span>` : '';
-              return `<button id="nav-btn-${n.id}" onclick="setTab('${n.id}')" style="padding:5px 12px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid ${isActive?'var(--teal)':'var(--gray-200)'};background:${isActive?'var(--teal-pale)':'var(--white)'};color:${isActive?'var(--teal-dark)':'var(--gray-500)'};cursor:pointer;font-family:var(--font);transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;">${n.icon} ${n.label}${badge}</button>`;
-            }).join('')}
-          </div>
+        <div class="header-details-mobile" style="display:none;font-size:11px;color:var(--gray-500);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          ${c.shopUrl ? `<a href="${c.shopUrl.startsWith('http') ? c.shopUrl : 'https://' + c.shopUrl}" target="_blank" style="color:var(--teal-dark);font-weight:600;">${c.shopUrl}</a> · ` : ''}📦 ${c.tier || 'Essentials'} · ✅ ${done}/${total} tasks
         </div>
-      </div>
-      <div style="display:flex;gap:6px;flex-shrink:0;align-self:flex-start;">
-        <button id="btn-all-backlinks" class="btn btn-outline btn-sm" onclick="openLinksModal()">🔗 All Backlinks</button>
-        ${S.isClientPortal ? '' : `
-        <button class="btn btn-outline btn-sm" onclick="openInviteModal('${c.id}')">✉️ Invite Client</button>
-        <button class="btn btn-outline btn-sm" onclick="openEditClientModal('${c.id}')">✏️ Edit</button>
-        <button class="btn btn-danger-ghost btn-sm" onclick="deleteClient('${c.id}')">🗑️</button>`}
+
+        <!-- Row 3: progress bar -->
+        <div class="overall-progress" style="margin-top:8px;">
+          <div class="progress-label"><span>Overall Progress</span><span>${p}%</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${p}%"></div></div>
+        </div>
+
+        <!-- Row 4: nav tabs -->
+        <div style="display:flex;align-items:center;gap:4px;margin-top:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;">
+          ${navButtonsHtml}
+        </div>
+
       </div>
     </div>`;
 }
@@ -5589,6 +5605,24 @@ function cleanupTour() {
 function endTour() {
   cleanupTour();
   if (S.currentUser) localStorage.setItem('portal_tour_seen_' + S.currentUser.id, '1');
+}
+
+function toggleHeaderMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('headerMobileMenu');
+  if (!menu) return;
+  const isOpen = menu.style.display !== 'none';
+  menu.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    // Close on next outside click
+    setTimeout(() => {
+      document.addEventListener('click', closeHeaderMenu, { once: true });
+    }, 0);
+  }
+}
+function closeHeaderMenu() {
+  const menu = document.getElementById('headerMobileMenu');
+  if (menu) menu.style.display = 'none';
 }
 
 function openBugReport() {
