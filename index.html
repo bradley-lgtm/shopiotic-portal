@@ -4222,6 +4222,20 @@ async function initChat(clientId, channel) {
     const { Chat, Channel, MessageList, MessageInput, Window, Thread } = SCR;
     const h = React.createElement;
 
+    // Custom upload handler — uploads to Supabase Storage instead of
+    // Stream's internal uploader which uses Buffer (not available in browser)
+    async function supabaseUpload(file) {
+      const ext = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
+      const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await _sb.storage.from('chat-attachements').upload(safeName, file, {
+        contentType: file.type || 'application/octet-stream',
+        upsert: false,
+      });
+      if (error) throw new Error('Upload failed: ' + error.message);
+      const { data: { publicUrl } } = _sb.storage.from('chat-attachements').getPublicUrl(safeName);
+      return { file: publicUrl };
+    }
+
     // Unmount any previous root
     if (_streamReactRoot) { try { _streamReactRoot.unmount(); } catch(_){} }
 
@@ -4239,7 +4253,11 @@ async function initChat(clientId, channel) {
         },
           h(Window, null,
             h(MessageList),
-            h(MessageInput, { focus: true })
+            h(MessageInput, {
+              focus: true,
+              doImageUploadRequest: supabaseUpload,
+              doFileUploadRequest: supabaseUpload,
+            })
           ),
           h(Thread)
         )
