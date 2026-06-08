@@ -2051,6 +2051,18 @@ function renderContent(c) {
         </div>
       </div>
 
+      <!-- CLIENT ACCOUNTS (owner only) -->
+      ${(!S.isClientPortal && S.currentUser?.role === 'owner') ? `
+      <div class="category-card" style="margin-bottom:14px;">
+        <div class="category-head">
+          <div class="category-head-title">Client Accounts</div>
+          <button class="btn btn-outline btn-sm" onclick="openInviteModal('${c.id}')">+ Invite Client</button>
+        </div>
+        <div style="padding:8px 16px 14px;" id="clientAccountsCard_${c.id}">
+          <div style="font-size:13px;color:var(--gray-400);">Loading…</div>
+        </div>
+      </div>` : ''}
+
       <!-- ACTIVITY -->
       <div class="category-card">
         <div class="category-head">
@@ -2069,6 +2081,10 @@ function renderContent(c) {
           </div>`}
         </div>
       </div>`;
+    // Load client accounts asynchronously after HTML is set
+    if (!S.isClientPortal && S.currentUser?.role === 'owner') {
+      loadClientAccounts(c.id);
+    }
     return;
   }
 
@@ -3366,6 +3382,71 @@ function toggleResourceVis(id) {
   const c = getClient(); if (!c) return;
   const r = c.resources.find(r => r.id === id);
   if (r) { r.pub = !r.pub; save(); renderContent(c); }
+}
+
+// Load and render client-portal accounts for a given client (owner overview only)
+async function loadClientAccounts(clientId) {
+  const el = document.getElementById('clientAccountsCard_' + clientId);
+  if (!el) return;
+  try {
+    // Get all users in client_access for this client who have role='client'
+    const { data: access } = await _sb
+      .from('client_access')
+      .select('user_id')
+      .eq('client_id', clientId);
+
+    if (!access || access.length === 0) {
+      el.innerHTML = `<div style="font-size:13px;color:var(--gray-400);">No client accounts yet. Use <strong>+ Invite Client</strong> to create one.</div>`;
+      return;
+    }
+
+    const userIds = access.map(a => a.user_id);
+    const { data: profiles } = await _sb
+      .from('profiles')
+      .select('id, name, first_name, last_name, email, role')
+      .in('id', userIds)
+      .eq('role', 'client');
+
+    if (!profiles || profiles.length === 0) {
+      el.innerHTML = `<div style="font-size:13px;color:var(--gray-400);">No client accounts yet. Use <strong>+ Invite Client</strong> to create one.</div>`;
+      return;
+    }
+
+    const rows = profiles.map(p => {
+      const name = (p.first_name && p.last_name) ? `${p.first_name} ${p.last_name}`.trim() : (p.name || '—');
+      const email = p.email || '—';
+      return `
+        <tr>
+          <td style="padding:7px 10px 7px 0;font-size:13px;font-weight:500;color:var(--gray-900);">${esc(name)}</td>
+          <td style="padding:7px 10px;font-size:13px;color:var(--gray-500);">${esc(email)}</td>
+          <td style="padding:7px 0;text-align:right;">
+            <button class="btn btn-ghost btn-sm" style="font-size:11px;color:var(--red-500,#ef4444);" onclick="revokeClientAccess('${p.id}','${clientId}')">Remove</button>
+          </td>
+        </tr>`;
+    }).join('');
+
+    el.innerHTML = `
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--gray-200);">
+            <th style="padding:4px 10px 8px 0;font-size:11px;font-weight:600;color:var(--gray-400);text-align:left;text-transform:uppercase;letter-spacing:.05em;">Name</th>
+            <th style="padding:4px 10px 8px;font-size:11px;font-weight:600;color:var(--gray-400);text-align:left;text-transform:uppercase;letter-spacing:.05em;">Email</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } catch(e) {
+    el.innerHTML = `<div style="font-size:13px;color:var(--red);">Failed to load: ${esc(e?.message||'unknown')}</div>`;
+  }
+}
+
+async function revokeClientAccess(userId, clientId) {
+  if (!confirm('Remove this client account\'s access?')) return;
+  const { error } = await _sb.from('client_access').delete().eq('user_id', userId).eq('client_id', clientId);
+  if (error) { showToast('Failed: ' + error.message, 'error'); return; }
+  showToast('Access removed ✓', 'success');
+  loadClientAccounts(clientId);
 }
 
 function postActivity() {

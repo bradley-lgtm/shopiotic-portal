@@ -64,14 +64,16 @@ async function streamRequest(path: string, body: unknown, serverToken: string): 
   }
 }
 
-// Ensure a user exists in Stream (upsert their name/data)
-async function upsertStreamUser(userId: string, name: string, serverToken: string): Promise<void> {
-  await streamRequest('/users', {
-    users: { [userId]: { id: userId, name } },
-  }, serverToken)
+// Upsert one or many users in Stream (minimal data — name updated on actual login)
+async function upsertStreamUsers(users: Array<{ id: string; name?: string }>, serverToken: string): Promise<void> {
+  if (!users.length) return
+  const usersMap: Record<string, { id: string; name?: string }> = {}
+  for (const u of users) usersMap[u.id] = { id: u.id, ...(u.name ? { name: u.name } : {}) }
+  await streamRequest('/users', { users: usersMap }, serverToken)
 }
 
-// Create or update a messaging channel with the given members
+// Create a messaging channel then add members.
+// Uses /query to create (no-ops if already exists), then add_members.
 async function upsertChannel(
   channelId: string,
   name: string,
@@ -79,17 +81,20 @@ async function upsertChannel(
   createdById: string,
   serverToken: string,
 ): Promise<void> {
-  // Create/update the channel
-  await streamRequest(`/channels/messaging/${channelId}`, {
+  // /query creates the channel if it doesn't exist, updates it if it does
+  await streamRequest(`/channels/messaging/${channelId}/query`, {
     data: { name, created_by_id: createdById },
+    watch: false,
+    state: false,
   }, serverToken)
 
-  // Add all members (idempotent — safe to call even if already members)
+  // Add members separately (idempotent)
   if (memberIds.length > 0) {
-    await streamRequest(`/channels/messaging/${channelId}/members`, {
+    await streamRequest(`/channels/messaging/${channelId}`, {
       add_members: memberIds.map(id => ({ user_id: id })),
     }, serverToken)
   }
+  console.log(`Channel messaging:${channelId} ready with ${memberIds.length} members`)
 }
 
 Deno.serve(async (req) => {
@@ -147,11 +152,6 @@ Deno.serve(async (req) => {
       ? `${profile.first_name} ${profile.last_name}`.trim()
       : (profile?.name || user.email || user.id)
 
-    // Ensure user exists in Stream with their current name
-    await upsertStreamUser(user.id, displayName, serverToken).catch(e =>
-      console.warn('upsertStreamUser failed:', e)
-    )
-
     // Get all owner IDs (owners are members of every client's channels)
     const { data: ownerProfiles } = await adminSupabase
       .from('profiles')
@@ -167,7 +167,6 @@ Deno.serve(async (req) => {
         .select('id')
       accessibleClientIds = allClients?.map(c => c.id) || []
     } else {
-      // worker or client role — look up client_access
       const { data: access } = await adminSupabase
         .from('client_access')
         .select('client_id')
@@ -175,11 +174,45 @@ Deno.serve(async (req) => {
       accessibleClientIds = access?.map(a => a.client_id) || []
     }
 
-    // For each accessible client, upsert both team + client channels
-    await Promise.allSettled(accessibleClientIds.map(async (clientId: string) => {
+    // Get ALL worker IDs across all accessible clients
+    const allWorkerIds: string[] = []
+    if (accessibleClientIds.length > 0) {
+      const { data: allAssigned } = await adminSupabase
+        .from('client_access')
+        .select('user_id')
+        .in('client_id', accessibleClientIds)
+      if (allAssigned) allWorkerIds.push(...allAssigned.map(a => a.user_id))
+    }
+
+    // Upsert ALL users involved (current user + owners + workers) in Stream before creating channels.
+    // Stream requires users to exist before they can be added as channel members.
+    // Fetch real names for everyone so @mentions show names not UUIDs.
+    const allUserIds = [...new Set([user.id, ...ownerIds, ...allWorkerIds])]
+
+    const { data: allProfiles } = await adminSupabase
+      .from('profiles')
+      .select('id, name, first_name, last_name')
+      .in('id', allUserIds)
+
+    const profileMap = new Map((allProfiles || []).map(p => {
+      const n = (p.first_name && p.last_name)
+        ? `${p.first_name} ${p.last_name}`.trim()
+        : (p.name || p.id)
+      return [p.id, n]
+    }))
+    profileMap.set(user.id, displayName)
+
+    console.log(`Upserting ${allUserIds.length} users in Stream`)
+    await upsertStreamUsers(
+      allUserIds.map(id => ({ id, name: profileMap.get(id) || id })),
+      serverToken
+    ).catch(e => console.warn('Batch user upsert failed:', e))
+
+    console.log(`Setting up channels for ${accessibleClientIds.length} clients, role=${role}`)
+
+    const channelResults = await Promise.allSettled(accessibleClientIds.map(async (clientId: string) => {
       const safeId = clientId.replace(/-/g, '')
 
-      // Get workers assigned to this client
       const { data: assigned } = await adminSupabase
         .from('client_access')
         .select('user_id')
@@ -187,12 +220,20 @@ Deno.serve(async (req) => {
       const workerIds: string[] = assigned?.map(a => a.user_id) || []
 
       const teamMembers = [...new Set([...ownerIds, ...workerIds])]
+      console.log(`Client ${clientId}: ${teamMembers.length} members`)
 
-      await Promise.allSettled([
+      const results = await Promise.allSettled([
         upsertChannel(`team${safeId}`,   'Team Chat',   teamMembers, user.id, serverToken),
         upsertChannel(`client${safeId}`, 'Client Chat', teamMembers, user.id, serverToken),
       ])
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') console.error(`channel ${i===0?'team':'client'}${safeId} FAILED:`, r.reason)
+      })
     }))
+
+    channelResults.forEach((r, i) => {
+      if (r.status === 'rejected') console.error(`Client ${accessibleClientIds[i]} setup failed:`, r.reason)
+    })
 
     return new Response(JSON.stringify({ token: userToken, userId: user.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
