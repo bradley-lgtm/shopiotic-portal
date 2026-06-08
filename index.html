@@ -4065,7 +4065,9 @@ async function disconnectStream() {
   _streamConnecting = null;
 }
 
-// Get (or create) the Stream channel for a given client + channel-type
+// Get the Stream channel for a given client + channel-type.
+// Channels are created server-side during login (generate-stream-token Edge Function)
+// so we just watch the pre-existing channel — no client-side creation needed.
 async function getStreamChannel(clientId, channelType) {
   if (!_streamClient?.userID) await connectStreamUser();
   if (!_streamClient?.userID) return null;
@@ -4073,22 +4075,7 @@ async function getStreamChannel(clientId, channelType) {
   const safeId    = clientId.replace(/-/g, '');
   const channelId = `${channelType}${safeId}`;
 
-  // Build member list: all owners + workers assigned to this specific client
-  let memberIds = [_streamClient.userID];
-  try {
-    const [ownersRes, assignedRes] = await Promise.all([
-      _sb.from('profiles').select('id').eq('role', 'owner'),
-      _sb.from('client_access').select('user_id').eq('client_id', clientId),
-    ]);
-    const ownerIds   = (ownersRes.data  || []).map(p => p.id);
-    const workerIds  = (assignedRes.data || []).map(p => p.user_id);
-    memberIds = [...new Set([...memberIds, ...ownerIds, ...workerIds])];
-  } catch(_) {}
-
-  const ch = _streamClient.channel('messaging', channelId, {
-    name:    channelType === 'team' ? 'Team Chat' : 'Client Chat',
-    members: memberIds,
-  });
+  const ch = _streamClient.channel('messaging', channelId);
   await ch.watch();
   return ch;
 }
