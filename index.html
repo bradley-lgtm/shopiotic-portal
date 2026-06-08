@@ -542,20 +542,34 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
     display: flex !important;
     flex-direction: column !important;
     background: #fff !important;
+    overflow: hidden !important;
   }
-  /* Thread inner layout: make message list fill available space */
-  .str-chat__thread .str-chat__thread-list {
-    flex: 1 !important;
-    overflow-y: auto !important;
+  /* Header — fixed at top, never shrink */
+  .str-chat__thread > *:first-child {
+    flex-shrink: 0 !important;
+  }
+  /* Input — fixed at bottom, never shrink */
+  .str-chat__thread > *:last-child {
+    flex-shrink: 0 !important;
+  }
+  /* Everything between header and input (the message list / virtual list) — fill remaining height */
+  .str-chat__thread > *:not(:first-child):not(:last-child) {
+    flex: 1 1 0 !important;
     min-height: 0 !important;
+    overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
-  /* Thread header stays at top */
-  .str-chat__thread .str-chat__thread-header {
-    flex-shrink: 0 !important;
-  }
-  /* Thread input stays at bottom */
-  .str-chat__thread .str-chat__message-input {
-    flex-shrink: 0 !important;
+  /* Also target common Stream class names for the scrollable list directly */
+  .str-chat__thread .str-chat__thread-list,
+  .str-chat__thread .str-chat__message-list,
+  .str-chat__thread .str-chat__ul,
+  .str-chat__thread [class*="thread-list"],
+  .str-chat__thread [class*="message-list"] {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    height: auto !important;
   }
   /* Keep main panel visible but hidden behind thread (avoids layout shift) */
   .str-chat__channel:has(.str-chat__thread) .str-chat__main-panel-inner {
