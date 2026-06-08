@@ -4214,6 +4214,7 @@ async function getStreamChannel(clientId, channelType) {
 
   const ch = _streamClient.channel('messaging', channelId);
   await ch.watch();
+  ch.markRead().catch(() => {}); // update server-side last_read so countUnread() is correct on next load
   return ch;
 }
 
