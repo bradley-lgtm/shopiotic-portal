@@ -3918,13 +3918,16 @@ async function refreshChatBadges(clientId) {
     if (_streamBadgeUnsub) { try { _streamBadgeUnsub(); } catch(_) {} }
     const { unsubscribe } = _streamClient.on('message.new', event => {
       if (!event.message || !clientId) return;
-      const cid = event.channel_id || '';
+      // Skip own messages
+      if (event.message.user?.id === _streamClient.userID) return;
+      // event.cid format: "livestream:teamXXX"
+      const cid = event.cid || '';
       const safeId = clientId.replace(/-/g, '');
-      if (cid.includes('team' + safeId)) {
+      if (cid === `livestream:team${safeId}`) {
         if (S.activeTab !== 'chat' || S._chatSubTab !== 'team') {
           setChatBadge('team', (_unreadCounts.team || 0) + 1);
         }
-      } else if (cid.includes('client' + safeId)) {
+      } else if (cid === `livestream:client${safeId}`) {
         if (S.activeTab !== 'chat' || S._chatSubTab !== 'client') {
           setChatBadge('client', (_unreadCounts.client || 0) + 1);
         }
@@ -4129,10 +4132,20 @@ async function initChat(clientId, channel) {
       h(Chat, { client: _streamClient, theme: 'str-chat__theme-light' },
         h(Channel, {
           channel: ch,
-          mentionQueryParams: {
-            filters: { id: { $ne: _streamClient.userID } },
-            sort: { name: 1 },
-            limit: 20,
+          // Provide mention suggestions from our Supabase profiles (not Stream's member index)
+          mentionQueryParams: { filters: {}, sort: { name: 1 }, limit: 20 },
+          onMentionsQueryParams: async (query) => {
+            // Search Supabase profiles by name, return as Stream user objects
+            const { data } = await _sb.from('profiles')
+              .select('id, name, avatar_url')
+              .ilike('name', `%${query}%`)
+              .neq('id', S.currentUser?.id)
+              .limit(10);
+            return (data || []).map(p => ({
+              id: p.id,
+              name: p.name || p.id,
+              image: p.avatar_url || null,
+            }));
           },
         },
           h(Window, null,
