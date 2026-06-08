@@ -4279,7 +4279,7 @@ async function initChat(clientId, channel) {
       import('https://esm.sh/react-dom@18/client?deps=react@18'),
       import('https://esm.sh/stream-chat-react@12?deps=stream-chat@8,react@18,react-dom@18'),
     ]);
-    const { Chat, Channel, MessageList, MessageInput, Window, Thread } = SCR;
+    const { Chat, Channel, MessageList, MessageInput, Window, Thread, EmojiPicker } = SCR;
     const h = React.createElement;
 
     // Custom upload handler — uploads to Supabase Storage instead of
@@ -4317,6 +4317,7 @@ async function initChat(clientId, channel) {
               focus: true,
               doImageUploadRequest: supabaseUpload,
               doFileUploadRequest: supabaseUpload,
+              EmojiPicker: EmojiPicker,
             })
           ),
           h(Thread)
