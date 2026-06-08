@@ -3906,15 +3906,15 @@ function setChatBadge(channelType, count) {
 
 function clearChatBadge(channelType) { setChatBadge(channelType, 0); }
 
-// Poll unread counts from all channels for the current client (called after Stream connects)
+// Set up real-time badge listener for new messages on the current client's channels
 async function refreshChatBadges(clientId) {
   if (!_streamClient?.userID || !clientId) return;
   try {
+    // Watch both channels in the background so message.new events fire
     for (const type of ['team', 'client']) {
-      const ch = await getStreamChannel(clientId, type);
-      if (ch) setChatBadge(type, ch.countUnread());
+      try { await getStreamChannel(clientId, type); } catch(_) {}
     }
-    // Also listen for any new messages coming in while on other tabs
+    // Listen for new messages — badge count is managed purely client-side
     if (_streamBadgeUnsub) { try { _streamBadgeUnsub(); } catch(_) {} }
     const { unsubscribe } = _streamClient.on('message.new', event => {
       if (!event.message || !clientId) return;
