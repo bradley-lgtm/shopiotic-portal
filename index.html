@@ -3125,7 +3125,7 @@ function openTplModal(phase) {
     ${qtyRow('Blogs per month', `Tier default: ${cfg.p3blogs}`, 'tpl_qty_bg', getQty('bg1','p3blogs'), cfg.p3blogs)}
     <div class="tpl-section-title" style="margin-top:16px;">🔍 GSC Collection Optimisations</div>
     ${qtyRow('Optimisations per month', `Tier default: ${cfg.p3gsc}`, 'tpl_qty_gc', getQty('gc1','p3gsc'), cfg.p3gsc)}
-  `;
+  ` : '';
 
   const budgetSection = phase !== 'p1' ? `
     <div class="tpl-section-title" style="margin-top:16px;">💰 Monthly Link Budget</div>
