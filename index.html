@@ -4052,12 +4052,18 @@ body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;color:#1e293b;back
 .rec-upcoming .task-badge{background:#f1f5f9;color:#64748b;}
 .rec-sub{font-size:10px;color:#94a3b8;margin-top:3px;}
 
+/* ── Print button ── */
+.print-btn{position:fixed;top:18px;right:20px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(109,40,217,0.35);display:flex;align-items:center;gap:7px;z-index:999;}
+.print-btn:hover{background:linear-gradient(135deg,#6d28d9,#5b21b6);}
+@media print{.print-btn{display:none!important;}}
+
 /* ── Footer ── */
 .rpt-footer{margin-top:32px;padding-top:14px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;}
 
 </style>
 </head>
 <body>
+<button class="print-btn" onclick="window.print()">🖨️ Save as PDF</button>
 <div class="page">
 
   <div class="rpt-header">
