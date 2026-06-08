@@ -3401,11 +3401,14 @@ async function loadClientAccounts(clientId) {
     }
 
     const userIds = access.map(a => a.user_id);
+    // Fetch all profiles for these users — don't filter by role since some
+    // client accounts may have been created before role was reliably set.
+    // Exclude owners and workers so only client-portal users are shown.
     const { data: profiles } = await _sb
       .from('profiles')
       .select('id, name, first_name, last_name, email, role')
       .in('id', userIds)
-      .eq('role', 'client');
+      .not('role', 'in', '("owner","worker")');
 
     if (!profiles || profiles.length === 0) {
       el.innerHTML = `<div style="font-size:13px;color:var(--gray-400);">No client accounts yet. Use <strong>+ Invite Client</strong> to create one.</div>`;
@@ -4117,12 +4120,15 @@ async function connectStreamUser() {
       // Dynamically import Stream Chat SDK (cached after first load)
       const { StreamChat } = await import('https://esm.sh/stream-chat@8');
       _streamClient = StreamChat.getInstance(STREAM_API_KEY);
+      // Build display name: prefer first+last (spaced), fall back to name field
+      const u = S.currentUser;
+      const streamName = (u?.firstName && u?.lastName)
+        ? `${u.firstName} ${u.lastName}`.trim()
+        : (u?.name || 'User');
       await _streamClient.connectUser({
         id:    userId,
-        name:  S.currentUser?.name  || 'User',
-        // Note: avatarUrl is base64 — too large for Stream's 5KB user data limit
-        // Avatars are rendered from Supabase profile data instead
-        color: S.currentUser?.color || '#7c3aed',
+        name:  streamName,
+        color: u?.color || '#7c3aed',
       }, token);
     } catch (e) {
       console.error('Stream connect failed:', e);
