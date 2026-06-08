@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
       // Upsert the user in Stream first so they exist before being added
       const { data: memberProfile } = await adminSupabase
         .from('profiles')
-        .select('id, name, first_name, last_name')
+        .select('id, name, first_name, last_name, avatar_url')
         .eq('id', userId)
         .single()
 
@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
         : (memberProfile?.name || userId)
 
       await streamRequest('/users', {
-        users: { [userId]: { id: userId, name } },
+        users: { [userId]: { id: userId, name, ...(memberProfile?.avatar_url ? { image: memberProfile.avatar_url } : {}) } },
       }, serverToken)
 
       // Add to both channels

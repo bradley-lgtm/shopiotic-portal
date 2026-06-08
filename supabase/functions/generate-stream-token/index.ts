@@ -65,10 +65,12 @@ async function streamRequest(path: string, body: unknown, serverToken: string): 
 }
 
 // Upsert one or many users in Stream (minimal data — name updated on actual login)
-async function upsertStreamUsers(users: Array<{ id: string; name?: string }>, serverToken: string): Promise<void> {
+async function upsertStreamUsers(users: Array<{ id: string; name?: string; image?: string | null }>, serverToken: string): Promise<void> {
   if (!users.length) return
-  const usersMap: Record<string, { id: string; name?: string }> = {}
-  for (const u of users) usersMap[u.id] = { id: u.id, ...(u.name ? { name: u.name } : {}) }
+  const usersMap: Record<string, { id: string; name?: string; image?: string }> = {}
+  for (const u of users) {
+    usersMap[u.id] = { id: u.id, ...(u.name ? { name: u.name } : {}), ...(u.image ? { image: u.image } : {}) }
+  }
   await streamRequest('/users', { users: usersMap }, serverToken)
 }
 
@@ -191,20 +193,23 @@ Deno.serve(async (req) => {
 
     const { data: allProfiles } = await adminSupabase
       .from('profiles')
-      .select('id, name, first_name, last_name')
+      .select('id, name, first_name, last_name, avatar_url')
       .in('id', allUserIds)
 
     const profileMap = new Map((allProfiles || []).map(p => {
       const n = (p.first_name && p.last_name)
         ? `${p.first_name} ${p.last_name}`.trim()
         : (p.name || p.id)
-      return [p.id, n]
+      return [p.id, { name: n, image: p.avatar_url || null }]
     }))
-    profileMap.set(user.id, displayName)
+    profileMap.set(user.id, { name: displayName, image: allProfiles?.find(p => p.id === user.id)?.avatar_url || null })
 
     console.log(`Upserting ${allUserIds.length} users in Stream`)
     await upsertStreamUsers(
-      allUserIds.map(id => ({ id, name: profileMap.get(id) || id })),
+      allUserIds.map(id => {
+        const info = profileMap.get(id) || { name: id, image: null }
+        return { id, name: info.name, ...(info.image ? { image: info.image } : {}) }
+      }),
       serverToken
     ).catch(e => console.warn('Batch user upsert failed:', e))
 
