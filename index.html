@@ -3970,6 +3970,7 @@ let _streamChannelObj = null;  // currently active Stream channel
 let _streamUnsub      = null;  // current message.new unsubscribe fn
 let _streamReactRoot  = null;  // React root for Stream's pre-built UI
 let _badgeUnsub      = null;  // single global unread listener (all clients)
+let _badgeInitTime   = 0;    // timestamp when initAllBadges ran; ignore message.new events older than this
 const _badgeCounts   = {};   // { [clientId]: { team: 0, client: 0 } }
 const _channelMap    = {};   // { [channelId]: { clientId, type } } built on initAllBadges
 
@@ -4012,6 +4013,9 @@ function clearChatBadge(channelType) { setChatBadge(channelType, 0); }
 async function initAllBadges() {
   if (!_streamClient?.userID || !S.clients?.length) return;
 
+  // Record time before we subscribe so we can ignore replayed historical events
+  _badgeInitTime = Date.now();
+
   // Build channel→client lookup for all clients
   for (const c of S.clients) {
     const s = c.id.replace(/-/g, '');
@@ -4040,6 +4044,8 @@ async function initAllBadges() {
   const { unsubscribe } = _streamClient.on('message.new', event => {
     if (!event.message) return;
     if (event.message.user?.id === _streamClient.userID) return; // own message
+    // Ignore replayed historical events from watch: true subscription (created before this session)
+    if (event.message.created_at && new Date(event.message.created_at).getTime() < _badgeInitTime) return;
     const info = _channelMap[event.channel_id || ''];
     if (!info) return;
     if (!_badgeCounts[info.clientId]) _badgeCounts[info.clientId] = { team: 0, client: 0 };
