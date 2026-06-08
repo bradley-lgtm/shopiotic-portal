@@ -104,9 +104,7 @@ Deno.serve(async (req) => {
   }
 
   const senderName = message?.user?.name || 'Someone'
-  const channelName = event.channel_type === 'livestream'
-    ? (event.channel_id?.includes('client') ? 'Client Chat' : 'Team Chat')
-    : 'Chat'
+  const channelName = event.channel_id?.includes('client') ? 'Client Chat' : 'Team Chat'
   const msgText = message?.text || ''
 
   const results = await Promise.allSettled(emails.map(({ name, email }) =>

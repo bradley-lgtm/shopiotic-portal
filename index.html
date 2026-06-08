@@ -3927,11 +3927,11 @@ async function refreshChatBadges(clientId) {
       // event.cid format: "livestream:teamXXX"
       const cid = event.cid || '';
       const safeId = clientId.replace(/-/g, '');
-      if (cid === `livestream:team${safeId}`) {
+      if (cid === `messaging:team${safeId}`) {
         if (S.activeTab !== 'chat' || S._chatSubTab !== 'team') {
           setChatBadge('team', (_unreadCounts.team || 0) + 1);
         }
-      } else if (cid === `livestream:client${safeId}`) {
+      } else if (cid === `messaging:client${safeId}`) {
         if (S.activeTab !== 'chat' || S._chatSubTab !== 'client') {
           setChatBadge('client', (_unreadCounts.client || 0) + 1);
         }
@@ -4070,16 +4070,22 @@ async function getStreamChannel(clientId, channelType) {
   if (!_streamClient?.userID) await connectStreamUser();
   if (!_streamClient?.userID) return null;
 
-  // Channel IDs: strip hyphens from UUID so they're clean; max 64 chars is fine
   const safeId    = clientId.replace(/-/g, '');
-  const channelId = `${channelType}${safeId}`; // e.g. "teamabc123..." / "clientabc123..."
+  const channelId = `${channelType}${safeId}`;
 
-  const ch = _streamClient.channel('livestream', channelId, {
-    name: channelType === 'team' ? 'Team Chat' : 'Client Chat',
+  // Fetch all team member IDs (owner + worker roles) to add as members
+  // This makes messaging channels work (permissions) AND enables @mention suggestions
+  let memberIds = [_streamClient.userID];
+  try {
+    const { data } = await _sb.from('profiles').select('id').in('role', ['owner', 'worker']);
+    if (data?.length) memberIds = [...new Set([...memberIds, ...data.map(p => p.id)])];
+  } catch(_) {}
+
+  const ch = _streamClient.channel('messaging', channelId, {
+    name:    channelType === 'team' ? 'Team Chat' : 'Client Chat',
+    members: memberIds,
   });
   await ch.watch();
-  // Add current user as a channel member so they appear in @mention suggestions
-  try { await ch.addMembers([_streamClient.userID]); } catch(_) {}
   return ch;
 }
 
