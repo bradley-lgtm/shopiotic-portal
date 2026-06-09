@@ -3743,6 +3743,26 @@ function migrateClient(c) {
   if (!c.taskVisibility) c.taskVisibility = {};
   if (!c.shareToken) { c.shareToken = uid(); save(); }
   ensureClientCustomData(c);
+  // ── Migrate r1/r2 sub-steps in snapshots ───────────────────────────────
+  // Snapshots freeze task content at month-creation time. When we update the
+  // canonical sub-steps in TASKS, existing snapshots need to be patched too.
+  const NEW_R1_SUBS = ["Send via email and in the client chat","Include the Data Studio dashboard","Include the monthly report PDF from the overview tab","Write a paragraph or two in the email as an intro summarizing everything, sharing wins, concerns, and what you plan to do going into the next month",{ t:"Ask for a review if results are good and the client seems happy", internal: true }];
+  const NEW_R2_SUBS = ["Record the call and put in the client chat","Run through the monthly Data Studio report","Show position tracking wins","Run through the list of work done","Run through what we'll do next month",{ t:"Ask if they're happy and if anything should change", internal: true },{ t:"Ask for a review again if results seem good and the client seems happy", internal: true },"Book the next end of month call — always book at least 3 business days into the next month to give us time to properly analyze the report and form an action plan"];
+  let snapshotPatched = false;
+  for (const [phaseKey, md] of Object.entries(c.monthData || {})) {
+    if (!md.snapshot) continue;
+    for (const cat of md.snapshot) {
+      for (const item of cat.items) {
+        if (item.id === 'r1' && Array.isArray(item.s) && typeof item.s[2] === 'string' && item.s[2].includes('use AI to write it upbeat')) {
+          item.s = NEW_R1_SUBS; snapshotPatched = true;
+        }
+        if (item.id === 'r2' && Array.isArray(item.s) && item.s.some(s => typeof s === 'string' && s.includes('Ask if they\'re happy'))) {
+          item.s = NEW_R2_SUBS; snapshotPatched = true;
+        }
+      }
+    }
+  }
+  if (snapshotPatched) save();
 }
 
 function esc(s) { return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
