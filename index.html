@@ -1387,7 +1387,7 @@ const TASKS = {
       { id:"bl4", t:"Build tier 2 links for any guest posts", s:["Reach out to contacts for bundles on the database","Use the Tier 2 Article Generator: https://docs.google.com/spreadsheets/d/1swxgRm1ig-mhNLha2oWSU2c1oIb6Fp7xgN-INM3JZI4/edit","Make payment and send articles","Send an update in the client chat","Calculate remaining link budget"] },
       { id:"bl5", t:"Recover lost links", s:["Look at SEMrush backlink report for lost links of value","Reach out to web admins to reinstate for a small fee"] },
     ]},
-    { cat: "Collection Pages", items: [
+    { cat: "Collection Pages", qtyGate: 'p2collections', items: [
       { id:"cp1", t:"Build draft collection pages (or optimize any existing pages in the strategy)", s:["Write & Optimize meta titles","Write & Optimize meta descriptions","Write & Optimize H1s","Set collection template to content below the grid","Optimize the URL slug","Populate with products or ask the client — use an automated collection, not manual"] },
       { id:"cp2", t:"Write content for each collection", s:["Generate or assign to a writer — you can use the Claude Collection Page Content Writer skill","Add 5-8 internal links to the content, lean toward priority pages","Add FAQs","Optimize H2s and H3s for target keywords","Include keywords naturally throughout the content","Aim for 400-500 words below the grid","Add up to 100 words above the product grid — front load the target keyword and include 2-3 more variations, keep it natural","Focus on client's USPs, product features and benefits, and what sets them apart — this helps conversions","Store drafts in Google Docs and add to the Monthly tab in Collection Strategy Sheet","Forward to client for review and approval via the client chat"] },
       { id:"cp3", t:"Add the content to the pages and add FAQ schema" },
@@ -3213,6 +3213,8 @@ function saveTplModal() {
     }
   } else if (_tplPhase === 'p2') {
     applyQty('tpl_qty_cp', ['cp1','cp2','cp3','cp4','cp5']);
+    const p2cpEl = document.getElementById('tpl_qty_cp');
+    if (p2cpEl) c.templateData.optQty.p2collections = parseInt(p2cpEl.value) || 0;
     const p2blogsEl = document.getElementById('tpl_p2blogs');
     const p2gscEl = document.getElementById('tpl_p2gsc');
     if (p2blogsEl) c.templateData.optQty.p2blogs = parseInt(p2blogsEl.value) || 0;
