@@ -1303,7 +1303,7 @@ const TASKS = {
       { id:"p1o33", t:"Conduct a basic internal linking review", s:["Scope out the link situation across the site","Look through blog articles, home page, menu, footer, and other collections","Remove harmful or misleading links","We will be limited in adding links as priority pages won't yet be live"] },
       { id:"p1o34", t:"Set up the collection page template", s:["Setup the metafield","Add a spot for content below the grid populated by the metafield"] },
     ]},
-    { cat: "Collection Pages", tierMin: "Core", items: [
+    { cat: "Collection Pages", qtyGate: 'p1collections', items: [
       { id:"p1cp1", t:"Build draft collection pages (or optimize any existing pages in the strategy)", s:["Write & Optimize meta titles","Write & Optimize meta descriptions","Write & Optimize H1s","Set collection template to content below the grid","Optimize the URL slug","Populate with products or ask the client — use an automated collection, not manual"] },
       { id:"p1cp2", t:"Write content for each collection", s:["Generate or assign to a writer — you can use the Claude Collection Page Content Writer skill","Add 5-8 internal links to the content, lean toward priority pages","Add FAQs","Optimize H2s and H3s for target keywords","Include keywords naturally throughout the content","Aim for 400-500 words below the grid","Add up to 100 words above the product grid — front load the target keyword and include 2-3 more variations, keep it natural","Focus on client's USPs, product features and benefits, and what sets them apart — this helps conversions","Store drafts in Google Docs and add to the Monthly tab in Collection Strategy Sheet","Forward to client for review and approval via the client chat"] },
       { id:"p1cp3", t:"Add the content to the pages and add FAQ schema" },
@@ -3191,6 +3191,8 @@ function saveTplModal() {
   if (!c.templateData.optQty) c.templateData.optQty = {};
   if (_tplPhase === 'p1') {
     applyQty('tpl_qty_p1cp', ['p1cp1','p1cp2','p1cp3','p1cp4','p1cp5']);
+    const p1cpEl = document.getElementById('tpl_qty_p1cp');
+    if (p1cpEl) c.templateData.optQty.p1collections = parseInt(p1cpEl.value) || 0;
     const p1blogsEl = document.getElementById('tpl_p1blogs');
     const p1gscEl   = document.getElementById('tpl_p1gsc');
     if (p1blogsEl) c.templateData.optQty.p1blogs = parseInt(p1blogsEl.value) || 0;
