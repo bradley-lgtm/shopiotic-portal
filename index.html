@@ -1331,8 +1331,8 @@ const TASKS = {
     ]},
     { cat: "End of Month", items: [
       { id:"p1o35", t:"Notify the client once the Technical SEO audit is complete", s:["Share findings and actions taken to fix issues"] },
-      { id:"p1o36", t:"Send the End of Month report", s:["Send via email and in the client chat","Include the Data Studio dashboard","Include a list of everything completed — ask AI to write it upbeat","Include your own introductory paragraph with opinions"] },
-      { id:"p1o37", t:"Take the End of Month report call", s:["Record the call and store in the client chat","Run through the monthly Data Studio report","Run position tracking and show wins","Run through the list of work done","Run through what we'll be doing next month","Ask if they're happy and if anything should be done differently","Book the next end of month call — always book at least 3 business days into the next month to give us time to properly analyze the report and form an action plan"] },
+      { id:"p1o36", t:"Send the End of Month report", s:["Send via email and in the client chat","Include the Data Studio dashboard","Include the monthly report PDF from the overview tab","Write a paragraph or two in the email as an intro summarizing everything, sharing wins, concerns, and what you plan to do going into the next month"] },
+      { id:"p1o37", t:"Take the End of Month report call", s:["Record the call and store in the client chat","Run through the monthly Data Studio report","Run position tracking and show wins","Run through the list of work done","Run through what we'll be doing next month",{ t:"Ask if they're happy and if anything should be done differently", internal: true },{ t:"Ask for a review if results seem good and the client seems happy", internal: true },"Book the next end of month call — always book at least 3 business days into the next month to give us time to properly analyze the report and form an action plan"] },
     ]},
   ],
 
@@ -1402,8 +1402,8 @@ const TASKS = {
       { id:"il5", t:"Add internal links onto the home page", s:["Keep UX at forefront — should help navigation","Run past client before pushing live","Focus on high level priority collections"] },
     ]},
     { cat: "Reporting", items: [
-      { id:"r1", t:"Send the End of Month report", s:["Send via email and in the client chat","Include the Data Studio dashboard","Include a list of everything completed — use AI to write it upbeat","Include your own introductory paragraph with opinions"] },
-      { id:"r2", t:"Take the End of Month report call", s:["Record the call and put in the client chat","Run through the monthly Data Studio report","Show position tracking wins","Run through the list of work done","Run through what we'll do next month","Ask if they're happy and if anything should change","Book the next end of month call — always book at least 3 business days into the next month to give us time to properly analyze the report and form an action plan"] },
+      { id:"r1", t:"Send the End of Month report", s:["Send via email and in the client chat","Include the Data Studio dashboard","Include the monthly report PDF from the overview tab","Write a paragraph or two in the email as an intro summarizing everything, sharing wins, concerns, and what you plan to do going into the next month"] },
+      { id:"r2", t:"Take the End of Month report call", s:["Record the call and put in the client chat","Run through the monthly Data Studio report","Show position tracking wins","Run through the list of work done","Run through what we'll do next month",{ t:"Ask if they're happy and if anything should change", internal: true },{ t:"Ask for a review again if results seem good and the client seems happy", internal: true },"Book the next end of month call — always book at least 3 business days into the next month to give us time to properly analyze the report and form an action plan"] },
     ]},
     { cat: "Blogs", qtyGate: 'p2blogs', items: [
       { id:"bg1", t:"Assign monthly blogs to the writer", s:["Focus on opportunities from hubs of priority pages","Notify the writer in the client chat","Notify the client which blogs will be written"] },
@@ -1466,8 +1466,8 @@ const TASKS = {
       { id:"bg7", t:"Submit blogs in GSC for faster indexing", s:["The specialist may need to do this if the writer does not have GSC access"] },
     ]},
     { cat: "Reporting", items: [
-      { id:"r1", t:"Send the End of Month report", s:["Send via email and in the client chat","Include the Data Studio dashboard","Include a list of everything completed — use AI to write it upbeat","Include your own introductory paragraph with opinions","Ask for a review if results are good and the client seems happy"] },
-      { id:"r2", t:"Take the End of Month report call", s:["Record the call and put in the client chat","Run through the monthly Data Studio report","Show position tracking wins","Run through the list of work done","Run through what we'll do next month","Ask if they're happy and if anything should change","Ask for a review again if results seem good and the client seems happy","Book the next end of month call — always book at least 3 business days into the next month to give us time to properly analyze the report and form an action plan"] },
+      { id:"r1", t:"Send the End of Month report", s:["Send via email and in the client chat","Include the Data Studio dashboard","Include the monthly report PDF from the overview tab","Write a paragraph or two in the email as an intro summarizing everything, sharing wins, concerns, and what you plan to do going into the next month",{ t:"Ask for a review if results are good and the client seems happy", internal: true }] },
+      { id:"r2", t:"Take the End of Month report call", s:["Record the call and put in the client chat","Run through the monthly Data Studio report","Show position tracking wins","Run through the list of work done","Run through what we'll do next month",{ t:"Ask if they're happy and if anything should change", internal: true },{ t:"Ask for a review again if results seem good and the client seems happy", internal: true },"Book the next end of month call — always book at least 3 business days into the next month to give us time to properly analyze the report and form an action plan"] },
     ]},
     { cat: "Collections", items: [
       { id:"gc1", t:"Specialist assigns collections for GSC optimization", s:["Focus on priority collections","Focus on collections that have been published for at least 3 months","First place to look will be the collections built in Month 1 of Phase 2","Add each collection as a tab in the GSC optimization template: GSC Collection Page Optimization Template: https://docs.google.com/spreadsheets/d/1Ybn3TQ0m5o37Ah3Oq-aPXmkxYgFeTG9NmfGoc7_LK00/edit"] },
@@ -1903,10 +1903,11 @@ function renderRecurringCategories(categories) {
         subLabel = `Done ${fmtDate(lastDone)} · next due ${fmtDate(nextDue)} (in ${Math.round(daysUntil/30)} mo)`;
       }
 
-      const hasSubs = item.s && item.s.length > 0;
+      const visibleSubsRec = (item.s || []).filter(d => !(typeof d === 'object' && d.internal && S.isClientPortal));
+      const hasSubs = visibleSubsRec.length > 0;
       const subsHTML = hasSubs ? `
         <div class="subtasks" id="sub_rec_${item.id}">
-          ${item.s.map(d => `<div class="subtask-detail">${linkify(d)}</div>`).join('')}
+          ${visibleSubsRec.map(d => `<div class="subtask-detail">${linkify(typeof d === 'object' ? d.t : d)}</div>`).join('')}
         </div>` : '';
 
       const noteVal = (c.taskNotes && c.taskNotes[key]) ? c.taskNotes[key] : '';
@@ -2002,10 +2003,11 @@ function renderCategories(phaseKey, categories) {
       const key = taskKey(phaseKey, item.id);
       const done = !!c.done[key];
       if (done) catDone++;
-      const hasSubs = item.s && item.s.length > 0;
+      const visibleSubs = (item.s || []).filter(d => !(typeof d === 'object' && d.internal && S.isClientPortal));
+      const hasSubs = visibleSubs.length > 0;
       const subsHTML = hasSubs ? `
         <div class="subtasks" id="sub_${phaseKey}_${item.id}">
-          ${item.s.map(d => `<div class="subtask-detail">${linkify(d)}</div>`).join('')}
+          ${visibleSubs.map(d => `<div class="subtask-detail">${linkify(typeof d === 'object' ? d.t : d)}</div>`).join('')}
         </div>` : '';
       const noteVal = (c.taskNotes && c.taskNotes[key]) ? c.taskNotes[key] : '';
       const hasNote = noteVal.length > 0;
