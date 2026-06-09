@@ -1286,6 +1286,7 @@ const TASKS = {
       { id:"p1o27", t:"Define the client's general niches for backlink sites and store in the All Backlinks tab in the client portal" },
       { id:"p1o28", t:"Start prospecting for backlink sites (15+ promising sites)", s:["Vet prospects with the 6-step process","Add suitable sites to the database","Add the client name in the notes section","Pull contact details for each site","Database: Shopiotic Backlink Database: https://docs.google.com/spreadsheets/d/1moGr5KvG4tm2pR-bH0Z2Xw7Z-uaDTnzY4bJROsMefaQ/edit"] },
       { id:"p1o29", t:"Recover lost links", s:["Look at backlink report in SEMrush to find lost links of value","Reach out to web admins to reinstate for a small fee"] },
+      { id:"p1o29b", t:"Send emails to potential backlink sites", s:["Use template: Shopiotic Link Outreach Template Emails: https://docs.google.com/document/d/1OkP8743esx17R3OtMyIa1K9l27IA_nHHQ8YnSXLq70s/edit","Database: Shopiotic Backlink Database: https://docs.google.com/spreadsheets/d/1moGr5KvG4tm2pR-bH0Z2Xw7Z-uaDTnzY4bJROsMefaQ/edit","Reply with price negotiation","Make link arrangements once deal is in place","Confirm link is live","Ask for GSC indexing","Pay invoice via PayPal","Log the completed link in the backlink tracker in the client portal","Send update in the client chat","Calculate remaining budget"], budgetGate: true },
     ]},
     { cat: "On-Page SEO", items: [
       { id:"p1o30a", t:"Make a copy of the Home Page Optimization template", s:["Template: Optimized Product Page Content Template: https://docs.google.com/document/d/13Y-vsJ0o6-LuYWK70N2Z7mH0nFgLJhWgI03kM4w9aAo/edit","Add the client's name to the title and remove 'template'","Set sharing to anyone can view","Store in the resources tab of the overview section"] },
@@ -1716,8 +1717,10 @@ function phaseProgress(phaseKey, categories) {
   if (phaseKey === 'rec') return recurringProgress(categories);
   const c = getClient(); if (!c) return [0,0];
   let total = 0, done = 0;
+  const p1BudgetActive = phaseKey === 'p1o' ? getEffectiveBudget(c, 'p1o') > 0 : true;
   for (const cat of categories) {
     for (const item of cat.items) {
+      if (item.budgetGate && !p1BudgetActive) continue;
       total++;
       if (c.done[taskKey(phaseKey, item.id)]) done++;
     }
@@ -1974,7 +1977,10 @@ function renderCategories(phaseKey, categories) {
     const items = cat.items;
     let catDone = 0;
     // Dynamic bl4: add tier-2 task for each guest post link this month
-    let dynamicItems = [...items];
+    let dynamicItems = [...items].filter(item => {
+      if (item.budgetGate && phaseKey === 'p1o') return getEffectiveBudget(c, 'p1o') > 0;
+      return true;
+    });
     if (S.isClientPortal !== true && isMonthly && cat.cat === 'Backlinks') {
       const guestPosts = (c.links||[]).filter(l => l.phaseKey === phaseKey && l.linkType === 'Guest Post');
       guestPosts.forEach((l, i) => {
