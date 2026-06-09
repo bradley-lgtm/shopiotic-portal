@@ -2487,7 +2487,7 @@ function renderContent(c) {
     if (months.length) { migrateClient(c); ensureSnapshot(prefix, c); }
     const content = months.length
       ? renderBudgetWidget(c, prefix) + renderCategories(prefix, resolveCategories(prefix, TASKS.phase2_monthly, c))
-      : `<div style="text-align:center;padding:40px;color:var(--gray-400);"><div style="font-size:32px;margin-bottom:8px;">📅</div><div style="font-size:14px;">No months added yet.<br>Click "+ Add Month" to start Month 2.</div><br><button class="btn btn-primary" onclick="addP2Month()">+ Add Month 2</button></div>`;
+      : `<div style="text-align:center;padding:40px;color:var(--gray-400);"><div style="font-size:32px;margin-bottom:8px;">📅</div><div style="font-size:14px;">No months added yet.${S.isClientPortal ? '' : '<br>Click &quot;+ Add Month&quot; to start Month 2.'}</div>${S.isClientPortal ? '' : '<br><button class="btn btn-primary" onclick="addP2Month()">+ Add Month 2</button>'}</div>`;
     area.innerHTML = `
       <div class="phase-banner" style="display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:14px;">
@@ -2527,7 +2527,7 @@ function renderContent(c) {
     if (months.length) { migrateClient(c); ensureSnapshot(prefix, c); }
     const content = months.length
       ? renderBudgetWidget(c, prefix) + renderCategories(prefix, resolveCategories(prefix, TASKS.phase3_monthly, c))
-      : `<div style="text-align:center;padding:40px;color:var(--gray-400);"><div style="font-size:32px;margin-bottom:8px;">📅</div><div style="font-size:14px;">No months added yet.<br>Growth starts when all collection pages from Phase 2 are complete.</div><br><button class="btn btn-primary" onclick="addP3Month()">+ Add Month ${nextM}</button></div>`;
+      : `<div style="text-align:center;padding:40px;color:var(--gray-400);"><div style="font-size:32px;margin-bottom:8px;">📅</div><div style="font-size:14px;">No months added yet.<br>Growth starts when all collection pages from Phase 2 are complete.</div>${S.isClientPortal ? '' : `<br><button class="btn btn-primary" onclick="addP3Month()">+ Add Month ${nextM}</button>`}</div>`;
     area.innerHTML = `
       <div class="phase-banner" style="display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:14px;">
