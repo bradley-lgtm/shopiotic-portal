@@ -1173,6 +1173,7 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
     </div>
     <div id="backlinkNichesWrap" style="margin-bottom:16px;"></div>
     <div id="linksTableWrap" style="overflow-x:auto;"></div>
+    <div id="historicalLinkFormWrap"></div>
   </div>
 </div>
 
@@ -3065,7 +3066,7 @@ function openLinksModal() {
           <span><span class="anchor-badge ${anchorClass}">${l.anchorType}</span></span>
           <span>${ltBadge}</span>
           <span>$${parseFloat(l.cost||0).toFixed(0)}</span>
-          <span>${l.phaseKey} · ${l.date||''}</span>
+          <span>${l.phaseKey === 'historical' ? 'Historical' : l.phaseKey} · ${l.date||''}</span>
           ${S.isClientPortal ? '<span></span>' : `<span style="display:flex;gap:3px;">
             <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="closeLinksModal();openEditLink('${l.id}','${l.phaseKey}')">✏️</button>
             <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="deleteLink('${l.id}');openLinksModal()">🗑️</button>
@@ -3077,7 +3078,66 @@ function openLinksModal() {
       Total spent: <strong>$${links.reduce((s,l)=>s+(parseFloat(l.cost)||0),0).toFixed(0)}</strong> across ${links.length} link${links.length===1?'':'s'}
     </div>` : `<div style="padding:24px;text-align:center;color:var(--gray-400);">No backlinks recorded yet.</div>`;
   document.getElementById('linksTableWrap').innerHTML = html;
+  const addFormWrap = document.getElementById('historicalLinkFormWrap');
+  if (addFormWrap) {
+    addFormWrap.innerHTML = S.isClientPortal ? '' : `
+      <div id="historicalLinkFormToggle" style="margin-top:14px;border-top:1px solid var(--gray-200);padding-top:12px;">
+        <button class="btn btn-outline btn-sm" onclick="showHistoricalLinkForm()">+ Add Historical Link</button>
+      </div>
+      <div id="historicalLinkFormInner" style="display:none;margin-top:12px;border-top:1px solid var(--gray-200);padding-top:12px;">
+        <div style="font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:10px;">Add Historical Link</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <input id="hl_url" class="edit-field-input" placeholder="Domain URL (e.g. https://site.com)" onkeydown="event.stopPropagation()">
+          <input id="hl_targetUrl" class="edit-field-input" placeholder="Target URL on client site" onkeydown="event.stopPropagation()">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+          <input id="hl_anchorText" class="edit-field-input" placeholder="Anchor Text" onkeydown="event.stopPropagation()">
+          <select id="hl_anchorType" class="edit-field-input">
+            <option value="">Anchor Type</option>
+            <option>Exact Match</option><option>Branded</option><option>Compound</option><option>Generic</option>
+          </select>
+          <select id="hl_linkType" class="edit-field-input">
+            <option value="">Link Type</option>
+            <option>Guest Post</option><option>Link Insertion</option>
+          </select>
+          <input id="hl_cost" class="edit-field-input" type="number" min="0" placeholder="Cost ($)" onkeydown="event.stopPropagation()">
+          <input id="hl_date" class="edit-field-input" type="date" onkeydown="event.stopPropagation()">
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button class="btn btn-outline btn-sm" onclick="hideHistoricalLinkForm()">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="saveHistoricalLink()">Save Link</button>
+        </div>
+      </div>`;
+  }
   document.getElementById('linksModal').classList.add('open');
+}
+
+function showHistoricalLinkForm() {
+  document.getElementById('historicalLinkFormToggle').style.display = 'none';
+  document.getElementById('historicalLinkFormInner').style.display = 'block';
+}
+function hideHistoricalLinkForm() {
+  document.getElementById('historicalLinkFormInner').style.display = 'none';
+  document.getElementById('historicalLinkFormToggle').style.display = '';
+}
+function saveHistoricalLink() {
+  const c = getClient(); if (!c) return;
+  const url = document.getElementById('hl_url').value.trim();
+  if (!url) { alert('URL is required'); return; }
+  if (!c.links) c.links = [];
+  c.links.push({
+    id: 'hl_' + Date.now(),
+    url,
+    targetUrl: document.getElementById('hl_targetUrl').value.trim(),
+    anchorText: document.getElementById('hl_anchorText').value.trim(),
+    anchorType: document.getElementById('hl_anchorType').value,
+    linkType: document.getElementById('hl_linkType').value,
+    cost: document.getElementById('hl_cost').value || '0',
+    date: document.getElementById('hl_date').value || '',
+    phaseKey: 'historical',
+  });
+  save();
+  openLinksModal();
 }
 
 function closeLinksModal() { document.getElementById('linksModal').classList.remove('open'); }
