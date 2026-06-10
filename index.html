@@ -4030,10 +4030,11 @@ function openMonthlyReport() {
     const byCat = {};
     for (const cat of ph.cats) {
       if (REPORT_EXCLUDED_CATS.has(cat.cat)) continue;
-      if (cat.qtyGate && ph.key.match(/^p[23]m/) && getEffectiveCategoryQty(c, ph.key, cat.qtyGate) === 0) continue;
+      if (cat.qtyGate && getEffectiveCategoryQty(c, ph.key, cat.qtyGate) === 0) continue;
       const tasks = [];
       for (const item of cat.items) {
         if (!includeTask(item)) continue;
+        if (item.budgetGate && ph.key === 'p1o' && getEffectiveBudget(c, 'p1o') === 0) continue;
         const done = !!c.done[taskKey(ph.key, item.id)];
         tasks.push({ name: item.t, done });
         done ? totalDone++ : totalOverdue++;
