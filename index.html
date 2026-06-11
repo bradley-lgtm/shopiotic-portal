@@ -2915,7 +2915,7 @@ function renderBudgetWidget(c, phaseKey) {
       </div>
       ${links.map(l => {
         const anchorClass = { 'Exact Match':'anchor-exact','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic' }[l.anchorType] || '';
-        const ltBadge = l.linkType === 'Guest Post' ? `<span class="anchor-badge" style="background:#fef3c7;color:#b45309;">Guest Post</span>` : l.linkType === 'Link Insertion' ? `<span class="anchor-badge" style="background:#ede9fe;color:#6d28d9;">Link Insertion</span>` : '';
+        const ltBadge = l.linkType === 'Guest Post' ? `<span class="anchor-badge" style="background:#fef3c7;color:#b45309;">Guest Post</span>` : l.linkType === 'Link Insertion' ? `<span class="anchor-badge" style="background:#ede9fe;color:#6d28d9;">Link Insertion</span>` : l.linkType === 'A/B' ? `<span class="anchor-badge" style="background:#e0f2fe;color:#0369a1;">A/B</span>` : '';
         return `<div class="link-row" id="lrow_${l.id}" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.7fr 0.9fr 56px;">
           <span style="word-break:break-all;">${linkify(l.url)}</span>
           <span style="word-break:break-all;">${linkify(l.targetUrl)}</span>
@@ -2966,6 +2966,7 @@ function renderBudgetWidget(c, phaseKey) {
           <option value="">Link type…</option>
           <option value="Link Insertion">Link Insertion</option>
           <option value="Guest Post">Guest Post</option>
+          <option value="A/B">A/B</option>
         </select>
         <input id="lk_cost_${phaseKey}" type="number" placeholder="Cost $" min="0">
         <input id="lk_da_${phaseKey}" type="number" placeholder="DA (optional)" min="0" max="100">
@@ -3060,7 +3061,7 @@ function openLinksModal() {
       </div>
       ${links.map(l => {
         const anchorClass = { 'Exact Match':'anchor-exact','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic' }[l.anchorType] || '';
-        const ltBadge = l.linkType === 'Guest Post' ? `<span class="anchor-badge" style="background:#fef3c7;color:#b45309;">Guest Post</span>` : l.linkType === 'Link Insertion' ? `<span class="anchor-badge" style="background:#ede9fe;color:#6d28d9;">Link Insertion</span>` : '';
+        const ltBadge = l.linkType === 'Guest Post' ? `<span class="anchor-badge" style="background:#fef3c7;color:#b45309;">Guest Post</span>` : l.linkType === 'Link Insertion' ? `<span class="anchor-badge" style="background:#ede9fe;color:#6d28d9;">Link Insertion</span>` : l.linkType === 'A/B' ? `<span class="anchor-badge" style="background:#e0f2fe;color:#0369a1;">A/B</span>` : '';
         const lostBadge = l.lost ? `<span class="anchor-badge" style="background:#fee2e2;color:#dc2626;">Lost</span>` : '';
         return `<div class="link-row" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.5fr 0.5fr 0.9fr 56px;${l.lost?'opacity:0.6;':''}">
           <span style="word-break:break-all;">${linkify(l.url)}</span>
@@ -3102,7 +3103,7 @@ function openLinksModal() {
           </select>
           <select id="hl_linkType" class="edit-field-input">
             <option value="">Link Type</option>
-            <option>Guest Post</option><option>Link Insertion</option>
+            <option>Guest Post</option><option>Link Insertion</option><option>A/B</option>
           </select>
           <input id="hl_cost" class="edit-field-input" type="number" min="0" placeholder="Cost ($)" onkeydown="event.stopPropagation()">
           <input id="hl_da" class="edit-field-input" type="number" min="0" max="100" placeholder="DA (optional)" onkeydown="event.stopPropagation()">
@@ -3354,7 +3355,7 @@ function openEditLink(linkId, phaseKey) {
           </select>
           <select id="el_linktype">
             <option value="">Link type…</option>
-            ${['Link Insertion','Guest Post'].map(t => `<option value="${t}"${l.linkType===t?' selected':''}>${t}</option>`).join('')}
+            ${['Link Insertion','Guest Post','A/B'].map(t => `<option value="${t}"${l.linkType===t?' selected':''}>${t}</option>`).join('')}
           </select>
           <input id="el_cost" type="number" placeholder="Cost $" value="${l.cost||''}">
           <input id="el_da" type="number" placeholder="DA (optional)" min="0" max="100" value="${l.da||''}">
