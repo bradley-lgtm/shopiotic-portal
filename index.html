@@ -3189,7 +3189,12 @@ function openLinksModal() {
     : `${statsHTML}
        ${anchorBreakdownHTML}
        ${targetAnalyserHTML}
-       ${activeLinks.length ? renderTable(activeLinks) : ''}
+       ${activeLinks.length ? `
+         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+           <div style="font-size:12px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;">Active Links (${activeLinks.length})</div>
+           ${S.isClientPortal ? '' : `<button class="btn btn-outline btn-sm" onclick="exportLinksCSV()">⬇ Export CSV</button>`}
+         </div>
+         ${renderTable(activeLinks)}` : ''}
        ${lostLinks.length ? `
          <div style="margin-top:20px;">
            <div style="font-size:12px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">Lost Links (${lostLinks.length})</div>
@@ -3269,6 +3274,22 @@ function saveHistoricalLink() {
 }
 
 function closeLinksModal() { document.getElementById('linksModal').classList.remove('open'); }
+
+function exportLinksCSV() {
+  const c = getClient(); if (!c) return;
+  const links = (c.links || []).filter(l => !l.lost);
+  if (!links.length) return;
+  const esc = v => `"${(v||'').toString().replace(/"/g,'""')}"`;
+  const headers = ['URL','Target URL','Anchor Text','Anchor Type','Link Type','Cost','DA','Date','Phase','Lost'];
+  const rows = links.map(l => [l.url,l.targetUrl,l.anchorText,l.anchorType,l.linkType,l.cost||'',l.da||'',l.date||'',l.phaseKey==='historical'?'Historical':l.phaseKey,l.lost?'Yes':'No'].map(esc).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${(c.name||'client').replace(/\s+/g,'-').toLowerCase()}-backlinks.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
 function runTargetAnalysis() {
   const c = getClient(); if (!c) return;
