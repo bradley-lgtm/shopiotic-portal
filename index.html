@@ -1166,14 +1166,14 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
 </div>
 
 <div class="modal-overlay" id="linksModal">
-  <div class="modal" style="width:860px;max-width:97vw;padding:24px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+  <div class="modal" style="width:900px;max-width:97vw;padding:24px;max-height:90vh;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-shrink:0;">
       <div class="modal-title" style="margin-bottom:0;">🔗 Backlink History</div>
       <button class="btn btn-ghost btn-sm" onclick="closeLinksModal()">✕ Close</button>
     </div>
-    <div id="backlinkNichesWrap" style="margin-bottom:16px;"></div>
-    <div id="linksTableWrap" style="overflow-x:auto;"></div>
-    <div id="historicalLinkFormWrap"></div>
+    <div id="backlinkNichesWrap" style="margin-bottom:16px;flex-shrink:0;"></div>
+    <div id="linksTableWrap" style="overflow:auto;flex:1;min-height:0;"></div>
+    <div id="historicalLinkFormWrap" style="flex-shrink:0;"></div>
   </div>
 </div>
 
