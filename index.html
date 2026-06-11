@@ -3081,7 +3081,8 @@ function openLinksModal() {
       }).join('')}
     </div>
     <div style="margin-top:12px;font-size:13px;color:var(--gray-500);">
-      Total spent: <strong>$${links.filter(l=>l.phaseKey!=='historical').reduce((s,l)=>s+(parseFloat(l.cost)||0),0).toFixed(0)}</strong> across ${links.length} link${links.length===1?'':'s'}
+      Total spent: <strong>$${links.filter(l=>l.phaseKey!=='historical').reduce((s,l)=>s+(parseFloat(l.cost)||0),0).toFixed(0)}</strong> across ${links.filter(l=>l.phaseKey!=='historical').length} link${links.filter(l=>l.phaseKey!=='historical').length===1?'':'s'}
+      ${links.filter(l=>l.phaseKey==='historical').length ? `&nbsp;·&nbsp; <strong>${links.filter(l=>l.phaseKey==='historical').length}</strong> historical link${links.filter(l=>l.phaseKey==='historical').length===1?'':'s'}` : ''}
     </div>` : `<div style="padding:24px;text-align:center;color:var(--gray-400);">No backlinks recorded yet.</div>`;
   document.getElementById('linksTableWrap').innerHTML = html;
   const addFormWrap = document.getElementById('historicalLinkFormWrap');
