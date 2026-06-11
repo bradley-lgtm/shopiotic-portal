@@ -2968,6 +2968,7 @@ function renderBudgetWidget(c, phaseKey) {
           <option value="Guest Post">Guest Post</option>
         </select>
         <input id="lk_cost_${phaseKey}" type="number" placeholder="Cost $" min="0">
+        <input id="lk_da_${phaseKey}" type="number" placeholder="DA (optional)" min="0" max="100">
         <input id="lk_date_${phaseKey}" type="date" value="${new Date().toISOString().slice(0,10)}">
       </div>`}
       ${S.isClientPortal ? '' : `<button class="btn btn-primary btn-sm" onclick="addLink('${phaseKey}')">+ Add Link</button>`}
@@ -3005,10 +3006,11 @@ function addLink(phaseKey) {
   const anchorType = document.getElementById('lk_type_'+phaseKey).value;
   const linkType = document.getElementById('lk_linktype_'+phaseKey).value;
   const cost = document.getElementById('lk_cost_'+phaseKey).value;
+  const da = document.getElementById('lk_da_'+phaseKey).value;
   const date = document.getElementById('lk_date_'+phaseKey).value;
   if (!url || !anchorType) { alert('URL and anchor type are required.'); return; }
   if (!c.links) c.links = [];
-  c.links.push({ id: uid(), url, targetUrl, anchorText, anchorType, linkType, cost, date, phaseKey });
+  c.links.push({ id: uid(), url, targetUrl, anchorText, anchorType, linkType, cost, da: da || '', date, phaseKey });
   save(); renderClient();
 
   // Auto-post to team chat with full link details
@@ -3053,19 +3055,20 @@ function openLinksModal() {
   const links = (c.links || []).slice().sort((a,b) => (a.date||'').localeCompare(b.date||''));
   const html = links.length ? `
     <div class="links-table">
-      <div class="link-row link-row-head" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.7fr 0.9fr 56px;">
-        <span>URL</span><span>Target URL</span><span>Anchor Text</span><span>Anchor Type</span><span>Link Type</span><span>Cost</span><span>Month</span><span></span>
+      <div class="link-row link-row-head" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.5fr 0.5fr 0.9fr 56px;">
+        <span>URL</span><span>Target URL</span><span>Anchor Text</span><span>Anchor Type</span><span>Link Type</span><span>Cost</span><span>DA</span><span>Month</span><span></span>
       </div>
       ${links.map(l => {
         const anchorClass = { 'Exact Match':'anchor-exact','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic' }[l.anchorType] || '';
         const ltBadge = l.linkType === 'Guest Post' ? `<span class="anchor-badge" style="background:#fef3c7;color:#b45309;">Guest Post</span>` : l.linkType === 'Link Insertion' ? `<span class="anchor-badge" style="background:#ede9fe;color:#6d28d9;">Link Insertion</span>` : '';
-        return `<div class="link-row" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.7fr 0.9fr 56px;">
+        return `<div class="link-row" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.5fr 0.5fr 0.9fr 56px;">
           <span style="word-break:break-all;">${linkify(l.url)}</span>
           <span style="word-break:break-all;">${linkify(l.targetUrl)}</span>
           <span>${esc(l.anchorText)}</span>
           <span><span class="anchor-badge ${anchorClass}">${l.anchorType}</span></span>
           <span>${ltBadge}</span>
           <span>$${parseFloat(l.cost||0).toFixed(0)}</span>
+          <span>${l.da ? l.da : '—'}</span>
           <span>${l.phaseKey === 'historical' ? 'Historical' : l.phaseKey} · ${l.date||''}</span>
           ${S.isClientPortal ? '<span></span>' : `<span style="display:flex;gap:3px;">
             <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="closeLinksModal();openEditLink('${l.id}','${l.phaseKey}')">✏️</button>
@@ -3101,6 +3104,7 @@ function openLinksModal() {
             <option>Guest Post</option><option>Link Insertion</option>
           </select>
           <input id="hl_cost" class="edit-field-input" type="number" min="0" placeholder="Cost ($)" onkeydown="event.stopPropagation()">
+          <input id="hl_da" class="edit-field-input" type="number" min="0" max="100" placeholder="DA (optional)" onkeydown="event.stopPropagation()">
           <input id="hl_date" class="edit-field-input" type="date" onkeydown="event.stopPropagation()">
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -3133,6 +3137,7 @@ function saveHistoricalLink() {
     anchorType: document.getElementById('hl_anchorType').value,
     linkType: document.getElementById('hl_linkType').value,
     cost: document.getElementById('hl_cost').value || '0',
+    da: document.getElementById('hl_da').value || '',
     date: document.getElementById('hl_date').value || '',
     phaseKey: 'historical',
   });
@@ -3347,6 +3352,7 @@ function openEditLink(linkId, phaseKey) {
             ${['Link Insertion','Guest Post'].map(t => `<option value="${t}"${l.linkType===t?' selected':''}>${t}</option>`).join('')}
           </select>
           <input id="el_cost" type="number" placeholder="Cost $" value="${l.cost||''}">
+          <input id="el_da" type="number" placeholder="DA (optional)" min="0" max="100" value="${l.da||''}">
           <input id="el_date" type="date" value="${l.date||''}">
         </div>
         <div class="modal-actions">
@@ -3368,6 +3374,7 @@ function saveEditLink() {
   l.anchorType = document.getElementById('el_type').value;
   l.linkType = document.getElementById('el_linktype').value;
   l.cost = document.getElementById('el_cost').value;
+  l.da = document.getElementById('el_da').value;
   l.date = document.getElementById('el_date').value;
   save(); closeEditLinkModal(); renderClient();
 }
