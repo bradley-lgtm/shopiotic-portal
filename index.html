@@ -3061,12 +3061,13 @@ function openLinksModal() {
       ${links.map(l => {
         const anchorClass = { 'Exact Match':'anchor-exact','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic' }[l.anchorType] || '';
         const ltBadge = l.linkType === 'Guest Post' ? `<span class="anchor-badge" style="background:#fef3c7;color:#b45309;">Guest Post</span>` : l.linkType === 'Link Insertion' ? `<span class="anchor-badge" style="background:#ede9fe;color:#6d28d9;">Link Insertion</span>` : '';
-        return `<div class="link-row" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.5fr 0.5fr 0.9fr 56px;">
+        const lostBadge = l.lost ? `<span class="anchor-badge" style="background:#fee2e2;color:#dc2626;">Lost</span>` : '';
+        return `<div class="link-row" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.5fr 0.5fr 0.9fr 56px;${l.lost?'opacity:0.6;':''}">
           <span style="word-break:break-all;">${linkify(l.url)}</span>
           <span style="word-break:break-all;">${linkify(l.targetUrl)}</span>
           <span>${esc(l.anchorText)}</span>
           <span><span class="anchor-badge ${anchorClass}">${l.anchorType}</span></span>
-          <span>${ltBadge}</span>
+          <span>${ltBadge}${lostBadge}</span>
           <span>$${parseFloat(l.cost||0).toFixed(0)}</span>
           <span>${l.da ? l.da : '—'}</span>
           <span>${l.phaseKey === 'historical' ? 'Historical' : l.phaseKey} · ${l.date||''}</span>
@@ -3107,6 +3108,9 @@ function openLinksModal() {
           <input id="hl_da" class="edit-field-input" type="number" min="0" max="100" placeholder="DA (optional)" onkeydown="event.stopPropagation()">
           <input id="hl_date" class="edit-field-input" type="date" onkeydown="event.stopPropagation()">
         </div>
+        <div style="margin-bottom:10px;">
+          <label style="font-size:13px;color:var(--gray-600);display:flex;align-items:center;gap:7px;cursor:pointer;"><input type="checkbox" id="hl_lost"> Mark as lost</label>
+        </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;">
           <button class="btn btn-outline btn-sm" onclick="hideHistoricalLinkForm()">Cancel</button>
           <button class="btn btn-primary btn-sm" onclick="saveHistoricalLink()">Save Link</button>
@@ -3139,6 +3143,7 @@ function saveHistoricalLink() {
     cost: document.getElementById('hl_cost').value || '0',
     da: document.getElementById('hl_da').value || '',
     date: document.getElementById('hl_date').value || '',
+    lost: document.getElementById('hl_lost').checked || false,
     phaseKey: 'historical',
   });
   save();
@@ -3355,6 +3360,9 @@ function openEditLink(linkId, phaseKey) {
           <input id="el_da" type="number" placeholder="DA (optional)" min="0" max="100" value="${l.da||''}">
           <input id="el_date" type="date" value="${l.date||''}">
         </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:13px;color:var(--gray-600);display:flex;align-items:center;gap:7px;cursor:pointer;"><input type="checkbox" id="el_lost"${l.lost?' checked':''}> Mark as lost</label>
+        </div>
         <div class="modal-actions">
           <button class="btn btn-outline" onclick="closeEditLinkModal()">Cancel</button>
           <button class="btn btn-primary" onclick="saveEditLink()">Save</button>
@@ -3376,6 +3384,7 @@ function saveEditLink() {
   l.cost = document.getElementById('el_cost').value;
   l.da = document.getElementById('el_da').value;
   l.date = document.getElementById('el_date').value;
+  l.lost = document.getElementById('el_lost').checked;
   save(); closeEditLinkModal(); renderClient();
 }
 function closeEditLinkModal() {
