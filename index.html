@@ -371,6 +371,7 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
 .anchor-branded { background: #dbeafe; color: #1d4ed8; }
 .anchor-compound { background: #f3e8ff; color: #7c3aed; }
 .anchor-generic { background: #f0fdf4; color: #059669; }
+.anchor-partial { background: #fff7ed; color: #c2410c; }
 
 .tier-qty-badge {
   display: inline-block; margin-left: 7px; padding: 1px 7px;
@@ -2914,7 +2915,7 @@ function renderBudgetWidget(c, phaseKey) {
         <span>URL</span><span>Target URL</span><span>Anchor Text</span><span>Anchor Type</span><span>Link Type</span><span>Cost</span><span>Date</span><span></span>
       </div>
       ${links.map(l => {
-        const anchorClass = { 'Exact Match':'anchor-exact','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic' }[l.anchorType] || '';
+        const anchorClass = { 'Exact Match':'anchor-exact','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic','Partial Match':'anchor-partial' }[l.anchorType] || '';
         const ltBadge = l.linkType === 'Guest Post' ? `<span class="anchor-badge" style="background:#fef3c7;color:#b45309;">Guest Post</span>` : l.linkType === 'Link Insertion' ? `<span class="anchor-badge" style="background:#ede9fe;color:#6d28d9;">Link Insertion</span>` : l.linkType === 'A/B' ? `<span class="anchor-badge" style="background:#e0f2fe;color:#0369a1;">A/B</span>` : '';
         return `<div class="link-row" id="lrow_${l.id}" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.7fr 0.9fr 56px;">
           <span style="word-break:break-all;">${linkify(l.url)}</span>
@@ -2960,7 +2961,7 @@ function renderBudgetWidget(c, phaseKey) {
         <input id="lk_anchor_${phaseKey}" placeholder="Anchor text">
         <select id="lk_type_${phaseKey}">
           <option value="">Anchor type…</option>
-          <option>Exact Match</option><option>Branded</option><option>Compound</option><option>Generic</option>
+          <option>Exact Match</option><option>Partial Match</option><option>Branded</option><option>Compound</option><option>Generic</option>
         </select>
         <select id="lk_linktype_${phaseKey}">
           <option value="">Link type…</option>
@@ -3060,7 +3061,7 @@ function openLinksModal() {
         <span>URL</span><span>Target URL</span><span>Anchor Text</span><span>Anchor Type</span><span>Link Type</span><span>Cost</span><span>DA</span><span>Month</span><span></span>
       </div>
       ${links.map(l => {
-        const anchorClass = { 'Exact Match':'anchor-exact','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic' }[l.anchorType] || '';
+        const anchorClass = { 'Exact Match':'anchor-exact','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic','Partial Match':'anchor-partial' }[l.anchorType] || '';
         const ltBadge = l.linkType === 'Guest Post' ? `<span class="anchor-badge" style="background:#fef3c7;color:#b45309;">Guest Post</span>` : l.linkType === 'Link Insertion' ? `<span class="anchor-badge" style="background:#ede9fe;color:#6d28d9;">Link Insertion</span>` : l.linkType === 'A/B' ? `<span class="anchor-badge" style="background:#e0f2fe;color:#0369a1;">A/B</span>` : '';
         const lostBadge = l.lost ? `<span class="anchor-badge" style="background:#fee2e2;color:#dc2626;">Lost</span>` : '';
         return `<div class="link-row" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.5fr 0.5fr 0.9fr 56px;${l.lost?'opacity:0.6;':''}">
@@ -3099,7 +3100,7 @@ function openLinksModal() {
           <input id="hl_anchorText" class="edit-field-input" placeholder="Anchor Text" onkeydown="event.stopPropagation()">
           <select id="hl_anchorType" class="edit-field-input">
             <option value="">Anchor Type</option>
-            <option>Exact Match</option><option>Branded</option><option>Compound</option><option>Generic</option>
+            <option>Exact Match</option><option>Partial Match</option><option>Branded</option><option>Compound</option><option>Generic</option>
           </select>
           <select id="hl_linkType" class="edit-field-input">
             <option value="">Link Type</option>
@@ -3351,7 +3352,7 @@ function openEditLink(linkId, phaseKey) {
           <input id="el_anchor" placeholder="Anchor text" value="${esc(l.anchorText||'')}">
           <select id="el_type">
             <option value="">Anchor type…</option>
-            ${['Exact Match','Branded','Compound','Generic'].map(t => `<option${l.anchorType===t?' selected':''}>${t}</option>`).join('')}
+            ${['Exact Match','Partial Match','Branded','Compound','Generic'].map(t => `<option${l.anchorType===t?' selected':''}>${t}</option>`).join('')}
           </select>
           <select id="el_linktype">
             <option value="">Link type…</option>
