@@ -3045,46 +3045,161 @@ function saveBacklinkNiches(val) {
 
 function openLinksModal() {
   const c = getClient(); if (!c) return;
-  // Render niches field
+  const allLinks = c.links || [];
+
+  // Sort: date desc, undated fall back to insertion order (index) desc
+  const sorted = allLinks.map((l, i) => ({ l, i }))
+    .sort((a, b) => {
+      const da = a.l.date || '', db = b.l.date || '';
+      if (da && db) return db.localeCompare(da);
+      if (da) return -1;
+      if (db) return 1;
+      return b.i - a.i;
+    }).map(x => x.l);
+
+  const activeLinks = sorted.filter(l => !l.lost);
+  const lostLinks   = sorted.filter(l => l.lost);
+
+  // ── Stat helpers ──
+  const ANCHOR_TYPES = ['Exact Match','Partial Match','Branded','Compound','Generic'];
+  const ANCHOR_COLORS = { 'Exact Match':'anchor-exact','Partial Match':'anchor-partial','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic' };
+
+  // Paid = not A/B, not historical (for cost avg)
+  const paidCostLinks = allLinks.filter(l => !l.lost && l.linkType !== 'A/B' && l.phaseKey !== 'historical');
+  const avgCost = paidCostLinks.length ? (paidCostLinks.reduce((s,l) => s+(parseFloat(l.cost)||0), 0) / paidCostLinks.length) : null;
+
+  // Paid DA = not A/B (includes historical)
+  const paidDALinks = allLinks.filter(l => !l.lost && l.linkType !== 'A/B' && l.da);
+  const avgDAPaid = paidDALinks.length ? (paidDALinks.reduce((s,l) => s+(parseFloat(l.da)||0), 0) / paidDALinks.length) : null;
+
+  // All DA = includes A/B and historical
+  const allDALinks = allLinks.filter(l => !l.lost && l.da);
+  const avgDAAll = allDALinks.length ? (allDALinks.reduce((s,l) => s+(parseFloat(l.da)||0), 0) / allDALinks.length) : null;
+
+  // Anchor type breakdown across all non-lost links
+  const anchorCounts = {};
+  const anchorTotal = allLinks.filter(l => !l.lost && l.anchorType).length;
+  allLinks.filter(l => !l.lost && l.anchorType).forEach(l => { anchorCounts[l.anchorType] = (anchorCounts[l.anchorType]||0) + 1; });
+
+  // ── Stats section ──
+  const statsHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;">
+      <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:12px 14px;">
+        <div style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;">Avg Cost / Paid Link</div>
+        <div style="font-size:22px;font-weight:700;color:var(--gray-800);">${avgCost !== null ? '$'+avgCost.toFixed(0) : '—'}</div>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:2px;">excludes A/B &amp; historical</div>
+      </div>
+      <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:12px 14px;">
+        <div style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;">Avg DA (paid links)</div>
+        <div style="font-size:22px;font-weight:700;color:var(--gray-800);">${avgDAPaid !== null ? avgDAPaid.toFixed(1) : '—'}</div>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:2px;">excludes A/B, incl. historical</div>
+      </div>
+      <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:12px 14px;">
+        <div style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;">Avg DA (all links)</div>
+        <div style="font-size:22px;font-weight:700;color:var(--gray-800);">${avgDAAll !== null ? avgDAAll.toFixed(1) : '—'}</div>
+        <div style="font-size:11px;color:var(--gray-400);margin-top:2px;">incl. A/B &amp; historical</div>
+      </div>
+    </div>`;
+
+  // ── Anchor type breakdown ──
+  const anchorBreakdownHTML = anchorTotal > 0 ? `
+    <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:12px 14px;margin-bottom:18px;">
+      <div style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">Anchor Text Breakdown (all active links)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${ANCHOR_TYPES.filter(t => anchorCounts[t]).map(t => `
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span class="anchor-badge ${ANCHOR_COLORS[t]}">${t}</span>
+            <span style="font-size:13px;font-weight:600;color:var(--gray-700);">${Math.round(anchorCounts[t]/anchorTotal*100)}%</span>
+            <span style="font-size:11px;color:var(--gray-400);">(${anchorCounts[t]})</span>
+          </div>`).join('')}
+        ${Object.keys(anchorCounts).filter(t => !ANCHOR_TYPES.includes(t)).map(t => `
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span class="anchor-badge">${esc(t)}</span>
+            <span style="font-size:13px;font-weight:600;color:var(--gray-700);">${Math.round(anchorCounts[t]/anchorTotal*100)}%</span>
+            <span style="font-size:11px;color:var(--gray-400);">(${anchorCounts[t]})</span>
+          </div>`).join('')}
+      </div>
+    </div>` : '';
+
+  // ── Link table renderer ──
+  const cols = '2fr 2fr 1.5fr 1fr 1fr 0.5fr 0.5fr 0.9fr 56px';
+  const renderLinkRow = l => {
+    const anchorClass = ANCHOR_COLORS[l.anchorType] || '';
+    const ltBadge = l.linkType === 'Guest Post' ? `<span class="anchor-badge" style="background:#fef3c7;color:#b45309;">Guest Post</span>`
+      : l.linkType === 'Link Insertion' ? `<span class="anchor-badge" style="background:#ede9fe;color:#6d28d9;">Link Insertion</span>`
+      : l.linkType === 'A/B' ? `<span class="anchor-badge" style="background:#e0f2fe;color:#0369a1;">A/B</span>` : '';
+    const lostBadge = l.lost ? `<span class="anchor-badge" style="background:#fee2e2;color:#dc2626;">Lost</span>` : '';
+    return `<div class="link-row" style="grid-template-columns:${cols};${l.lost?'opacity:0.6;':''}">
+      <span style="word-break:break-all;">${linkify(l.url)}</span>
+      <span style="word-break:break-all;">${linkify(l.targetUrl)}</span>
+      <span>${esc(l.anchorText)}</span>
+      <span>${l.anchorType ? `<span class="anchor-badge ${anchorClass}">${l.anchorType}</span>` : ''}</span>
+      <span>${ltBadge}${lostBadge}</span>
+      <span>$${parseFloat(l.cost||0).toFixed(0)}</span>
+      <span>${l.da || '—'}</span>
+      <span>${l.phaseKey === 'historical' ? 'Historical' : l.phaseKey} · ${l.date||''}</span>
+      ${S.isClientPortal ? '<span></span>' : `<span style="display:flex;gap:3px;">
+        <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="closeLinksModal();openEditLink('${l.id}','${l.phaseKey}')">✏️</button>
+        <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="deleteLink('${l.id}');openLinksModal()">🗑️</button>
+      </span>`}
+    </div>`;
+  };
+  const renderTable = links => `
+    <div class="links-table">
+      <div class="link-row link-row-head" style="grid-template-columns:${cols};">
+        <span>URL</span><span>Target URL</span><span>Anchor Text</span><span>Anchor Type</span><span>Link Type</span><span>Cost</span><span>DA</span><span>Month</span><span></span>
+      </div>
+      ${links.map(renderLinkRow).join('')}
+    </div>`;
+
+  // ── Target URL analyser ──
+  const targetAnalyserHTML = `
+    <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:14px;margin-bottom:18px;">
+      <div style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">Target URL Analysis</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input id="targetAnalyserInput" class="edit-field-input" style="flex:1;" placeholder="Enter a target URL to analyse…" onkeydown="if(event.key==='Enter')runTargetAnalysis();event.stopPropagation()">
+        <button class="btn btn-outline btn-sm" onclick="runTargetAnalysis()">Analyse</button>
+      </div>
+      <div id="targetAnalyserResult"></div>
+    </div>`;
+
+  // ── Niches (moved to bottom) ──
   const niches = c.backlinkNiches || '';
   const nichesHTML = S.isClientPortal
-    ? (niches ? `<div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:10px 14px;font-size:13px;"><span style="font-weight:600;color:var(--gray-600);">Backlink Niches: </span>${esc(niches)}</div>` : '')
-    : `<div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:10px 14px;">
+    ? (niches ? `<div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:10px 14px;font-size:13px;margin-top:16px;"><span style="font-weight:600;color:var(--gray-600);">Backlink Niches: </span>${esc(niches)}</div>` : '')
+    : `<div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:10px 14px;margin-top:16px;">
         <label style="font-size:12px;font-weight:600;color:var(--gray-600);display:block;margin-bottom:6px;">Client Backlink Niches <span style="font-weight:400;color:var(--gray-400);">(general niches for finding relevant backlink sites)</span></label>
         <textarea style="width:100%;box-sizing:border-box;border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical;min-height:52px;" placeholder="e.g. home improvement, power tools, DIY, renovation…" oninput="saveBacklinkNiches(this.value)" onkeydown="event.stopPropagation()">${esc(niches)}</textarea>
       </div>`;
-  document.getElementById('backlinkNichesWrap').innerHTML = nichesHTML;
-  const links = (c.links || []).slice().sort((a,b) => (a.date||'').localeCompare(b.date||''));
-  const html = links.length ? `
-    <div class="links-table">
-      <div class="link-row link-row-head" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.5fr 0.5fr 0.9fr 56px;">
-        <span>URL</span><span>Target URL</span><span>Anchor Text</span><span>Anchor Type</span><span>Link Type</span><span>Cost</span><span>DA</span><span>Month</span><span></span>
-      </div>
-      ${links.map(l => {
-        const anchorClass = { 'Exact Match':'anchor-exact','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic','Partial Match':'anchor-partial' }[l.anchorType] || '';
-        const ltBadge = l.linkType === 'Guest Post' ? `<span class="anchor-badge" style="background:#fef3c7;color:#b45309;">Guest Post</span>` : l.linkType === 'Link Insertion' ? `<span class="anchor-badge" style="background:#ede9fe;color:#6d28d9;">Link Insertion</span>` : l.linkType === 'A/B' ? `<span class="anchor-badge" style="background:#e0f2fe;color:#0369a1;">A/B</span>` : '';
-        const lostBadge = l.lost ? `<span class="anchor-badge" style="background:#fee2e2;color:#dc2626;">Lost</span>` : '';
-        return `<div class="link-row" style="grid-template-columns:2fr 2fr 1.5fr 1fr 1fr 0.5fr 0.5fr 0.9fr 56px;${l.lost?'opacity:0.6;':''}">
-          <span style="word-break:break-all;">${linkify(l.url)}</span>
-          <span style="word-break:break-all;">${linkify(l.targetUrl)}</span>
-          <span>${esc(l.anchorText)}</span>
-          <span><span class="anchor-badge ${anchorClass}">${l.anchorType}</span></span>
-          <span>${ltBadge}${lostBadge}</span>
-          <span>$${parseFloat(l.cost||0).toFixed(0)}</span>
-          <span>${l.da ? l.da : '—'}</span>
-          <span>${l.phaseKey === 'historical' ? 'Historical' : l.phaseKey} · ${l.date||''}</span>
-          ${S.isClientPortal ? '<span></span>' : `<span style="display:flex;gap:3px;">
-            <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="closeLinksModal();openEditLink('${l.id}','${l.phaseKey}')">✏️</button>
-            <button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:12px;" onclick="deleteLink('${l.id}');openLinksModal()">🗑️</button>
-          </span>`}
-        </div>`;
-      }).join('')}
-    </div>
+
+  // ── Footer counts ──
+  const phaseCount = allLinks.filter(l => l.phaseKey !== 'historical' && !l.lost).length;
+  const histCount  = allLinks.filter(l => l.phaseKey === 'historical' && !l.lost).length;
+  const totalSpent = allLinks.filter(l => l.phaseKey !== 'historical').reduce((s,l) => s+(parseFloat(l.cost)||0), 0);
+  const footerHTML = allLinks.length ? `
     <div style="margin-top:12px;font-size:13px;color:var(--gray-500);">
-      Total spent: <strong>$${links.filter(l=>l.phaseKey!=='historical').reduce((s,l)=>s+(parseFloat(l.cost)||0),0).toFixed(0)}</strong> across ${links.filter(l=>l.phaseKey!=='historical').length} link${links.filter(l=>l.phaseKey!=='historical').length===1?'':'s'}
-      ${links.filter(l=>l.phaseKey==='historical').length ? `&nbsp;·&nbsp; <strong>${links.filter(l=>l.phaseKey==='historical').length}</strong> historical link${links.filter(l=>l.phaseKey==='historical').length===1?'':'s'}` : ''}
-    </div>` : `<div style="padding:24px;text-align:center;color:var(--gray-400);">No backlinks recorded yet.</div>`;
-  document.getElementById('linksTableWrap').innerHTML = html;
+      Total spent: <strong>$${totalSpent.toFixed(0)}</strong> across ${phaseCount} link${phaseCount===1?'':'s'}
+      ${histCount ? `&nbsp;·&nbsp; <strong>${histCount}</strong> historical link${histCount===1?'':'s'}` : ''}
+      ${lostLinks.length ? `&nbsp;·&nbsp; <strong>${lostLinks.length}</strong> lost` : ''}
+    </div>` : '';
+
+  // ── Assemble ──
+  const mainContent = allLinks.length === 0
+    ? `<div style="padding:24px;text-align:center;color:var(--gray-400);">No backlinks recorded yet.</div>`
+    : `${statsHTML}
+       ${anchorBreakdownHTML}
+       ${targetAnalyserHTML}
+       ${activeLinks.length ? renderTable(activeLinks) : ''}
+       ${lostLinks.length ? `
+         <div style="margin-top:20px;">
+           <div style="font-size:12px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">Lost Links (${lostLinks.length})</div>
+           ${renderTable(lostLinks)}
+         </div>` : ''}
+       ${footerHTML}`;
+
+  document.getElementById('backlinkNichesWrap').innerHTML = '';
+  document.getElementById('linksTableWrap').innerHTML = mainContent + nichesHTML;
+
   const addFormWrap = document.getElementById('historicalLinkFormWrap');
   if (addFormWrap) {
     addFormWrap.innerHTML = S.isClientPortal ? '' : `
@@ -3154,6 +3269,45 @@ function saveHistoricalLink() {
 }
 
 function closeLinksModal() { document.getElementById('linksModal').classList.remove('open'); }
+
+function runTargetAnalysis() {
+  const c = getClient(); if (!c) return;
+  const input = document.getElementById('targetAnalyserInput');
+  const resultEl = document.getElementById('targetAnalyserResult');
+  if (!input || !resultEl) return;
+  const target = input.value.trim().toLowerCase();
+  if (!target) { resultEl.innerHTML = ''; return; }
+  const matches = (c.links || []).filter(l => !l.lost && (l.targetUrl||'').toLowerCase().includes(target));
+  if (!matches.length) {
+    resultEl.innerHTML = `<div style="font-size:13px;color:var(--gray-400);">No links found pointing to that URL.</div>`;
+    return;
+  }
+  const daLinks = matches.filter(l => l.da);
+  const avgDA = daLinks.length ? (daLinks.reduce((s,l) => s+(parseFloat(l.da)||0), 0) / daLinks.length) : null;
+  const paidMatches = matches.filter(l => l.linkType !== 'A/B');
+  const avgCost = paidMatches.length ? (paidMatches.reduce((s,l) => s+(parseFloat(l.cost)||0), 0) / paidMatches.length) : null;
+  const anchorCounts = {};
+  matches.filter(l => l.anchorType).forEach(l => { anchorCounts[l.anchorType] = (anchorCounts[l.anchorType]||0) + 1; });
+  const anchorTotal = Object.values(anchorCounts).reduce((s,v) => s+v, 0);
+  const ANCHOR_COLORS = { 'Exact Match':'anchor-exact','Partial Match':'anchor-partial','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic' };
+  resultEl.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,auto) 1fr;gap:12px 20px;align-items:start;">
+      <div><div style="font-size:11px;color:var(--gray-500);font-weight:600;text-transform:uppercase;letter-spacing:.3px;">Links built</div><div style="font-size:20px;font-weight:700;color:var(--gray-800);">${matches.length}</div></div>
+      <div><div style="font-size:11px;color:var(--gray-500);font-weight:600;text-transform:uppercase;letter-spacing:.3px;">Avg DA</div><div style="font-size:20px;font-weight:700;color:var(--gray-800);">${avgDA !== null ? avgDA.toFixed(1) : '—'}</div></div>
+      <div><div style="font-size:11px;color:var(--gray-500);font-weight:600;text-transform:uppercase;letter-spacing:.3px;">Avg cost</div><div style="font-size:20px;font-weight:700;color:var(--gray-800);">${avgCost !== null ? '$'+avgCost.toFixed(0) : '—'}</div></div>
+      ${anchorTotal ? `<div>
+        <div style="font-size:11px;color:var(--gray-500);font-weight:600;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px;">Anchor breakdown</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${Object.entries(anchorCounts).sort((a,b)=>b[1]-a[1]).map(([t,n]) => `
+            <div style="display:flex;align-items:center;gap:5px;">
+              <span class="anchor-badge ${ANCHOR_COLORS[t]||''}">${t}</span>
+              <span style="font-size:13px;font-weight:600;color:var(--gray-700);">${Math.round(n/anchorTotal*100)}%</span>
+              <span style="font-size:11px;color:var(--gray-400);">(${n})</span>
+            </div>`).join('')}
+        </div>
+      </div>` : ''}
+    </div>`;
+}
 
 // ═══════════════════════════════════════════
 //  MANAGE TEMPLATE PANEL
