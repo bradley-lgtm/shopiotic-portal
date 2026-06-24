@@ -3059,7 +3059,7 @@ function openLinksModal() {
     }).map(x => x.l);
 
   const activeLinks = sorted.filter(l => !l.lost);
-  const lostLinks   = sorted.filter(l => l.lost);
+  const lostLinks   = sorted.filter(l => l.lost && !l.recovered);
 
   // ── Stat helpers ──
   const ANCHOR_TYPES = ['Exact Match','Partial Match','Branded','Compound','Generic'];
@@ -3129,8 +3129,8 @@ function openLinksModal() {
     const ltBadge = l.linkType === 'Guest Post' ? `<span class="anchor-badge" style="background:#fef3c7;color:#b45309;">Guest Post</span>`
       : l.linkType === 'Link Insertion' ? `<span class="anchor-badge" style="background:#ede9fe;color:#6d28d9;">Link Insertion</span>`
       : l.linkType === 'A/B' ? `<span class="anchor-badge" style="background:#e0f2fe;color:#0369a1;">A/B</span>` : '';
-    const lostBadge = l.lost ? `<span class="anchor-badge" style="background:#fee2e2;color:#dc2626;">Lost</span>` : '';
-    return `<div class="link-row" style="grid-template-columns:${cols};${l.lost?'opacity:0.6;':''}">
+    const lostBadge = l.lost && !l.recovered ? `<span class="anchor-badge" style="background:#fee2e2;color:#dc2626;">Lost</span>` : l.recovered ? `<span class="anchor-badge" style="background:#dcfce7;color:#16a34a;">Recovered</span>` : '';
+    return `<div class="link-row" style="grid-template-columns:${cols};${l.lost&&!l.recovered?'opacity:0.6;':''}">
       <span style="word-break:break-all;">${linkify(l.url)}</span>
       <span style="word-break:break-all;">${linkify(l.targetUrl)}</span>
       <span>${esc(l.anchorText)}</span>
@@ -3232,8 +3232,9 @@ function openLinksModal() {
           <input id="hl_da" class="edit-field-input" type="number" min="0" max="100" placeholder="DA (optional)" onkeydown="event.stopPropagation()">
           <input id="hl_date" class="edit-field-input" type="date" onkeydown="event.stopPropagation()">
         </div>
-        <div style="margin-bottom:10px;">
-          <label style="font-size:13px;color:var(--gray-600);display:flex;align-items:center;gap:7px;cursor:pointer;"><input type="checkbox" id="hl_lost"> Mark as lost</label>
+        <div style="margin-bottom:10px;display:flex;gap:20px;">
+          <label style="font-size:13px;color:var(--gray-600);display:flex;align-items:center;gap:7px;cursor:pointer;"><input type="checkbox" id="hl_lost" onchange="if(this.checked)document.getElementById('hl_recovered').checked=false"> Mark as lost</label>
+          <label style="font-size:13px;color:var(--gray-600);display:flex;align-items:center;gap:7px;cursor:pointer;"><input type="checkbox" id="hl_recovered" onchange="if(this.checked)document.getElementById('hl_lost').checked=false"> Mark as recovered</label>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;">
           <button class="btn btn-outline btn-sm" onclick="hideHistoricalLinkForm()">Cancel</button>
@@ -3268,6 +3269,7 @@ function saveHistoricalLink() {
     da: document.getElementById('hl_da').value || '',
     date: document.getElementById('hl_date').value || '',
     lost: document.getElementById('hl_lost').checked || false,
+    recovered: document.getElementById('hl_recovered').checked || false,
     phaseKey: 'historical',
   });
   save();
@@ -3540,8 +3542,9 @@ function openEditLink(linkId, phaseKey) {
           <input id="el_da" type="number" placeholder="DA (optional)" min="0" max="100" value="${l.da||''}">
           <input id="el_date" type="date" value="${l.date||''}">
         </div>
-        <div style="margin-bottom:12px;">
-          <label style="font-size:13px;color:var(--gray-600);display:flex;align-items:center;gap:7px;cursor:pointer;"><input type="checkbox" id="el_lost"${l.lost?' checked':''}> Mark as lost</label>
+        <div style="margin-bottom:12px;display:flex;gap:20px;">
+          <label style="font-size:13px;color:var(--gray-600);display:flex;align-items:center;gap:7px;cursor:pointer;"><input type="checkbox" id="el_lost"${l.lost?' checked':''} onchange="if(this.checked)document.getElementById('el_recovered').checked=false"> Mark as lost</label>
+          <label style="font-size:13px;color:var(--gray-600);display:flex;align-items:center;gap:7px;cursor:pointer;"><input type="checkbox" id="el_recovered"${l.recovered?' checked':''} onchange="if(this.checked)document.getElementById('el_lost').checked=false"> Mark as recovered</label>
         </div>
         <div class="modal-actions">
           <button class="btn btn-outline" onclick="closeEditLinkModal()">Cancel</button>
@@ -3565,6 +3568,7 @@ function saveEditLink() {
   l.da = document.getElementById('el_da').value;
   l.date = document.getElementById('el_date').value;
   l.lost = document.getElementById('el_lost').checked;
+  l.recovered = document.getElementById('el_recovered').checked;
   save(); closeEditLinkModal(); renderClient();
 }
 function closeEditLinkModal() {
