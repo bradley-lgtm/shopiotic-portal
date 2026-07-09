@@ -4282,7 +4282,9 @@ function renderGoalsTab(c) {
           ${prog !== null && !prog.sameBaseTarget ? `
           <div style="height:100%;width:${prog.barFill}%;background:linear-gradient(90deg,#6366f1,${prog.exceeded?'#7c3aed':'#8b5cf6'});border-radius:99px;transition:width .4s;"></div>
           ${prog.exceeded
-            ? `<div style="position:absolute;top:-3px;bottom:-3px;left:${prog.tgtMarker}%;width:2px;background:#f59e0b;border-radius:2px;" title="Target"></div>`
+            ? `<div style="position:absolute;top:50%;left:${prog.tgtMarker}%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:0;">
+                <div style="width:3px;height:18px;background:#fff;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.15);"></div>
+               </div>`
             : `<div style="position:absolute;top:50%;left:${Math.min(prog.barFill,98)}%;transform:translate(-50%,-50%);width:16px;height:16px;background:#fff;border:2.5px solid #6366f1;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.15);"></div>`
           }` : ''}
         </div>
