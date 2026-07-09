@@ -1721,10 +1721,14 @@ function phaseProgress(phaseKey, categories) {
   const c = getClient(); if (!c) return [0,0];
   let total = 0, done = 0;
   const p1BudgetActive = phaseKey === 'p1o' ? getEffectiveBudget(c, 'p1o') > 0 : true;
+  const deletedTasks = phaseKey === 'p1o'
+    ? (c.templateData?.deletedTasks || [])
+    : (c.monthData?.[phaseKey]?.deletedTasks || []);
   for (const cat of categories) {
     if (cat.qtyGate && phaseKey === 'p1o' && getEffectiveCategoryQty(c, phaseKey, cat.qtyGate) === 0) continue;
     for (const item of cat.items) {
       if (item.budgetGate && !p1BudgetActive) continue;
+      if (deletedTasks.includes(item.id)) continue;
       total++;
       if (c.done[taskKey(phaseKey, item.id)]) done++;
     }
