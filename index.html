@@ -4223,7 +4223,8 @@ function openMonthlyReport() {
   const includeTask = (item) =>
     !DYNAMIC_ONLY_TASKS.has(item.id) &&
     !REPORT_EXCLUDED_TASKS.has(item.id) &&
-    !CLIENT_HIDDEN_TASKS.has(item.id);
+    !CLIENT_HIDDEN_TASKS.has(item.id) &&
+    isClientVisible(c, item.id);
 
   // Collect tasks per phase
   let totalDone = 0, totalOverdue = 0;
