@@ -4218,7 +4218,8 @@ function goalProgress(g) {
   const base = parseGoalNum(g.baseline);
   const tgt  = parseGoalNum(g.target);
   const cur  = parseGoalNum(g.current || (g.checkIns?.length ? g.checkIns[g.checkIns.length-1].value : ''));
-  if (base === null || tgt === null || cur === null || tgt === base) return null;
+  if (base === null || tgt === null || cur === null) return null;
+  if (tgt === base) return { pct: 0, cur, base, tgt, sameBaseTarget: true };
   const pct = Math.round(((cur - base) / (tgt - base)) * 100);
   return { pct: Math.max(0, Math.min(110, pct)), cur, base, tgt };
 }
@@ -4274,12 +4275,13 @@ function renderGoalsTab(c) {
           <span style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;">Target</span>
         </div>
         <div style="position:relative;height:10px;background:#f3f4f6;border-radius:99px;margin-bottom:8px;">
-          ${prog !== null ? `<div style="height:100%;width:${prog.pct}%;background:linear-gradient(90deg,#6366f1,${prog.pct>=100?'#7c3aed':'#8b5cf6'});border-radius:99px;transition:width .4s;"></div>
+          ${prog !== null && !prog.sameBaseTarget ? `<div style="height:100%;width:${prog.pct}%;background:linear-gradient(90deg,#6366f1,${prog.pct>=100?'#7c3aed':'#8b5cf6'});border-radius:99px;transition:width .4s;"></div>
           <div style="position:absolute;top:50%;left:${Math.min(prog.pct,98)}%;transform:translate(-50%,-50%);width:16px;height:16px;background:#fff;border:2.5px solid #6366f1;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.15);"></div>` : ''}
         </div>
         <div style="display:flex;justify-content:space-between;align-items:flex-end;">
           <span style="font-size:13px;color:#6b7280;">${g.baseline || '—'}</span>
-          ${currentVal ? `<div style="text-align:center;">
+          ${prog?.sameBaseTarget ? `<div style="text-align:center;font-size:12px;color:#f59e0b;font-weight:600;">⚠ Baseline and target are the same — update your target</div>` :
+            currentVal ? `<div style="text-align:center;">
             <div style="font-size:18px;font-weight:800;color:#111827;">${currentVal}</div>
             <div style="font-size:11px;color:#9ca3af;margin-top:1px;">Current${prog !== null ? ` · ${prog.pct}% to goal` : ''}</div>
           </div>` : ''}
