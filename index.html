@@ -1722,7 +1722,7 @@ function phaseProgress(phaseKey, categories) {
   let total = 0, done = 0;
   const p1BudgetActive = phaseKey === 'p1o' ? getEffectiveBudget(c, 'p1o') > 0 : true;
   const deletedTasks = phaseKey === 'p1o'
-    ? (c.templateData?.deletedTasks || [])
+    ? [...(c.templateData?.deletedTasks || []), ...(c.monthData?.['p1o']?.deletedTasks || [])]
     : (c.monthData?.[phaseKey]?.deletedTasks || []);
   for (const cat of categories) {
     if (cat.qtyGate && phaseKey === 'p1o' && getEffectiveCategoryQty(c, phaseKey, cat.qtyGate) === 0) continue;
@@ -4312,7 +4312,7 @@ function openMonthlyReport() {
       if (cat.qtyGate && getEffectiveCategoryQty(c, ph.key, cat.qtyGate) === 0) continue;
       const tasks = [];
       const phDeleted = ph.key === 'p1o'
-        ? (c.templateData?.deletedTasks || [])
+        ? [...(c.templateData?.deletedTasks || []), ...(c.monthData?.['p1o']?.deletedTasks || [])]
         : (c.monthData?.[ph.key]?.deletedTasks || []);
       for (const item of cat.items) {
         if (!includeTask(item)) continue;
