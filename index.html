@@ -4215,10 +4215,10 @@ function parseGoalNum(str) {
 }
 
 function goalProgress(g) {
-  const base = parseGoalNum(g.baseline);
+  const base = parseGoalNum(g.baseline) ?? 0;
   const tgt  = parseGoalNum(g.target);
   const cur  = parseGoalNum(g.current || (g.checkIns?.length ? g.checkIns[g.checkIns.length-1].value : ''));
-  if (base === null || tgt === null || cur === null) return null;
+  if (tgt === null || cur === null) return null;
   if (tgt === base) return { pct: 0, cur, base, tgt, sameBaseTarget: true };
   const pct = Math.round(((cur - base) / (tgt - base)) * 100);
   return { pct: Math.max(0, Math.min(110, pct)), cur, base, tgt };
