@@ -4344,6 +4344,13 @@ function renderGoalsTab(c) {
           </div>
         </div>
 
+        ${h.key === '10y' ? `
+        <!-- 10-year: vision text only -->
+        <div style="background:#f9fafb;border-radius:10px;padding:18px 20px;">
+          ${g.why
+            ? `<div style="font-size:15px;color:#374151;line-height:1.7;">${g.why.replace(/</g,'&lt;')}</div>`
+            : `<div style="font-size:14px;color:#d1d5db;font-style:italic;">No vision written yet — click Edit to add one.</div>`}
+        </div>` : `
         <!-- Metric type badge -->
         ${g.metricType ? `<div style="display:inline-block;font-size:11px;font-weight:600;color:#6366f1;background:#eef2ff;padding:3px 10px;border-radius:99px;margin-bottom:16px;">${GOAL_METRIC_LABELS[g.metricType]}</div>` : ''}
 
@@ -4387,7 +4394,7 @@ function renderGoalsTab(c) {
             </div>
           </div>
           <div>${checkInsHTML}</div>
-        </div>
+        </div>`}
       </div>`;
   }).join('');
 
@@ -4472,6 +4479,15 @@ function openEditGoalModal(horizonKey) {
         <button onclick="document.getElementById('goalEditModal').remove()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af;line-height:1;">×</button>
         <div style="font-size:17px;font-weight:700;color:#111827;margin-bottom:4px;">Edit ${h.label}</div>
         <div style="font-size:12px;color:#9ca3af;margin-bottom:22px;">${c.name}</div>
+        ${horizonKey === '10y' ? `
+        <div style="margin-bottom:14px;">
+          <label style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">Start Date</label>
+          <input id="ge_start" type="date" value="${g.startDate||''}" style="width:100%;box-sizing:border-box;padding:9px 10px;border-radius:8px;border:1.5px solid #e5e7eb;font-size:13px;color:#111827;">
+        </div>
+        <div style="margin-bottom:22px;">
+          <label style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">Vision</label>
+          <textarea id="ge_why" rows="6" placeholder="Describe the long-term vision for this client…" style="width:100%;box-sizing:border-box;padding:9px 10px;border-radius:8px;border:1.5px solid #e5e7eb;font-size:13px;color:#111827;resize:vertical;font-family:var(--font);line-height:1.6;">${g.why||''}</textarea>
+        </div>` : `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
           <div>
             <label style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">Metric Type</label>
@@ -4495,7 +4511,7 @@ function openEditGoalModal(horizonKey) {
         <div style="margin-bottom:22px;">
           <label style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">Why this goal</label>
           <textarea id="ge_why" rows="4" placeholder="Explain the reasoning and context behind this goal…" style="width:100%;box-sizing:border-box;padding:9px 10px;border-radius:8px;border:1.5px solid #e5e7eb;font-size:13px;color:#111827;resize:vertical;font-family:var(--font);line-height:1.5;">${g.why||''}</textarea>
-        </div>
+        </div>`}
         <div style="display:flex;gap:10px;justify-content:flex-end;">
           <button onclick="document.getElementById('goalEditModal').remove()" style="padding:9px 18px;border-radius:8px;border:1.5px solid #e5e7eb;background:#fff;color:#374151;font-size:14px;font-weight:600;cursor:pointer;">Cancel</button>
           <button onclick="saveGoal('${horizonKey}')" style="padding:9px 20px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;font-size:14px;font-weight:700;cursor:pointer;">Save Goal</button>
