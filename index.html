@@ -4274,8 +4274,7 @@ function renderGoalsTab(c) {
     // Progress bar section
     const progressHTML = (g.baseline || g.target || currentVal) ? `
       <div style="margin-bottom:20px;">
-        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-          <span style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;">Baseline</span>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
           <span style="font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;">Target</span>
         </div>
         <div style="position:relative;height:10px;background:#f3f4f6;border-radius:99px;margin-bottom:8px;">
@@ -4289,8 +4288,8 @@ function renderGoalsTab(c) {
           }` : ''}
         </div>
         <div style="display:flex;justify-content:space-between;align-items:flex-end;">
-          <span style="font-size:13px;color:#6b7280;">${g.baseline || '—'}</span>
-          ${prog?.sameBaseTarget ? `<div style="text-align:center;font-size:12px;color:#f59e0b;font-weight:600;">⚠ Baseline and target are the same — update your target</div>` :
+          <div></div>
+          ${prog?.sameBaseTarget ? `<div style="text-align:center;font-size:12px;color:#f59e0b;font-weight:600;">⚠ Target not set correctly — update your target</div>` :
             currentVal ? `<div style="text-align:center;">
             <div style="font-size:18px;font-weight:800;color:#111827;">${currentVal}</div>
             <div style="font-size:11px;margin-top:1px;${prog?.exceeded ? 'color:#7c3aed;font-weight:600;' : 'color:#9ca3af;'}">${prog?.exceeded ? '🎉 Goal exceeded!' : prog !== null ? `${prog.pct}% to goal` : 'Current'}</div>
@@ -4483,11 +4482,7 @@ function openEditGoalModal(horizonKey) {
             <input id="ge_start" type="date" value="${g.startDate||''}" style="width:100%;box-sizing:border-box;padding:9px 10px;border-radius:8px;border:1.5px solid #e5e7eb;font-size:13px;color:#111827;">
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;">
-          <div>
-            <label style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">Baseline</label>
-            <input id="ge_baseline" value="${g.baseline||''}" placeholder="e.g. $16,500/mo" style="width:100%;box-sizing:border-box;padding:9px 10px;border-radius:8px;border:1.5px solid #e5e7eb;font-size:13px;color:#111827;">
-          </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
           <div>
             <label style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">Current</label>
             <input id="ge_current" value="${g.current||''}" placeholder="e.g. $19,000/mo" style="width:100%;box-sizing:border-box;padding:9px 10px;border-radius:8px;border:1.5px solid #e5e7eb;font-size:13px;color:#111827;">
