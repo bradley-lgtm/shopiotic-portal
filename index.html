@@ -1997,6 +1997,18 @@ function renderCategories(phaseKey, categories) {
   return resolvedCats.filter(cat => {
     if (cat.tierMin && TIER_ORDER.indexOf(cat.tierMin) > clientTierIdx) return false;
     if (cat.qtyGate && (isMonthly || phaseKey === 'p1o')) return getEffectiveCategoryQty(c, phaseKey, cat.qtyGate) > 0;
+    // In client portal, hide category if no tasks are visible to the client
+    if (S.isClientPortal) {
+      const deletedTasks = phaseKey === 'p1o'
+        ? [...(c.templateData?.deletedTasks || []), ...(c.monthData?.['p1o']?.deletedTasks || [])]
+        : (c.monthData?.[phaseKey]?.deletedTasks || []);
+      const hasVisible = cat.items.some(item =>
+        !DYNAMIC_ONLY_TASKS.has(item.id) &&
+        !deletedTasks.includes(item.id) &&
+        isClientVisible(c, item.id)
+      );
+      if (!hasVisible) return false;
+    }
     return true;
   }).map(cat => {
     const items = cat.items;
