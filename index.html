@@ -2272,6 +2272,7 @@ function renderHeader(c) {
     return `<button id="nav-btn-${n.id}" onclick="setTab('${n.id}')" style="padding:5px 12px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid ${isActive?'var(--teal)':'var(--gray-200)'};background:${isActive?'var(--teal-pale)':'var(--white)'};color:${isActive?'var(--teal-dark)':'var(--gray-500)'};cursor:pointer;font-family:var(--font);transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">${n.icon} ${n.label}${badge}</button>`;
   }).join('');
 
+  const headerCollapsed = localStorage.getItem('hdr_collapsed_' + c.id) === '1';
   document.getElementById('clientHeader').innerHTML = `
     <div class="client-header-row">
       <div class="client-header-info" style="flex:1;min-width:0;">
@@ -2281,6 +2282,7 @@ function renderHeader(c) {
           <div style="display:flex;align-items:center;gap:8px;min-width:0;">
             ${c.shopUrl ? `<img src="${getFaviconUrl(c.shopUrl)}" width="26" height="26" style="border-radius:5px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.12);" onerror="this.style.display='none'">` : ''}
             <div class="client-header-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.name)}</div>
+            <button onclick="toggleHeaderCollapse('${c.id}')" title="${headerCollapsed ? 'Expand' : 'Collapse'}" style="background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:13px;line-height:1;padding:2px 4px;flex-shrink:0;transition:transform .2s;transform:rotate(${headerCollapsed ? '180deg' : '0deg'});">▾</button>
           </div>
           <!-- Desktop action buttons -->
           <div class="header-actions-desktop" style="display:flex;gap:6px;flex-shrink:0;">
@@ -2303,6 +2305,8 @@ function renderHeader(c) {
           </div>
         </div>
 
+        <!-- Rows 2-4: collapsible -->
+        <div id="headerCollapsible" style="display:${headerCollapsed ? 'none' : 'block'};">
         <!-- Row 2: details — desktop shows full, mobile shows compact -->
         <div class="client-header-details header-details-desktop">
           ${c.shopUrl ? `<div class="client-detail"><a href="${c.shopUrl.startsWith('http') ? c.shopUrl : 'https://' + c.shopUrl}" target="_blank" rel="noopener" style="color:inherit;font-weight:600;">${c.shopUrl}</a></div>` : ''}
@@ -2324,6 +2328,7 @@ function renderHeader(c) {
         <div style="display:flex;align-items:center;gap:4px;margin-top:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;">
           ${navButtonsHtml}
         </div>
+        </div><!-- end collapsible -->
 
       </div>
     </div>`;
@@ -6851,6 +6856,15 @@ function closeClientMenus() {
     const m = document.getElementById(id);
     if (m) m.style.display = 'none';
   });
+}
+
+function toggleHeaderCollapse(clientId) {
+  const collapsed = localStorage.getItem('hdr_collapsed_' + clientId) === '1';
+  localStorage.setItem('hdr_collapsed_' + clientId, collapsed ? '0' : '1');
+  const el = document.getElementById('headerCollapsible');
+  const btn = el?.previousElementSibling?.querySelector('button[onclick*="toggleHeaderCollapse"]');
+  if (el) el.style.display = collapsed ? 'block' : 'none';
+  if (btn) btn.style.transform = collapsed ? 'rotate(0deg)' : 'rotate(180deg)';
 }
 
 function toggleHeaderMenu(e) {
