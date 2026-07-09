@@ -2256,8 +2256,8 @@ function renderHeader(c) {
   const started = c.startDate ? new Date(c.startDate + 'T00:00:00').toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) : 'Not set';
   const navItems = [
     { id:'overview', icon:'🏠', label:'Overview' },
-    { id:'goals', icon:'🎯', label:'Goals' },
     { id:'analytics', icon:'📊', label:'Analytics' },
+    { id:'goals', icon:'🎯', label:'Goals' },
     { id:'chat', icon:'💬', label: S.isClientPortal ? 'General Chat' : 'Team Chat' },
     ...(S.isClientPortal ? [] : [{ id:'chat_client_nav', icon:'📢', label:'Client Chat' }]),
   ];
