@@ -4234,8 +4234,12 @@ function openMonthlyReport() {
       if (REPORT_EXCLUDED_CATS.has(cat.cat)) continue;
       if (cat.qtyGate && getEffectiveCategoryQty(c, ph.key, cat.qtyGate) === 0) continue;
       const tasks = [];
+      const phDeleted = ph.key === 'p1o'
+        ? (c.templateData?.deletedTasks || [])
+        : (c.monthData?.[ph.key]?.deletedTasks || []);
       for (const item of cat.items) {
         if (!includeTask(item)) continue;
+        if (phDeleted.includes(item.id)) continue;
         if (item.budgetGate && ph.key === 'p1o' && getEffectiveBudget(c, 'p1o') === 0) continue;
         const done = !!c.done[taskKey(ph.key, item.id)];
         tasks.push({ name: item.t, done });
