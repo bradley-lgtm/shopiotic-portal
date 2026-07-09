@@ -1764,11 +1764,18 @@ function overallProgress(client) {
   // Include p1o, p1t, phase3_setup, recurring + all p2 months + all p3 months
   let total = 0, done = 0;
   const clientTierIdx = TIER_ORDER.indexOf(client.tier);
-  // Static phase counter (no template monthly tasks)
+  // Static phase counter (mirrors phaseProgress exclusions)
   const countCats = (key, cats) => {
+    const p1BudgetActive = key === 'p1o' ? getEffectiveBudget(client, 'p1o') > 0 : true;
+    const deletedTasks = key === 'p1o'
+      ? [...(client.templateData?.deletedTasks || []), ...(client.monthData?.['p1o']?.deletedTasks || [])]
+      : (client.monthData?.[key]?.deletedTasks || []);
     for (const cat of cats) {
       if (cat.tierMin && TIER_ORDER.indexOf(cat.tierMin) > clientTierIdx) continue;
+      if (cat.qtyGate && key === 'p1o' && getEffectiveCategoryQty(client, key, cat.qtyGate) === 0) continue;
       for (const item of cat.items) {
+        if (item.budgetGate && !p1BudgetActive) continue;
+        if (deletedTasks.includes(item.id)) continue;
         total++;
         if (client.done[taskKey(key, item.id)]) done++;
       }
