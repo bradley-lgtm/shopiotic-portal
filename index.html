@@ -4237,7 +4237,7 @@ function renderGoalsTab(c) {
   const area = document.getElementById('contentArea');
 
   // Summary table
-  const summaryRows = GOAL_HORIZONS.map(h => {
+  const summaryRows = GOAL_HORIZONS.filter(h => h.key !== '10y').map(h => {
     const g = getGoal(c, h.key);
     const prog = goalProgress(g);
     const statusCfg = GOAL_STATUS_CFG[g.status || ''];
