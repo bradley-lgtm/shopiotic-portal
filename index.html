@@ -2119,15 +2119,16 @@ function renderCategories(phaseKey, categories) {
       const noteVal = (c.taskNotes && c.taskNotes[key]) ? c.taskNotes[key] : '';
       const hasNote = noteVal.length > 0;
       const isTemplateTask = addedTplTasks.includes(item);
+      const customRowClick = S.isClientPortal ? '' : `onclick="toggleTask('${key}')"`;
       return `
         <div class="task-item">
-          <div class="task-row" onclick="toggleTask('${key}')">
-            <div class="task-check ${done ? 'done' : ''}"></div>
+          <div class="task-row" ${customRowClick} style="${S.isClientPortal ? 'cursor:default;' : ''}">
+            <div class="task-check ${done ? 'done' : ''}" style="${S.isClientPortal ? 'cursor:default;' : ''}"></div>
             <div class="task-body">
               <div style="display:flex;align-items:flex-start;gap:4px;">
-                <div class="task-label ${done ? 'done' : ''}" style="flex:1">${esc(item.t)} <span style="font-size:10px;color:var(--teal);font-weight:600;">CUSTOM</span>${!isClientVisible(c, item.id) ? '<span style="font-size:10px;color:var(--gray-400);margin-left:3px;" title="Hidden from client">🔒</span>' : ''}</div>
-                <button class="task-note-btn ${hasNote ? 'has-note' : ''}" title="${hasNote ? 'View/edit note' : 'Add note'}" onclick="event.stopPropagation();toggleNote('note_${phaseKey}_${item.id}')">📎</button>
-                <div class="task-menu-wrap">
+                <div class="task-label ${done ? 'done' : ''}" style="flex:1">${esc(item.t)} <span style="font-size:10px;color:var(--teal);font-weight:600;">CUSTOM</span>${!S.isClientPortal && !isClientVisible(c, item.id) ? '<span style="font-size:10px;color:var(--gray-400);margin-left:3px;" title="Hidden from client">🔒</span>' : ''}</div>
+                ${S.isClientPortal ? '' : `<button class="task-note-btn ${hasNote ? 'has-note' : ''}" title="${hasNote ? 'View/edit note' : 'Add note'}" onclick="event.stopPropagation();toggleNote('note_${phaseKey}_${item.id}')">📎</button>`}
+                ${S.isClientPortal ? '' : `<div class="task-menu-wrap">
                   <button class="task-menu-btn" onclick="event.stopPropagation();openTaskMenu('${phaseKey}','${item.id}',this)" title="Options">⋮</button>
                   <div class="task-menu-dropdown" id="tdrop_${phaseKey}_${item.id}">
                     <div class="task-menu-scope">This task</div>
@@ -2144,13 +2145,14 @@ function renderCategories(phaseKey, categories) {
                     <div class="task-menu-scope">Client visibility</div>
                     <button class="task-menu-item" onclick="event.stopPropagation();toggleClientVisibility('${item.id}')">${isClientVisible(c, item.id) ? '🔒 Hide from client' : '👁 Show to client'}</button>
                   </div>
-                </div>
+                </div>`}
               </div>
             </div>
           </div>
-          <div class="task-note-area ${hasNote ? 'open' : ''}" id="note_${phaseKey}_${item.id}">
-            <textarea class="task-note-input" placeholder="Add a note…" oninput="saveTaskNote('${key}',this.value)" onkeydown="event.stopPropagation()">${noteVal}</textarea>
-          </div>
+          ${S.isClientPortal
+            ? (hasNote ? `<div class="task-note-area open" id="note_${phaseKey}_${item.id}" style="pointer-events:none;"><div style="padding:8px 12px;font-size:12px;color:var(--gray-600);background:#f9f9fb;border-radius:0 0 6px 6px;">${esc(noteVal)}</div></div>` : '')
+            : `<div class="task-note-area ${hasNote ? 'open' : ''}" id="note_${phaseKey}_${item.id}"><textarea class="task-note-input" placeholder="Add a note…" oninput="saveTaskNote('${key}',this.value)" onkeydown="event.stopPropagation()">${noteVal}</textarea></div>`
+          }
         </div>`;
     }).join('');
 
