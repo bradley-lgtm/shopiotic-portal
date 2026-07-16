@@ -3222,13 +3222,24 @@ function openLinksModal() {
 
   // ── Target URL analyser ──
   const targetAnalyserHTML = `
-    <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:14px;margin-bottom:18px;">
+    <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:14px;margin-bottom:12px;">
       <div style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">Target URL Analysis</div>
       <div style="display:flex;gap:8px;margin-bottom:10px;">
         <input id="targetAnalyserInput" class="edit-field-input" style="flex:1;" placeholder="Enter a target URL to analyse…" onkeydown="if(event.key==='Enter')runTargetAnalysis();event.stopPropagation()">
         <button class="btn btn-outline btn-sm" onclick="runTargetAnalysis()">Analyse</button>
       </div>
       <div id="targetAnalyserResult"></div>
+    </div>`;
+
+  // ── Referring domain search ──
+  const domainSearchHTML = `
+    <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:14px;margin-bottom:18px;">
+      <div style="font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">Referring Domain Search</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input id="domainSearchInput" class="edit-field-input" style="flex:1;" placeholder="Enter a referring domain (e.g. forbes.com)…" onkeydown="if(event.key==='Enter')runDomainSearch();event.stopPropagation()">
+        <button class="btn btn-outline btn-sm" onclick="runDomainSearch()">Search</button>
+      </div>
+      <div id="domainSearchResult"></div>
     </div>`;
 
   // ── Niches (moved to bottom) ──
@@ -3257,6 +3268,7 @@ function openLinksModal() {
     : `${statsHTML}
        ${anchorBreakdownHTML}
        ${targetAnalyserHTML}
+       ${domainSearchHTML}
        ${activeLinks.length ? `
          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
            <div style="font-size:12px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;">Active Links (${activeLinks.length})</div>
@@ -3399,6 +3411,67 @@ function runTargetAnalysis() {
         </div>
       </div>` : ''}
     </div>`;
+}
+
+function runDomainSearch() {
+  const c = getClient(); if (!c) return;
+  const input = document.getElementById('domainSearchInput');
+  const resultEl = document.getElementById('domainSearchResult');
+  if (!input || !resultEl) return;
+  const query = input.value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  if (!query) { resultEl.innerHTML = ''; return; }
+  const allLinks = c.links || [];
+  const matches = allLinks.filter(l => !l.lost && (l.url||'').toLowerCase().includes(query));
+  const lostMatches = allLinks.filter(l => l.lost && (l.url||'').toLowerCase().includes(query));
+  if (!matches.length && !lostMatches.length) {
+    resultEl.innerHTML = `<div style="font-size:13px;color:var(--gray-400);">No links found from that domain.</div>`;
+    return;
+  }
+  const daLinks = matches.filter(l => l.da);
+  const avgDA = daLinks.length ? (daLinks.reduce((s,l) => s+(parseFloat(l.da)||0), 0) / daLinks.length) : null;
+  const paidMatches = matches.filter(l => l.linkType !== 'A/B');
+  const avgCost = paidMatches.length ? (paidMatches.reduce((s,l) => s+(parseFloat(l.cost)||0), 0) / paidMatches.length) : null;
+  const anchorCounts = {};
+  matches.filter(l => l.anchorType).forEach(l => { anchorCounts[l.anchorType] = (anchorCounts[l.anchorType]||0) + 1; });
+  const anchorTotal = Object.values(anchorCounts).reduce((s,v) => s+v, 0);
+  const ANCHOR_COLORS = { 'Exact Match':'anchor-exact','Partial Match':'anchor-partial','Branded':'anchor-branded','Compound':'anchor-compound','Generic':'anchor-generic' };
+  const cols = '2fr 2fr 1.5fr 1fr 0.5fr 0.5fr 0.9fr';
+  const rowsHTML = matches.length ? `
+    <div class="links-table" style="margin-top:12px;">
+      <div class="link-row link-row-head" style="grid-template-columns:${cols};">
+        <span>URL</span><span>Target URL</span><span>Anchor Text</span><span>Anchor Type</span><span>Cost</span><span>DA</span><span>Month</span>
+      </div>
+      ${matches.map(l => {
+        const anchorClass = ANCHOR_COLORS[l.anchorType] || '';
+        return `<div class="link-row" style="grid-template-columns:${cols};">
+          <span style="word-break:break-all;">${linkify(l.url)}</span>
+          <span style="word-break:break-all;">${linkify(l.targetUrl)}</span>
+          <span>${esc(l.anchorText)}</span>
+          <span>${l.anchorType ? `<span class="anchor-badge ${anchorClass}">${l.anchorType}</span>` : ''}</span>
+          <span>$${parseFloat(l.cost||0).toFixed(0)}</span>
+          <span>${l.da || '—'}</span>
+          <span>${l.phaseKey === 'historical' ? 'Historical' : l.phaseKey} · ${l.date||''}</span>
+        </div>`;
+      }).join('')}
+    </div>` : '';
+  resultEl.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,auto) 1fr;gap:12px 20px;align-items:start;">
+      <div><div style="font-size:11px;color:var(--gray-500);font-weight:600;text-transform:uppercase;letter-spacing:.3px;">Links Found</div><div style="font-size:20px;font-weight:700;color:var(--gray-800);">${matches.length}${lostMatches.length ? `<span style="font-size:12px;font-weight:500;color:#dc2626;margin-left:6px;">${lostMatches.length} lost</span>` : ''}</div></div>
+      <div><div style="font-size:11px;color:var(--gray-500);font-weight:600;text-transform:uppercase;letter-spacing:.3px;">Avg DA</div><div style="font-size:20px;font-weight:700;color:var(--gray-800);">${avgDA !== null ? avgDA.toFixed(1) : '—'}</div></div>
+      <div><div style="font-size:11px;color:var(--gray-500);font-weight:600;text-transform:uppercase;letter-spacing:.3px;">Avg Cost</div><div style="font-size:20px;font-weight:700;color:var(--gray-800);">${avgCost !== null ? '$'+avgCost.toFixed(0) : '—'}</div></div>
+      ${anchorTotal ? `<div>
+        <div style="font-size:11px;color:var(--gray-500);font-weight:600;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px;">Anchor breakdown</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${Object.entries(anchorCounts).sort((a,b)=>b[1]-a[1]).map(([t,n]) => `
+            <div style="display:flex;align-items:center;gap:5px;">
+              <span class="anchor-badge ${ANCHOR_COLORS[t]||''}">${t}</span>
+              <span style="font-size:13px;font-weight:600;color:var(--gray-700);">${Math.round(n/anchorTotal*100)}%</span>
+              <span style="font-size:11px;color:var(--gray-400);">(${n})</span>
+            </div>`).join('')}
+        </div>
+      </div>` : ''}
+    </div>
+    ${rowsHTML}`;
 }
 
 // ═══════════════════════════════════════════
