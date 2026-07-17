@@ -8064,11 +8064,10 @@ function renderTier2Prospects(sites, usedByMap) {
     const rows = gsites.map(s => {
       const usedBy = usedByClients(s, usedByMap);
       const usedBadges = usedBy.map(n => `<span style="background:#ede9fe;color:#6d28d9;border-radius:4px;font-size:10px;font-weight:600;padding:1px 5px;">${esc(n)}</span>`).join(' ');
-      return `<div style="display:grid;grid-template-columns:2fr 1.5fr 0.8fr 1fr 52px;gap:0;border-bottom:1px solid var(--gray-100);padding:7px 12px;font-size:12px;align-items:center;">
+      return `<div style="display:grid;grid-template-columns:2fr 1.5fr 0.8fr 52px;gap:0;border-bottom:1px solid var(--gray-100);padding:7px 12px;font-size:12px;align-items:center;">
         <span style="font-weight:500;">${esc(s.url)}</span>
         <span>${(s.niches||[]).map(n=>`<span style="background:var(--gray-100);color:var(--gray-600);border-radius:4px;font-size:10px;padding:1px 5px;">${n}</span>`).join(' ')}</span>
         <span style="color:var(--gray-700);">${esc(s.cost)}</span>
-        <span>${usedBadges||'<span style="color:var(--gray-300);font-size:11px;">not used</span>'}</span>
         <span style="white-space:nowrap;">
           <button onclick="openAddSiteModal('${s.id}')" style="background:none;border:none;color:var(--gray-300);cursor:pointer;padding:2px 4px;font-size:13px;" onmouseover="this.style.color='var(--gray-600)'" onmouseout="this.style.color='var(--gray-300)'" title="Edit">✎</button>
           <button onclick="deleteSite('${s.id}')" style="background:none;border:none;color:var(--gray-300);cursor:pointer;padding:2px 4px;font-size:13px;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='var(--gray-300)'" title="Delete">✕</button>
@@ -8087,8 +8086,8 @@ function renderTier2Prospects(sites, usedByMap) {
           <div style="font-size:11px;color:var(--gray-400);">$${(totalCost/gsites.length).toFixed(2)}/link avg</div>
         </div>
       </div>
-      <div style="background:var(--gray-50);display:grid;grid-template-columns:2fr 1.5fr 0.8fr 1fr 52px;padding:6px 12px;font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--gray-200);">
-        <span>Domain</span><span>Niches</span><span>Cost</span><span>Used By</span><span></span>
+      <div style="background:var(--gray-50);display:grid;grid-template-columns:2fr 1.5fr 0.8fr 52px;padding:6px 12px;font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--gray-200);">
+        <span>Domain</span><span>Niches</span><span>Cost</span><span></span>
       </div>
       ${rows}
     </div>`;
