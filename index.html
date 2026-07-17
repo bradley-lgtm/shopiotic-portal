@@ -965,6 +965,7 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
     <button class="btn-team" id="btnInternalChat" onclick="openInternalChat()" style="display:none;">💬 Team Chat</button>
     <button class="btn-team" id="btnTeam" onclick="openTeamModal()" style="display:none;">👥 Team</button>
     <button class="btn-team" id="btnTeamDocs" onclick="openTeamDocsModal()" style="display:none;">📁 Team Docs</button>
+    <button class="btn-team" id="btnProspects" onclick="openProspectsView()" style="display:none;">🔍 Prospects</button>
     <button class="btn-team" onclick="openSettings()">⚙️ Settings</button>
   </div>
 </div>
@@ -1002,6 +1003,9 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
       <div class="client-header" id="clientHeader"></div>
       <div class="phase-tabs" id="phaseTabs"></div>
       <div class="content-area" id="contentArea"></div>
+    </div>
+    <div id="prospectsView" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+      <div id="prospectsViewInner" style="flex:1;overflow:auto;"></div>
     </div>
     <div id="internalChatView" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
       <div style="padding:16px 24px 12px;border-bottom:1px solid var(--gray-200);background:var(--white);flex-shrink:0;">
@@ -1178,6 +1182,9 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
   </div>
 </div>
 
+<!-- ADD SITE MODAL (Prospects) -->
+<div class="modal-overlay" id="addSiteModal"></div>
+
 <!-- TEAM DOCS MODAL -->
 <div class="modal-overlay" id="teamDocsModal">
   <div class="modal" style="width:580px;max-width:97vw;max-height:88vh;display:flex;flex-direction:column;">
@@ -1218,6 +1225,10 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
       </select>
     </div>
     <div class="form-group"><label>Start Date</label><input id="f_start" type="date"></div>
+    <div class="form-group">
+      <label>Backlink Niches <span style="font-weight:400;color:var(--gray-400);font-size:12px;">(used for prospect matching)</span></label>
+      <div id="f_niches" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--gray-200);border-radius:8px;min-height:42px;cursor:default;"></div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveClientModal()">Save Client</button>
@@ -1512,6 +1523,346 @@ const TASKS = {
 };
 
 // ═══════════════════════════════════════════
+//  PROSPECTS — MASTER NICHES & SITE DB
+// ═══════════════════════════════════════════
+
+const MASTER_NICHES = [
+  'Home Improvement','Interior Design','Architecture','DIY','Home Design Software',
+  'Flooring','Furniture','Home & Living',
+  'General','Lifestyle','Magazine','Entertainment','Technology',
+  'Mom/Family','Teen','College',
+  'Travel','Real Estate','Local Service','Construction','Home Services',
+  'BNB/Rentals','Health & Beauty','Eco','Food','Fashion & Apparel',
+  'Sports','Plants','Music','Digital Marketing','SaaS','Education',
+  'Business','Crafts & Recipes','Special Needs','Accommodation'
+];
+
+const SITE_STATUS_CFG = {
+  'available':   { label:'Available',           bg:'#dcfce7', color:'#16a34a' },
+  'investigate': { label:'Investigate',         bg:'#fef9c3', color:'#ca8a04' },
+  'dead-end':    { label:'Dead End',            bg:'#fee2e2', color:'#dc2626' },
+  'unsuitable':  { label:'Currently Unsuitable',bg:'#f3f4f6', color:'#6b7280' },
+};
+
+const INITIAL_SITES_SEED = (function(){
+  // Each site: { id, url, niches[], cost, type, contactName, contactEmail, notes, tier, status, packageGroup }
+  const t1 = [
+    {url:'ahouseinthehills.com',niches:['Home Improvement'],cost:'$182',type:'Link Insert',contactName:'LP',contactEmail:'',notes:'marketplace',status:'available'},
+    {url:'alittledelightful.com',niches:['Home Improvement'],cost:'$200 / $160',type:'Link Insert',contactName:'Ann S. Bates',contactEmail:'annsbatesseo@gmail.com',notes:'Multiple contacts via LinkedIn also',status:'available'},
+    {url:'allmyfriendsaremodels.com',niches:['Lifestyle'],cost:'$100 (neg. to $70)',type:'Link Insert',contactName:'',contactEmail:'admin@allmyfriendsaremodels.com',notes:'Negotiate price to $70',status:'available'},
+    {url:'amazingarchitecture.com',niches:['Architecture'],cost:'$200–$225',type:'Link Insert or Guest Post',contactName:'Riya Dutta Mandal',contactEmail:'',notes:'LinkedIn contact',status:'available'},
+    {url:'archeyes.com',niches:['Architecture'],cost:'$190–$350',type:'Link Insert or Guest Post',contactName:'Company',contactEmail:'hello@archeyes.com',notes:'Unegotiated at $190; likely drops to $150',status:'available'},
+    {url:'architecturesstyle.com',niches:['Architecture'],cost:'$128',type:'Link Insert or Guest Post',contactName:'LP/Danish',contactEmail:'',notes:'marketplace — low traffic',status:'unsuitable'},
+    {url:'bigboxratio.com',niches:['Interior Design'],cost:'$162',type:'Link Insert or Guest Post',contactName:'LP',contactEmail:'contact@bigboxratio.com',notes:'marketplace; try email for better price',status:'available'},
+    {url:'blog.housesitmatch.com',niches:['Home Improvement'],cost:'',type:'Link Insert',contactName:'',contactEmail:'lamia@housesitmatch.com',notes:'New Seas gets links here',status:'investigate'},
+    {url:'bromleytilers.co.uk',niches:['Local Service'],cost:'',type:'Link Insert',contactName:'',contactEmail:'contact@bromleytilers.co.uk',notes:'Try a link exchange',status:'investigate'},
+    {url:'cuindependent.com',niches:['General'],cost:'$179',type:'Link Insert',contactName:'LP',contactEmail:'',notes:'marketplace',status:'available'},
+    {url:'decasascollections.com',niches:['Architecture'],cost:'$150 (neg. to $100)',type:'Link Insert',contactName:'',contactEmail:'contact@decasacollections.com',notes:'Site seems to have been taken down',status:'dead-end'},
+    {url:'decoratoradvice.com',niches:['Home Improvement'],cost:'$172',type:'Link Insert or Guest Post',contactName:'LP/Danish',contactEmail:'',notes:'LinkedIn — RD:OD is not good',status:'unsuitable'},
+    {url:'drhomey.com',niches:['Home Improvement'],cost:'$200',type:'Link Insert or Guest Post',contactName:'',contactEmail:'info@drhomey.com',notes:'Traffic is very low',status:'unsuitable'},
+    {url:'drifttravel.com',niches:['Travel'],cost:'$150 (neg. to $75)',type:'Link Insert',contactName:'',contactEmail:'drifttravel.com@gmail.com',notes:'Negotiate to $75',status:'available'},
+    {url:'e-architect.com',niches:['Architecture'],cost:'$107',type:'Link Insert',contactName:'LP',contactEmail:'isabelle@e-architect.com',notes:'marketplace; try direct email',status:'available'},
+    {url:'ecobnb.com',niches:['BNB/Rentals','Eco'],cost:'$410',type:'Link Insert or Guest Post',contactName:'Riya Dutta Mandal',contactEmail:'',notes:'LinkedIn contact',status:'available'},
+    {url:'enthrallinggumption.com',niches:['Home Improvement'],cost:'$156 (neg. to ~$100)',type:'Link Insert or Guest Post',contactName:'Marwa',contactEmail:'Marwa@enthrallinggumption.com',notes:'Try to get closer to $100',status:'available'},
+    {url:'fancyhouse-design.com',niches:['Architecture'],cost:'',type:'Link Insert',contactName:'',contactEmail:'hello@fancyhouse-design.com',notes:'',status:'investigate'},
+    {url:'fashionisers.com',niches:['Fashion & Apparel'],cost:'$50–$200',type:'Link Insert',contactName:'',contactEmail:'info@fashionisers.com',notes:'Negotiate to $50',status:'available'},
+    {url:'finnandemma.com',niches:['Travel'],cost:'$80–$100',type:'Link Insert',contactName:'',contactEmail:'info@finnandemma.com',notes:'Negotiate to $80',status:'available'},
+    {url:'flooringstores.com',niches:['Flooring'],cost:'$300',type:'Link Insert',contactName:'Jana Radojcic',contactEmail:'',notes:'LinkedIn — works at agency for FlooringStores',status:'available'},
+    {url:'floorplanner.com',niches:['Home Design Software'],cost:'$400+',type:'Link Insert or Guest Post',contactName:'Mugdha Seth',contactEmail:'me.mugdhawrites@gmail.com',notes:'$100 service fee + PayPal fees. Reportedly rude.',status:'available'},
+    {url:'foyr.com',niches:['Home Design Software'],cost:'$400+',type:'Link Insert or Guest Post',contactName:'Mugdha Seth',contactEmail:'me.mugdhawrites@gmail.com',notes:'$100 service fee + PayPal fees.',status:'available'},
+    {url:'geekmamas.com',niches:['Mom/Family'],cost:'$30',type:'Link Insert',contactName:'',contactEmail:'sewgeekmama@gmail.com',notes:'',status:'available'},
+    {url:'gingercasa.com',niches:['Home Improvement'],cost:'$150–$250',type:'Guest Post',contactName:'Gena',contactEmail:'gena@gingercasa.com',notes:'Negotiate to $150',status:'available'},
+    {url:'greenerideal.com',niches:['Eco'],cost:'$100',type:'Guest Post',contactName:'',contactEmail:'info@greenerideal.com',notes:'',status:'available'},
+    {url:'home.by.me',niches:['Home Design Software'],cost:'$400+',type:'Link Insert or Guest Post',contactName:'Mugdha Seth',contactEmail:'me.mugdhawrites@gmail.com',notes:'$100 service fee + PayPal fees.',status:'available'},
+    {url:'homecrux.com',niches:['Home Improvement'],cost:'$492',type:'Guest Post',contactName:'LP',contactEmail:'info@homecrux.com',notes:'Direct guest posts cost $500',status:'available'},
+    {url:'homedit.com',niches:['Home Improvement'],cost:'$540',type:'Guest Post',contactName:'LP/Danish',contactEmail:'',notes:'Guest posts only via LinkedIn',status:'available'},
+    {url:'homeia.com',niches:['Home Improvement'],cost:'$195–$220',type:'Guest Post or Link Insert',contactName:'Peter Nguyen',contactEmail:'info@homeia.com',notes:'No luck negotiating. info@homeia.com works.',status:'available'},
+    {url:'houseyog.com',niches:['Architecture'],cost:'$168',type:'Guest Post',contactName:'LP',contactEmail:'help@houseyog.com',notes:'marketplace; try email for better price',status:'available'},
+    {url:'houzz.com',niches:['Home Improvement'],cost:'$400+',type:'Link Insert or Guest Post',contactName:'Mugdha Seth',contactEmail:'me.mugdhawrites@gmail.com',notes:'$100 service fee + PayPal fees.',status:'available'},
+    {url:'lorddecor.com',niches:['Home Improvement'],cost:'$131',type:'Link Insert or Guest Post',contactName:'GPL',contactEmail:'',notes:'marketplace via guestpostlinks.net',status:'available'},
+    {url:'illustrarch.com',niches:['Architecture'],cost:'$91–$103',type:'Link Insert or Guest Post',contactName:'LP/GPL',contactEmail:'',notes:'marketplace',status:'available'},
+    {url:'kdarchitects.net',niches:['Architecture'],cost:'$125',type:'Link Insert',contactName:'LP',contactEmail:'',notes:'marketplace',status:'available'},
+    {url:'kea-home.com',niches:['Home Improvement'],cost:'$138',type:'Guest Post',contactName:'LP',contactEmail:'info.kea.home@gmail.com',notes:'Marked as dangerous in SEMrush',status:'unsuitable'},
+    {url:'kennarealestate.com',niches:['Real Estate'],cost:'$50–$150',type:'Link Insert',contactName:'Emily',contactEmail:'emily@kennarealestate.com',notes:'Negotiate to $50',status:'available'},
+    {url:'letstalkmommy.com',niches:['Mom/Family'],cost:'$65–$200',type:'Link Insert',contactName:'Jenny',contactEmail:'jenny@letstalkmommy.com',notes:'Negotiate to £65',status:'available'},
+    {url:'livingpristine.com',niches:['Home Improvement'],cost:'$88–$98',type:'Link Insert or Guest Post',contactName:'LP',contactEmail:'contact@livingpristine.com',notes:'marketplace; try email',status:'available'},
+    {url:'luxurialifestyle.com',niches:['Lifestyle'],cost:'$300 (neg. to $250)',type:'Link Insert',contactName:'Kevin / Debbie',contactEmail:'kevin@luxurialifestyle.com',notes:'info@luxurialifestyle.com also works',status:'available'},
+    {url:'melaniejadedesign.com',niches:['Home Improvement','Interior Design'],cost:'$144',type:'Link Insert',contactName:'LP',contactEmail:'hello@melaniejadedesign.com',notes:'marketplace; try email for better price',status:'available'},
+    {url:'pinuphouses.com',niches:['Home Improvement'],cost:'$125',type:'Link Insert',contactName:'LP',contactEmail:'',notes:'marketplace',status:'available'},
+    {url:'planner5d.com',niches:['Home Design Software'],cost:'$400+',type:'Link Insert or Guest Post',contactName:'Mugdha Seth',contactEmail:'me.mugdhawrites@gmail.com',notes:'$100 service fee + PayPal fees.',status:'available'},
+    {url:'pommietravels.com',niches:['Travel'],cost:'$60–$120',type:'Link Insert',contactName:'Victoria',contactEmail:'victoria@pommietravels.com',notes:'Negotiate to $60',status:'available'},
+    {url:'rapidhomedirect.com',niches:['Home Improvement'],cost:'$80–$120',type:'Link Insert or Guest Post',contactName:'Tea',contactEmail:'contact@rapidhomedirect.com',notes:'',status:'available'},
+    {url:'re-thinkingthefuture.com',niches:['Architecture'],cost:'$100',type:'Link Insert or Guest Post',contactName:'Gaurav Jaiswal',contactEmail:'rtf@re-thinkingthefuture.com',notes:'',status:'available'},
+    {url:'resident.com',niches:['General'],cost:'$200',type:'Guest Post',contactName:'Company',contactEmail:'guestposts@resident.com',notes:'advertising@resident.com also. Likely drops to $175.',status:'available'},
+    {url:'simpleshowing.com',niches:['Home Improvement','Real Estate'],cost:'$200–$230',type:'Link Insert or Guest Post',contactName:'LP',contactEmail:'',notes:'marketplace',status:'available'},
+    {url:'sketchup.com',niches:['Home Design Software'],cost:'$400+',type:'Link Insert or Guest Post',contactName:'Mugdha Seth',contactEmail:'me.mugdhawrites@gmail.com',notes:'$100 service fee + PayPal fees.',status:'available'},
+    {url:'smmirror.com',niches:['General'],cost:'$159–$250',type:'Link Insert',contactName:'',contactEmail:'info@mirrormediagroupla.com',notes:'Negotiate to $159',status:'available'},
+    {url:'snaphappytravel.com',niches:['Travel'],cost:'$250 (neg. to $125)',type:'Link Insert',contactName:'',contactEmail:'snaphappytraveller@gmail.com',notes:'Negotiate to $125',status:'available'},
+    {url:'stylecurator.com.au',niches:['Interior Design'],cost:'$250 AUD (~$177 USD)',type:'Guest Post or Link Insert',contactName:'Gina Ciancio',contactEmail:'gina@stylecurator.com.au',notes:'editor@/advertising@/hello@ also work',status:'available'},
+    {url:'thearchitectsdiary.com',niches:['Architecture'],cost:'$188–$230',type:'Link Insert',contactName:'LP',contactEmail:'',notes:'marketplace; look for direct email',status:'available'},
+    {url:'thehometrotters.com',niches:['Home Improvement'],cost:'$250',type:'Link Insert or Guest Post',contactName:'Ann S. Bates',contactEmail:'annsbatesseo@gmail.com',notes:'Try info@thehometrotters.com for $130',status:'available'},
+    {url:'thehowtohome.com',niches:['Home Improvement'],cost:'$150–$228',type:'Link Insert or Guest Post',contactName:'LP/Danish',contactEmail:'marybeth@thehowtohome.com',notes:'LinkedIn + direct email',status:'available'},
+    {url:'thepinnaclelist.com',niches:['General'],cost:'$70',type:'Link Insert or Guest Post',contactName:'LP/Danish',contactEmail:'',notes:'marketplace; look for direct email',status:'available'},
+    {url:'thursd.com',niches:['Plants'],cost:'$263',type:'Link Insert or Guest Post',contactName:'LP',contactEmail:'',notes:'marketplace',status:'available'},
+    {url:'tinyhouse.com',niches:['Architecture'],cost:'$180',type:'Link Insert',contactName:'LP',contactEmail:'info@tinyhouse.com',notes:'marketplace; try email for $100 price',status:'available'},
+    {url:'tinyhouseplans.com',niches:['Architecture'],cost:'$125',type:'Link Insert',contactName:'LP',contactEmail:'',notes:'marketplace',status:'available'},
+    {url:'willyhomes.com',niches:['Home Improvement'],cost:'$200 (neg. to $100)',type:'Link Insert',contactName:'',contactEmail:'guests@willyhomes.com',notes:'Negotiate to $100',status:'available'},
+    {url:'yourhomify.com',niches:['Home Improvement'],cost:'$146',type:'Guest Post',contactName:'LP',contactEmail:'stevesmith20105@gmail.com',notes:'marketplace; try email for better price',status:'available'},
+    {url:'melanielissackinteriors.com',niches:['Interior Design'],cost:'',type:'',contactName:'Melanie Lissack',contactEmail:'melanie.lissack@gmail.com',notes:'',status:'investigate'},
+    {url:'seasonsincolour.com',niches:['Interior Design'],cost:'$100–$200',type:'Link Insert or Guest Post',contactName:'Jenny Kakoudakis',contactEmail:'info@seasonsincolour.com',notes:'Price jumps to $250 for high-traffic pages',status:'available'},
+    {url:'grandmashousediy.com',niches:['Home Improvement'],cost:'$100–$150',type:'Link Insert or Guest Post',contactName:'Tarah Lynn',contactEmail:'tarahlynn@grandmashousediy.com',notes:'Try to get to $75. Contact page may not work.',status:'available'},
+    {url:'idealmagazine.co.uk',niches:['Home Improvement','Travel'],cost:'',type:'Link Insert or Guest Post',contactName:'',contactEmail:'info@idealmagazine.co.uk',notes:'RD:OD ratio is bad. Low US traffic. New Seas uses it.',status:'unsuitable'},
+    {url:'lovechicliving.co.uk',niches:['Interior Design'],cost:'~$175 USD',type:'Link Insert or Guest Post',contactName:'Jen Stanbrook',contactEmail:'jen@lovechicliving.co.uk',notes:'Negotiate to ~$150. New Seas gets links here.',status:'available'},
+    {url:'dwellect.com',niches:['Home Improvement'],cost:'$90–$100',type:'Link Insert or Guest Post',contactName:'Evelyn Johnson',contactEmail:'teamdwellect@gmail.com',notes:'Negotiate to $65. New Seas gets links here.',status:'available'},
+    {url:'nextluxury.com',niches:['Lifestyle'],cost:'$120',type:'Link Insert or Guest Post',contactName:'Slava Djordjevic',contactEmail:'slava@deepblueventures.com',notes:'Negotiated down from $150',status:'available'},
+    {url:'oldhousetonewhome.net',niches:['Home Improvement','Food'],cost:'$300',type:'Link Insert or Guest Post',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Negotiated from $495',status:'available'},
+    {url:'knockoffdecor.com',niches:['Home Improvement'],cost:'$90–$120',type:'Link Insert or Guest Post',contactName:'',contactEmail:'knockoffdecor@gmail.com',notes:'',status:'available'},
+    {url:'simplyspaced.com',niches:['Interior Design'],cost:'$150–$300',type:'Link Insert or Guest Post',contactName:'Monica Leed',contactEmail:'monica@simplyspaced.com',notes:'Negotiate to ~$120',status:'available'},
+    {url:'thesefourwallsblog.com',niches:['Interior Design'],cost:'',type:'',contactName:'Abi Dare',contactEmail:'thesefourwallsblog@gmail.com',notes:'',status:'investigate'},
+    {url:'michaelhelwiginteriors.com',niches:['Interior Design'],cost:'',type:'Link Insert or Guest Post',contactName:'Michael Helwig',contactEmail:'hello@michaelhelwiginteriors.com',notes:'New Seas gets links here',status:'investigate'},
+    {url:'hnmagazine.co.uk',niches:['General'],cost:'',type:'Link Insert or Guest Post',contactName:'Angela',contactEmail:'angela@hnmagazine.co.uk',notes:'New Seas gets links here — low traffic',status:'unsuitable'},
+    {url:'offthemrkt.com',niches:['General'],cost:'',type:'',contactName:'',contactEmail:'',notes:'New Seas gets links here',status:'investigate'},
+    {url:'luxurylifestylemag.co.uk',niches:['Lifestyle'],cost:'',type:'',contactName:'',contactEmail:'sales@luxurylifestylemag.co.uk',notes:'New Seas gets links here',status:'investigate'},
+    {url:'jackcooper.com',niches:['General'],cost:'',type:'',contactName:'',contactEmail:'thomas@jackcooper.com',notes:'New Seas gets links here',status:'investigate'},
+    {url:'burlapandblue.com',niches:['DIY','Home Improvement'],cost:'',type:'',contactName:'',contactEmail:'linda@burlapandblue.com',notes:'New Seas gets links here',status:'investigate'},
+    {url:'cpp-luxury.com',niches:['Lifestyle'],cost:'',type:'',contactName:'',contactEmail:'',notes:'New Seas gets links here',status:'investigate'},
+    {url:'luxuo.com',niches:['Lifestyle'],cost:'',type:'',contactName:'Olivier',contactEmail:'olivier@heart-media.com',notes:'New Seas gets links here',status:'investigate'},
+    {url:'oxmag.co.uk',niches:['Magazine'],cost:'',type:'',contactName:'',contactEmail:'',notes:'New Seas gets links here',status:'investigate'},
+    // Brett Napoli batch — check traffic figures
+    {url:'acraftedpassion.com',niches:['Home Improvement'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'collegecures.com',niches:['College'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'chasethewritedream.com',niches:['College'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'thatdrop.com',niches:['Music'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'myteenguide.com',niches:['Teen'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'thecampussocialite.com',niches:['College'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'simplifyingcollege.com',niches:['College'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'morningbusinesschat.com',niches:['Business'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'financialanalystinsider.com',niches:['Business'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'radicaltransformationproject.com',niches:['Lifestyle','Health & Beauty'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'squareinchhome.com',niches:['Home Improvement'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'forgetfulmomma.com',niches:['Mom/Family'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'collegegirlsmarts.com',niches:['College'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'adviceformillenials.com',niches:['Lifestyle','General'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'uwiretoday.com',niches:['College'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'mamalovesmoney.com',niches:['Mom/Family','Business'],cost:'',type:'',contactName:'Brett Napoli',contactEmail:'info@oldhousetonewhome.net',notes:'Check traffic figures',status:'investigate'},
+    {url:'bellyupsports.com',niches:['Sports'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'latestsportsbuzz.com',niches:['Sports'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'thechannelrace.org',niches:['Sports'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'easyrest.com',niches:['Home & Living'],cost:'',type:'',contactName:'Delaney',contactEmail:'delaney@easyrest.com',notes:'New Seas gets links here',status:'investigate'},
+    {url:'galathome.com',niches:['Interior Design'],cost:'',type:'',contactName:'Camyl',contactEmail:'inquiry@galathome.com',notes:'New Seas gets links here',status:'investigate'},
+    {url:'homeanddesign.com',niches:['Home Improvement'],cost:'$150',type:'Guest Post',contactName:'',contactEmail:'sales@homeanddesign.com',notes:'editorial@/info@ also work',status:'available'},
+    {url:'inmyownstyle.com',niches:['Interior Design'],cost:'',type:'',contactName:'',contactEmail:'inmyownstyle@gmail.com',notes:'Site says they do not accept paid text links',status:'dead-end'},
+    {url:'addicted2decorating.com',niches:['Home Improvement'],cost:'',type:'',contactName:'Kristi',contactEmail:'kristi@addicted2decorating.com',notes:'Explicitly states she does not offer guest posts',status:'dead-end'},
+    {url:'blueistyleblog.com',niches:['Interior Design'],cost:'',type:'',contactName:'Angela',contactEmail:'angela@blueistyle.com',notes:'',status:'investigate'},
+    {url:'wildfireinteriors.com',niches:['Interior Design'],cost:'',type:'',contactName:'Ashley',contactEmail:'ashley@wildfireinteriors.com',notes:'States all links will be no follow — do not proceed',status:'dead-end'},
+    {url:'athomewithashley.com',niches:['Home Improvement'],cost:'',type:'',contactName:'Ashley',contactEmail:'hello@athomewithashley.com',notes:'',status:'investigate'},
+    {url:'centsationalstyle.com',niches:['Home Improvement'],cost:'',type:'',contactName:'Kate',contactEmail:'kate@centsationalstyle.com',notes:'',status:'investigate'},
+    {url:'theinspiredroom.net',niches:['Home Improvement'],cost:'',type:'',contactName:'Melissa',contactEmail:'theinspiredroom@gmail.com',notes:'',status:'investigate'},
+    {url:'notjustahousewife.net',niches:['Home Improvement'],cost:'',type:'',contactName:'Stacy',contactEmail:'stacy@notjustahousewife.net',notes:'notjustahousewife@yahoo.com also',status:'investigate'},
+    {url:'remodelaholic.com',niches:['Home Improvement'],cost:'',type:'',contactName:'Cassity',contactEmail:'hello@remodelaholic.com',notes:'cassity@remodelaholic.com also',status:'investigate'},
+    {url:'housebyhoff.com',niches:['Home Improvement'],cost:'',type:'',contactName:'April Hoff',contactEmail:'april@housebyhoff.com',notes:'Blog seems inactive. Emails not working. Instagram tried.',status:'dead-end'},
+    {url:'prettyhandygirl.com',niches:['Home Improvement','DIY'],cost:'',type:'',contactName:'',contactEmail:'',notes:'Clearly states she does not offer paid links',status:'dead-end'},
+    {url:'blesserhouse.com',niches:['Home Improvement'],cost:'',type:'',contactName:'Lauren Shaver',contactEmail:'lauren@blesserhouse.com',notes:'hello@blesserhouse.com also',status:'investigate'},
+    {url:'shanty-2-chic.com',niches:['DIY'],cost:'',type:'',contactName:'Ashley & Whitney',contactEmail:'hello@shanty-2-chic.com',notes:'Unclear which sister handles emails',status:'investigate'},
+    {url:'infarrantlycreative.net',niches:['Crafts & Recipes'],cost:'',type:'',contactName:'',contactEmail:'infarrantlyc@gmail.com',notes:'Not a strong topical fit for most clients',status:'investigate'},
+    {url:'rainonatinroof.com',niches:['DIY'],cost:'',type:'',contactName:'Jenna',contactEmail:'rainonatinroofblog@gmail.com',notes:'',status:'investigate'},
+    {url:'pneumaticaddict.com',niches:['Home Improvement'],cost:'',type:'',contactName:'Elisha',contactEmail:'pneumaticaddict@influint.co',notes:'First email most likely to succeed',status:'investigate'},
+    {url:'thewoodgraincottage.com',niches:['Home Improvement'],cost:'',type:'',contactName:'Shayna',contactEmail:'shayna@thewoodgraincottage.com',notes:'Site does not load — blog appears inactive',status:'dead-end'},
+    {url:'housedigest.com',niches:['Home Improvement'],cost:'',type:'',contactName:'',contactEmail:'staff@housedigest.com',notes:'',status:'investigate'},
+    {url:'homestratosphere.com',niches:['Home Improvement'],cost:'',type:'',contactName:'Jon Dykstra',contactEmail:'info@homestratosphere.com',notes:'Explicitly states they do not sell links. Only interested in large scale.',status:'dead-end'},
+    {url:'dezeen.com',niches:['Architecture'],cost:'',type:'',contactName:'',contactEmail:'sales@dezeen.com',notes:'',status:'investigate'},
+    {url:'dwell.com',niches:['Interior Design'],cost:'',type:'',contactName:'',contactEmail:'advertise@dwell.com',notes:'edit@/sales@ also',status:'investigate'},
+    {url:'homeworlddesign.com',niches:['Interior Design'],cost:'',type:'',contactName:'',contactEmail:'info@homeworlddesign.com',notes:'',status:'investigate'},
+    {url:'uglyducklinghouse.com',niches:['DIY'],cost:'',type:'',contactName:'Sarah Fogle',contactEmail:'contact@uglyducklinghouse.com',notes:'Explicitly states she does not accept paid links',status:'dead-end'},
+    {url:'dornob.com',niches:['Architecture'],cost:'',type:'',contactName:'',contactEmail:'info@dornob.com',notes:'None of the emails work',status:'dead-end'},
+    {url:'designertrapped.com',niches:['Interior Design'],cost:'',type:'',contactName:'Tasha Agruso',contactEmail:'tasha@kaleidoscopeliving.com',notes:'Primary email invalid — use kaleidoscope address',status:'investigate'},
+    {url:'younghouselove.com',niches:['Home Improvement'],cost:'',type:'',contactName:'',contactEmail:'youngsters@younghouselove.com',notes:'Explicitly does not accept guest posts',status:'dead-end'},
+    {url:'amymarietta.com',niches:['Travel'],cost:'',type:'',contactName:'Amy Marietta',contactEmail:'amy@amymarietta.com',notes:'Delicate traffic figures',status:'investigate'},
+    {url:'vocal.media',niches:['General'],cost:'Free',type:'Guest Post',contactName:'',contactEmail:'info@vocal.media',notes:'70+ DA, massive traffic. Create free account and publish. Good for tier 2 articles.',status:'available'},
+    {url:'architecturelab.net',niches:['Architecture'],cost:'',type:'',contactName:'',contactEmail:'contact@architecturelab.net',notes:'Primarily a project submission site — link insertions unlikely',status:'investigate'},
+    {url:'sometimes-homemade.com',niches:['DIY'],cost:'',type:'',contactName:'Erin Hoskins',contactEmail:'erin.hoskins@gmail.com',notes:'New Seas gets links here',status:'investigate'},
+    {url:'simplykalaa.com',niches:['Architecture'],cost:'',type:'',contactName:'Sahaj Sharma',contactEmail:'friend@simplykalaa.com',notes:'New Seas gets links here',status:'investigate'},
+    {url:'manmadediy.com',niches:['DIY','Home Improvement'],cost:'Free?',type:'',contactName:'',contactEmail:'info@manmadediy.com',notes:'Email is dead. Try submission forms and socials.',status:'dead-end'},
+    {url:'myrepurposedlife.com',niches:['DIY'],cost:'',type:'',contactName:'Gail Wilson',contactEmail:'gail@myrepurposedlife.com',notes:'',status:'investigate'},
+    {url:'vintagerevivals.com',niches:['DIY'],cost:'',type:'',contactName:'Mandi',contactEmail:'vintagerevivalsblog@gmail.com',notes:'Currently not accepting guest posts',status:'dead-end'},
+    {url:'lollyjane.com',niches:['DIY'],cost:'',type:'',contactName:'Kristi Kelly',contactEmail:'lollyjane@gmail.com',notes:'Blog still active',status:'investigate'},
+    {url:'dwellbeautiful.com',niches:['Home Improvement'],cost:'',type:'',contactName:'Erica',contactEmail:'dwellbeautiful@gmail.com',notes:'',status:'investigate'},
+    {url:'theidearoom.net',niches:['DIY'],cost:'',type:'',contactName:'Amy Huntley',contactEmail:'2theidearoom@gmail.com',notes:'Not currently accepting guest posts',status:'dead-end'},
+    {url:'thehandmadehome.net',niches:['Home Improvement'],cost:'$350',type:'Link Insert',contactName:'Jamin Mills',contactEmail:'jamin@thehandmadehome.net',notes:'',status:'available'},
+    {url:'cococozy.com',niches:['Interior Design'],cost:'',type:'',contactName:'Colette Shelton',contactEmail:'info@cococozy.com',notes:'DA 52, LA-based. Has published outside guest posts. Good candidate.',status:'investigate'},
+    {url:'brightbazaarblog.com',niches:['Interior Design'],cost:'',type:'',contactName:'Will Taylor',contactEmail:'hello@brightbazaarblog.com',notes:'DA 54, NYC. Dedicated Advertise page. Good candidate.',status:'investigate'},
+    {url:'lizmarieblog.com',niches:['DIY'],cost:'',type:'',contactName:'',contactEmail:'HelloLizMarieBlog@gmail.com',notes:'DA 60. Explicitly welcomes sponsorship & advertising. Good candidate.',status:'investigate'},
+    {url:'beckiowens.com',niches:['Interior Design'],cost:'',type:'',contactName:'',contactEmail:'hello@beckiowens.com',notes:'DA 47, Southern California. Has collab/marketing contact process.',status:'investigate'},
+    {url:'oldtownhome.com',niches:['Home Improvement'],cost:'',type:'',contactName:'Alex & Wendy',contactEmail:'advertising@oldtownhome.com',notes:'DA 43. Dedicated Guest Blogging page. Worth keeping on the list.',status:'investigate'},
+    {url:'homemadebycarmona.com',niches:['DIY'],cost:'',type:'',contactName:'Ursula Carmona',contactEmail:'homemadebycarmona@gmail.com',notes:'DA 51. Dedicated Guest Posts category. Good candidate.',status:'investigate'},
+    {url:'theletteredcottage.net',niches:['Interior Design'],cost:'',type:'',contactName:'Layla Palmer',contactEmail:'',notes:'DA 52, Alabama. Contact form only. Guest Post archive on site.',status:'investigate'},
+    {url:'missmustardseed.com',niches:['Interior Design'],cost:'',type:'',contactName:'Marian Parsons',contactEmail:'marian@missmustardseed.com',notes:'DA 51, Maryland. Accepts sponsor inquiries directly. Good candidate.',status:'investigate'},
+    {url:'cuckoo4design.com',niches:['DIY'],cost:'',type:'',contactName:'',contactEmail:'info@cuckoo4design.com',notes:'DA 58. Has done guest posting collabs. Good candidate.',status:'investigate'},
+    {url:'thriftyandchic.com',niches:['DIY'],cost:'',type:'',contactName:'',contactEmail:'thriftyandchicmotif@gmail.com',notes:'DA 53. Explicitly accepts cash advertising & sponsorship. Good candidate.',status:'investigate'},
+    {url:'lifeonvirginiastreet.com',niches:['Interior Design'],cost:'',type:'',contactName:'Sarah',contactEmail:'lifeonvirginiastreet@gmail.com',notes:'DA 50. Accepts sponsored content/brand collabs. Good candidate.',status:'investigate'},
+    {url:'thediyplaybook.com',niches:['DIY'],cost:'',type:'',contactName:'Casey Finn',contactEmail:'',notes:'DA 59, Chicago. FB 616K / IG 1.1M. Contact form only. Good candidate.',status:'investigate'},
+    {url:'thecountrychiccottage.net',niches:['DIY','Crafts & Recipes'],cost:'',type:'',contactName:'Angie Holden',contactEmail:'angie@thecountrychiccottage.net',notes:'Site pivoted toward Cricut/craft shop — verify collab-friendly before pitching.',status:'investigate'},
+    {url:'thelilypadcottage.com',niches:['Interior Design'],cost:'',type:'',contactName:'Kelly',contactEmail:'Kelly@thelilypadcottage.com',notes:'DA 53. Open to advertising/sponsorship. 300K+ combined followers.',status:'investigate'},
+    {url:'foxhollowcottage.com',niches:['Home & Living'],cost:'',type:'',contactName:'',contactEmail:'foxhollowcottage@gmail.com',notes:'DA 53. Guest Post archive tag on site.',status:'investigate'},
+    {url:'cottagesandbungalowsmag.com',niches:['Home Improvement'],cost:'',type:'',contactName:'',contactEmail:'KMcMaster@egmediamags.com',notes:'DA 40. Real print/digital magazine. rdorsey@egmediamags.com for advertising.',status:'investigate'},
+    {url:'simplysoutherncottage.com',niches:['Home Improvement'],cost:'',type:'',contactName:'Sara McDaniel',contactEmail:'hello@simplysoutherncottage.com',notes:'DA 33, Louisiana. 1.1M FB / 711K IG.',status:'investigate'},
+    {url:'jennasuedesign.com',niches:['Interior Design'],cost:'',type:'',contactName:'Jenna',contactEmail:'jenna@jennasuedesign.com',notes:'DA 56. IG 528.8K. Good candidate.',status:'investigate'},
+    {url:'cityfarmhouse.com',niches:['Interior Design'],cost:'',type:'',contactName:'Jennifer O\'Brien',contactEmail:'jen@cityfarmhouse.com',notes:'DA 54. Explicitly runs sponsored posts via PayPal.',status:'investigate'},
+    {url:'lovehappensmag.com',niches:['Interior Design'],cost:'',type:'',contactName:'',contactEmail:'ads@lovehappensmag.com',notes:'DA 37. Dedicated Contribute page. editorial@/pr@/info@ also work.',status:'investigate'},
+    {url:'maisondepax.com',niches:['Interior Design'],cost:'',type:'',contactName:'Rachel Paxton',contactEmail:'hello@maisondepax.com',notes:'Active Guest Post archive on site. Good candidate.',status:'investigate'},
+    {url:'homeyohmy.com',niches:['Interior Design'],cost:'',type:'',contactName:'Amy',contactEmail:'amy@homeyohmy.com',notes:'Runs sponsored posts with disclosure.',status:'investigate'},
+    {url:'eye-swoon.com',niches:['Interior Design'],cost:'',type:'',contactName:'Athena Calderone',contactEmail:'partnerships@eye-swoon.com',notes:'High-profile creator — likely competitive/pricier.',status:'investigate'},
+    {url:'witanddelight.com',niches:['Interior Design','Lifestyle'],cost:'',type:'',contactName:'Kate Arends',contactEmail:'hello@witanddelight.com',notes:'Does not accept guest posts but partners with sponsor brands monthly. Pitch as sponsorship.',status:'investigate'},
+    {url:'kylieminteriors.ca',niches:['Interior Design'],cost:'',type:'',contactName:'',contactEmail:'',notes:'Canada-based but targets North American audience. Worth a traffic/DA check for US share.',status:'investigate'},
+    {url:'roomfortuesday.com',niches:['Interior Design'],cost:'',type:'',contactName:'Sarah Gibson',contactEmail:'sarah@roomfortuesday.com',notes:'67K US organic/mo. Explicitly accepts cash advertising/sponsored insertions. Strong candidate.',status:'investigate'},
+    {url:'theturquoisehome.com',niches:['DIY'],cost:'',type:'',contactName:'',contactEmail:'TheTurquoiseHome@gmail.com',notes:'42K US organic/mo. Explicitly accepts guest posts + paid sponsorships. Strong candidate.',status:'investigate'},
+    {url:'carlaaston.com',niches:['Interior Design'],cost:'$100–$600',type:'Link Insert or Guest Post',contactName:'',contactEmail:'carlaaston@gmail.com',notes:'31K US organic/mo. Confirmed do-follow for vetted sponsors.',status:'available'},
+    {url:'town-n-country-living.com',niches:['Home Improvement'],cost:'',type:'',contactName:'Jennifer',contactEmail:'jezuri@ymail.com',notes:'41K US organic/mo. Explicitly accepts cash advertising/sponsorship.',status:'investigate'},
+    {url:'loveandrenovations.com',niches:['Home Improvement'],cost:'',type:'',contactName:'Amanda Hendrix',contactEmail:'amanda@loveandrenovations.com',notes:'55K US organic/mo. Confirmed sponsored/compensated content.',status:'investigate'},
+    {url:'angelamariemade.com',niches:['DIY'],cost:'',type:'',contactName:'',contactEmail:'angela@angelamariemade.com',notes:'53K US organic/mo. No guest posts but accepts sponsored content.',status:'investigate'},
+    {url:'thecolorconcierge.com',niches:['Interior Design'],cost:'',type:'',contactName:'Michelle',contactEmail:'michelle@thecolorconcierge.com',notes:'59K US organic/mo, Boulder CO. Active blog — worth trying.',status:'investigate'},
+    {url:'nestingwithgrace.com',niches:['Interior Design'],cost:'',type:'',contactName:'Brooke Christensen',contactEmail:'nestingwithgrace@gmail.com',notes:'35K US organic/mo. Works directly with brands/agencies. Good candidate.',status:'investigate'},
+    {url:'jane-athome.com',niches:['Home Improvement'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'thedecorologist.com',niches:['Interior Design'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'thriftydecorchick.com',niches:['DIY','Home Improvement'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'ana-white.com',niches:['DIY'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'cherishedbliss.com',niches:['DIY'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'tidbits-cami.com',niches:['Home Improvement'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'thekimsixfix.com',niches:['Home Improvement','DIY'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'protoolreviews.com',niches:['Home Improvement'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'homedesignlover.com',niches:['Home Improvement','Architecture'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'bybrittanygoldwyn.com',niches:['DIY','Home Improvement'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'unoriginalmom.com',niches:['Mom/Family'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'thecraftingchicks.com',niches:['Crafts & Recipes'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'craftaholicsanonymous.net',niches:['Crafts & Recipes'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'pillarboxblue.com',niches:['DIY','Home Improvement'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'oneprojectcloser.com',niches:['DIY','Home Improvement'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'tatertotsandjello.com',niches:['DIY','Food'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'allthingsthrifty.com',niches:['Home Improvement'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'theshabbycreekcottage.com',niches:['DIY','Home Improvement'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'fourgenerationsoneroof.com',niches:['Home Improvement','DIY'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'craft-o-maniac.com',niches:['Crafts & Recipes'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'growingfamily.co.uk',niches:['Mom/Family'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'we-heart.com',niches:['Interior Design'],cost:'',type:'',contactName:'',contactEmail:'',notes:'',status:'investigate'},
+    {url:'sampleboard.com',niches:['Interior Design'],cost:'',type:'',contactName:'',contactEmail:'',notes:'Traffic has disappeared',status:'dead-end'},
+  ].map((s,i) => ({ id: 't1_'+i, tier:'tier1', ...s }));
+
+  const t2 = [
+    // Sue J. Brown — 3 for $18.75
+    {url:'dutable.com',niches:['General'],cost:'$6.25',packageGroup:'Sue J. Brown · jbrownsue@gmail.com',contactEmail:'jbrownsue@gmail.com',contactName:'Sue J. Brown',notes:'Package: 3 sites for $18.75',type:'',status:'available'},
+    {url:'theinscribermag.com',niches:['Magazine'],cost:'$6.25',packageGroup:'Sue J. Brown · jbrownsue@gmail.com',contactEmail:'jbrownsue@gmail.com',contactName:'Sue J. Brown',notes:'Package: 3 sites for $18.75',type:'',status:'available'},
+    {url:'showbiz411.com',niches:['Entertainment'],cost:'$6.25',packageGroup:'Sue J. Brown · jbrownsue@gmail.com',contactEmail:'jbrownsue@gmail.com',contactName:'Sue J. Brown',notes:'Package: 3 sites for $18.75',type:'',status:'available'},
+    // Zaira Gaudio — 13 for $50 ($5 each, last 3 are lower performers)
+    {url:'nlpadel.org',niches:['Sports'],cost:'$5',packageGroup:'Zaira Gaudio · zairagaudio.seo@gmail.com',contactEmail:'zairagaudio.seo@gmail.com',contactName:'Zaira Gaudio',notes:'Package: 10 for $50',type:'',status:'available'},
+    {url:'siit.co',niches:['Education'],cost:'$5',packageGroup:'Zaira Gaudio · zairagaudio.seo@gmail.com',contactEmail:'zairagaudio.seo@gmail.com',contactName:'Zaira Gaudio',notes:'Package: 10 for $50',type:'',status:'available'},
+    {url:'merchantcircle.com',niches:['Business'],cost:'$5',packageGroup:'Zaira Gaudio · zairagaudio.seo@gmail.com',contactEmail:'zairagaudio.seo@gmail.com',contactName:'Zaira Gaudio',notes:'Package: 10 for $50',type:'',status:'available'},
+    {url:'timebusinessnews.com',niches:['Business'],cost:'$5',packageGroup:'Zaira Gaudio · zairagaudio.seo@gmail.com',contactEmail:'zairagaudio.seo@gmail.com',contactName:'Zaira Gaudio',notes:'Package: 10 for $50',type:'',status:'available'},
+    {url:'roadfood.com',niches:['Food'],cost:'$5',packageGroup:'Zaira Gaudio · zairagaudio.seo@gmail.com',contactEmail:'zairagaudio.seo@gmail.com',contactName:'Zaira Gaudio',notes:'Package: 10 for $50',type:'',status:'available'},
+    {url:'blackpressusa.com',niches:['General'],cost:'$5',packageGroup:'Zaira Gaudio · zairagaudio.seo@gmail.com',contactEmail:'zairagaudio.seo@gmail.com',contactName:'Zaira Gaudio',notes:'Package: 10 for $50',type:'',status:'available'},
+    {url:'apsense.com',niches:['Digital Marketing'],cost:'$5',packageGroup:'Zaira Gaudio · zairagaudio.seo@gmail.com',contactEmail:'zairagaudio.seo@gmail.com',contactName:'Zaira Gaudio',notes:'Package: 10 for $50',type:'',status:'available'},
+    {url:'techimaging.co.uk',niches:['Technology'],cost:'$5',packageGroup:'Zaira Gaudio · zairagaudio.seo@gmail.com',contactEmail:'zairagaudio.seo@gmail.com',contactName:'Zaira Gaudio',notes:'Package: 10 for $50',type:'',status:'available'},
+    {url:'techitl.co.uk',niches:['Technology'],cost:'$5',packageGroup:'Zaira Gaudio · zairagaudio.seo@gmail.com',contactEmail:'zairagaudio.seo@gmail.com',contactName:'Zaira Gaudio',notes:'Package: 10 for $50',type:'',status:'available'},
+    {url:'lathroprx.com',niches:['General'],cost:'$5',packageGroup:'Zaira Gaudio · zairagaudio.seo@gmail.com',contactEmail:'zairagaudio.seo@gmail.com',contactName:'Zaira Gaudio',notes:'Lower performer — last 3 in list',type:'',status:'available'},
+    {url:'redtopic.co.uk',niches:['General'],cost:'$5',packageGroup:'Zaira Gaudio · zairagaudio.seo@gmail.com',contactEmail:'zairagaudio.seo@gmail.com',contactName:'Zaira Gaudio',notes:'Lower performer — last 3 in list',type:'',status:'available'},
+    // Thomas Charles — 6 for $53
+    {url:'morigirlfeelings.com',niches:['General'],cost:'$8.83',packageGroup:'Thomas Charles · thomacharles3@gmail.com',contactEmail:'thomacharles3@gmail.com',contactName:'Thomas Charles',notes:'Package: 6 sites for $53. Has LinkedIn & WhatsApp.',type:'',status:'available'},
+    {url:'businesshint.co.uk',niches:['Business'],cost:'$8.83',packageGroup:'Thomas Charles · thomacharles3@gmail.com',contactEmail:'thomacharles3@gmail.com',contactName:'Thomas Charles',notes:'Package: 6 sites for $53.',type:'',status:'available'},
+    {url:'wahsonfurniture.com',niches:['Furniture','General'],cost:'$8.83',packageGroup:'Thomas Charles · thomacharles3@gmail.com',contactEmail:'thomacharles3@gmail.com',contactName:'Thomas Charles',notes:'Package: 6 sites for $53.',type:'',status:'available'},
+    {url:'dovabusinesses.com',niches:['Business'],cost:'$8.83',packageGroup:'Thomas Charles · thomacharles3@gmail.com',contactEmail:'thomacharles3@gmail.com',contactName:'Thomas Charles',notes:'Package: 6 sites for $53.',type:'',status:'available'},
+    {url:'city-robots.com',niches:['Technology','General'],cost:'$8.83',packageGroup:'Thomas Charles · thomacharles3@gmail.com',contactEmail:'thomacharles3@gmail.com',contactName:'Thomas Charles',notes:'Package: 6 sites for $53.',type:'',status:'available'},
+    {url:'harborwindsmarina.com',niches:['General'],cost:'$8.83',packageGroup:'Thomas Charles · thomacharles3@gmail.com',contactEmail:'thomacharles3@gmail.com',contactName:'Thomas Charles',notes:'Package: 6 sites for $53.',type:'',status:'available'},
+    // Alexandra Mill — 6 for $50
+    {url:'postplace.co.uk',niches:['General'],cost:'$8.33',packageGroup:'Alexandra Mill · alexandramillseo@gmail.com',contactEmail:'alexandramillseo@gmail.com',contactName:'Alexandra Mill',notes:'Package: 6 sites for $50.',type:'',status:'available'},
+    {url:'definitelymath.com',niches:['Education','General'],cost:'$8.33',packageGroup:'Alexandra Mill · alexandramillseo@gmail.com',contactEmail:'alexandramillseo@gmail.com',contactName:'Alexandra Mill',notes:'Package: 6 sites for $50.',type:'',status:'available'},
+    {url:'celebrity-magazine.co.uk',niches:['Magazine','Entertainment'],cost:'$8.33',packageGroup:'Alexandra Mill · alexandramillseo@gmail.com',contactEmail:'alexandramillseo@gmail.com',contactName:'Alexandra Mill',notes:'Package: 6 sites for $50.',type:'',status:'available'},
+    {url:'playersstats.co.uk',niches:['Sports'],cost:'$8.33',packageGroup:'Alexandra Mill · alexandramillseo@gmail.com',contactEmail:'alexandramillseo@gmail.com',contactName:'Alexandra Mill',notes:'Package: 6 sites for $50.',type:'',status:'available'},
+    {url:'technicalinterest.com',niches:['Technology'],cost:'$8.33',packageGroup:'Alexandra Mill · alexandramillseo@gmail.com',contactEmail:'alexandramillseo@gmail.com',contactName:'Alexandra Mill',notes:'Package: 6 sites for $50.',type:'',status:'available'},
+    {url:'charfen.co.uk',niches:['General'],cost:'$8.33',packageGroup:'Alexandra Mill · alexandramillseo@gmail.com',contactEmail:'alexandramillseo@gmail.com',contactName:'Alexandra Mill',notes:'Package: 6 sites for $50.',type:'',status:'available'},
+    // Raphael Noe — 5 for $50
+    {url:'brightmagazine.co.uk',niches:['Magazine'],cost:'$10',packageGroup:'Raphael Noe · noeraphael10@gmail.com',contactEmail:'noeraphael10@gmail.com',contactName:'Raphael Noe',notes:'Package: 5 sites for $50. Pay in advance via PayPal. Untested.',type:'',status:'available'},
+    {url:'realglobal.co.uk',niches:['General'],cost:'$10',packageGroup:'Raphael Noe · noeraphael10@gmail.com',contactEmail:'noeraphael10@gmail.com',contactName:'Raphael Noe',notes:'Package: 5 sites for $50.',type:'',status:'available'},
+    {url:'worldsimile.com',niches:['General'],cost:'$10',packageGroup:'Raphael Noe · noeraphael10@gmail.com',contactEmail:'noeraphael10@gmail.com',contactName:'Raphael Noe',notes:'Package: 5 sites for $50.',type:'',status:'available'},
+    {url:'sixthmagazine.co.uk',niches:['Magazine'],cost:'$10',packageGroup:'Raphael Noe · noeraphael10@gmail.com',contactEmail:'noeraphael10@gmail.com',contactName:'Raphael Noe',notes:'Package: 5 sites for $50.',type:'',status:'available'},
+    {url:'littleexample.co.uk',niches:['General'],cost:'$10',packageGroup:'Raphael Noe · noeraphael10@gmail.com',contactEmail:'noeraphael10@gmail.com',contactName:'Raphael Noe',notes:'Package: 5 sites for $50.',type:'',status:'available'},
+  ].map((s,i) => ({ id: 't2_'+i, tier:'tier2', ...s }));
+
+  const ab = [
+    {url:'fourpointflooring.com',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/ApplicationLatter646/',notes:''},
+    {url:'utah-heatingcooling.com',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/ApplicationLatter646/',notes:''},
+    {url:'propertycarenorthwest.com',niches:['Home Services'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/ApplicationLatter646/',notes:''},
+    {url:'seattlepainting.com',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/ApplicationLatter646/',notes:''},
+    {url:'trueprofit.io',niches:['SaaS'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/IjuststudyEnglishere/',notes:''},
+    {url:'onecommerce.io',niches:['SaaS'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/IjuststudyEnglishere/',notes:''},
+    {url:'modernloftinteriors.com',niches:['Home Improvement'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Design_Inspire_1354/',notes:''},
+    {url:'electricexpress.com.au',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/loaf-of-breddit/',notes:''},
+    {url:'electricalworx.com.au',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/loaf-of-breddit/',notes:''},
+    {url:'livinfloorings.com.au',niches:['Construction','Flooring'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/loaf-of-breddit/',notes:''},
+    {url:'mightonconstruction.com',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Present_Pin6827/',notes:''},
+    {url:'mightonswell.com',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Present_Pin6827/',notes:''},
+    {url:'fairpricemovers.com',niches:['Home Services'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/TheStruggleIsDefReal/',notes:''},
+    {url:'acemovingco.com',niches:['Home Services'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/TheStruggleIsDefReal/',notes:''},
+    {url:'falconroofingtexas.com',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/TheStruggleIsDefReal/',notes:''},
+    {url:'noleakgutters.com',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/TheStruggleIsDefReal/',notes:''},
+    {url:'germmasters.com',niches:['Home Services'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/TheStruggleIsDefReal/',notes:''},
+    {url:'pinellasasbestosexperts.com',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/TheStruggleIsDefReal/',notes:''},
+    {url:'ocabuilds.com',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/TheStruggleIsDefReal/',notes:''},
+    {url:'santacruzconstructionexperts.com',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/TheStruggleIsDefReal/',notes:''},
+    {url:'nuyuspas.com',niches:['Health & Beauty'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/TheStruggleIsDefReal/',notes:''},
+    {url:'cnynicheteam.com',niches:['Real Estate'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/robbedva/',notes:''},
+    {url:'cornielconstruction.com',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Mammoth-Deer-7390/',notes:''},
+    {url:'yourdrywallsolution.com',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/HallFull1798/',notes:''},
+    {url:'abcservicesllc.net',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/HallFull1798/',notes:''},
+    {url:'greenwayenergys.com',niches:['Eco','Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/HallFull1798/',notes:''},
+    {url:'jchandymanservices.net',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/HallFull1798/',notes:''},
+    {url:'acaccuracycontrol.com',niches:['Home Services'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/HallFull1798/',notes:''},
+    {url:'faburaa.com',niches:['Home Improvement'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/mangeanna-1/',notes:''},
+    {url:'diy-my-home.co.uk',niches:['Home Improvement'],contactName:'',contactEmail:'sales@diy-my-home.co.uk',redditUrl:'https://www.reddit.com/user/Accomplished-Map1727/',notes:'Unresponsive by email; looking for UK sites only'},
+    {url:'floorscenter.com',niches:['Flooring'],contactName:'Dany Winston',contactEmail:'dwinston@floorscenter.com',redditUrl:'',notes:'Flagged as link farm in SEMrush. New SEO says cleaning up bad links. Monitor.'},
+    {url:'summitmoving.com',niches:['Home Services'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Accurate-Recover1475/',notes:''},
+    {url:'republicmoving.com',niches:['Home Services'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Accurate-Recover1475/',notes:''},
+    {url:'2collegebrothers.com',niches:['Home Services','College'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Accurate-Recover1475/',notes:''},
+    {url:'longevity.direct',niches:['Health & Beauty'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/shaykhoo/',notes:''},
+    {url:'mimosahostilis.shop',niches:['Health & Beauty'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/shaykhoo/',notes:''},
+    {url:'maraleatherstore.com',niches:['Fashion & Apparel'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/shaykhoo/',notes:''},
+    {url:'sherpaleather.com',niches:['Fashion & Apparel'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/shaykhoo/',notes:''},
+    {url:'bleo.ai',niches:['Health & Beauty','SaaS'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/shaykhoo/',notes:''},
+    {url:'specialneedsusa.com',niches:['Special Needs'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/eddison12345/',notes:''},
+    {url:'blackhillshotels.co',niches:['Accommodation','Travel'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/eddison12345/',notes:''},
+    {url:'livingbythesound.com',niches:['Real Estate'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/eddison12345/',notes:''},
+    {url:'recyclefind.com',niches:['Eco'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/eddison12345/',notes:''},
+    {url:'linkedinfeedcustomizer.site',niches:['SaaS','Digital Marketing'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/eddison12345/',notes:''},
+    {url:'freetinytools.tech',niches:['SaaS'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/eddison12345/',notes:''},
+    {url:'firstcamptrek.com',niches:['Travel'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Electrical_Buyer2054/',notes:''},
+    {url:'thesearchingsouls.com',niches:['Travel'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/cosmic_pawan/',notes:''},
+    {url:'sipuebla.com',niches:['Education'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Awkward-Ordinary-731/',notes:''},
+    {url:'tachomind.com',niches:['Digital Marketing'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Awkward-Ordinary-731/',notes:''},
+    {url:'growthpixelagency.com',niches:['Digital Marketing'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Ok_Hall2123/',notes:''},
+    {url:'healthcareeureka.com',niches:['Health & Beauty'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Ok_Hall2123/',notes:''},
+    {url:'businessworldeureka.com',niches:['Business'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Ok_Hall2123/',notes:''},
+    {url:'educationeureka.com',niches:['Education'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Ok_Hall2123/',notes:''},
+    {url:'mrgregenglish.com',niches:['Education'],contactName:'Mike',contactEmail:'',redditUrl:'https://www.reddit.com/user/Cegaiga/',notes:''},
+    {url:'excelelec.com',niches:['Home Services'],contactName:'Mike',contactEmail:'',redditUrl:'https://www.reddit.com/user/mikegweb/',notes:''},
+    {url:'welshwindowsplus.com',niches:['Home Services'],contactName:'Mike',contactEmail:'',redditUrl:'https://www.reddit.com/user/mikegweb/',notes:''},
+    {url:'mikeginley.com',niches:['Digital Marketing'],contactName:'Mike',contactEmail:'',redditUrl:'https://www.reddit.com/user/mikegweb/',notes:''},
+    {url:'digital-eat.com',niches:['Digital Marketing'],contactName:'Mike',contactEmail:'',redditUrl:'https://www.reddit.com/user/mikegweb/',notes:''},
+    {url:'makeup-101.com',niches:['Health & Beauty','Fashion & Apparel'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Electronic_Trick_937/',notes:''},
+    {url:'allcamper.com',niches:['Travel'],contactName:'Supun / Kevin',contactEmail:'kevin@havenmediasolutions.com',redditUrl:'https://www.reddit.com/user/Forsaken_Coconut3717/',notes:'supun@havenmediasolutions.com also'},
+    {url:'kiddsprowash.com',niches:['Home Services'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/BoboAtl/',notes:''},
+    {url:'therooferfinder.com',niches:['Home Services'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/BoboAtl/',notes:''},
+    {url:'teranroofing.com',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/BoboAtl/',notes:''},
+    {url:'getprecisionpowerwash.com',niches:['Home Services'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/lansingpowerwash/',notes:''},
+    {url:'soireemag.com',niches:['Magazine','General'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Top-Adhesiveness2639/',notes:''},
+    {url:'womguide.com',niches:['General'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Top-Adhesiveness2639/',notes:''},
+    {url:'willowandthread.shop',niches:['Fashion & Apparel'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/BoboAtl/',notes:''},
+    {url:'thriveglobal.com',niches:['Health & Beauty','Lifestyle'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/CelebrationNo5569/',notes:''},
+    {url:'granddesignbuild.com',niches:['Construction'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Rashi_21/',notes:''},
+    {url:'tribesigns.com',niches:['Furniture'],contactName:'',contactEmail:'',redditUrl:'https://www.reddit.com/user/Plane_Sugar9499/',notes:''},
+  ].map((s,i) => ({ id: 'ab_'+i, tier:'ab', type:'Link Insert or Guest Post', cost:'Free', status:'available', packageGroup:'', ...s }));
+
+  return [...t1, ...t2, ...ab];
+})();
+
+// ═══════════════════════════════════════════
 //  CONFIG & AUTH
 // ═══════════════════════════════════════════
 
@@ -1536,7 +1887,7 @@ function initSupabase(url, key) {
 //  STATE & STORAGE
 // ═══════════════════════════════════════════
 
-let S = { clients: [], activeId: null, activeTab: 'overview', p2Month: 2, p3Month: 6, currentUser: null, isClientPortal: false, teamDocs: [] };
+let S = { clients: [], activeId: null, activeTab: 'overview', p2Month: 2, p3Month: 6, currentUser: null, isClientPortal: false, teamDocs: [], globalData: { sites: [], niches: [...MASTER_NICHES] }, prospectsTab: 'tier1', prospectsSearch: '', prospectsNiches: [], prospectsStatus: ['available','investigate'], prospectsClientId: '' };
 let editingId = null;
 let _saveTimers = {}; // debounce timers per client id
 
@@ -1554,7 +1905,15 @@ async function load() {
     const all = data || [];
     const teamDocsRow = all.find(row => row.id === '__team_docs__');
     S.teamDocs = teamDocsRow ? (teamDocsRow.data?.docs || []) : [];
-    S.clients = all.filter(row => row.id !== '__team_docs__').map(row => ({ ...row.data, id: row.id }));
+    const globalRow = all.find(row => row.id === '__global__');
+    if (globalRow?.data?.sites?.length) {
+      S.globalData = globalRow.data;
+    } else {
+      // First run — seed from built-in data and persist
+      S.globalData = { sites: INITIAL_SITES_SEED.map(s => ({...s})), niches: [...MASTER_NICHES] };
+      saveGlobal();
+    }
+    S.clients = all.filter(row => !['__team_docs__','__global__'].includes(row.id)).map(row => ({ ...row.data, id: row.id }));
     // Sort by saved order (drag-to-reorder persists sortOrder on each client)
     S.clients.sort((a, b) => (a.sortOrder ?? 9999) - (b.sortOrder ?? 9999));
   } catch(e) {
@@ -1570,6 +1929,17 @@ function saveTeamDocs() {
     _sb.from('shopiotic_clients')
       .upsert({ id: '__team_docs__', data: { docs: S.teamDocs }, updated_at: new Date().toISOString() }, { onConflict: 'id' })
       .then(({ error }) => { if (error) showToast('Save failed', 'error'); });
+  }, 400);
+}
+
+let _globalSaveTimer = null;
+function saveGlobal() {
+  if (!_sb) return;
+  clearTimeout(_globalSaveTimer);
+  _globalSaveTimer = setTimeout(() => {
+    _sb.from('shopiotic_clients')
+      .upsert({ id: '__global__', data: S.globalData, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+      .then(({ error }) => { if (error) showToast('Global save failed', 'error'); });
   }, 400);
 }
 
@@ -2864,8 +3234,30 @@ function openAddClientModal() {
   document.getElementById('f_url').value = '';
   document.getElementById('f_tier').value = 'Essentials';
   document.getElementById('f_start').value = new Date().toISOString().slice(0,10);
+  renderNichePicker([]);
   document.getElementById('clientModal').classList.add('open');
   setTimeout(() => document.getElementById('f_name').focus(), 50);
+}
+
+function renderNichePicker(selectedTags) {
+  const el = document.getElementById('f_niches');
+  if (!el) return;
+  const niches = S.globalData.niches || MASTER_NICHES;
+  el.innerHTML = niches.map(n => {
+    const on = selectedTags.includes(n);
+    return `<span onclick="toggleNicheTag(this,'${n.replace(/'/g,"\\'")}')" style="cursor:pointer;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:500;border:1px solid ${on?'var(--teal)':'var(--gray-200)'};background:${on?'var(--teal-pale)':'var(--white)'};color:${on?'var(--teal-dark)':'var(--gray-500)'};">${n}</span>`;
+  }).join('');
+}
+function toggleNicheTag(el, niche) {
+  const on = el.style.background.includes('var(--teal-pale)') || el.style.background.includes('var(--teal)');
+  el.style.background = on ? 'var(--white)' : 'var(--teal-pale)';
+  el.style.color = on ? 'var(--gray-500)' : 'var(--teal-dark)';
+  el.style.borderColor = on ? 'var(--gray-200)' : 'var(--teal)';
+}
+function getSelectedNiches() {
+  const el = document.getElementById('f_niches');
+  if (!el) return [];
+  return Array.from(el.querySelectorAll('span')).filter(s => s.style.background.includes('teal-pale') || s.style.borderColor.includes('var(--teal)')).map(s => s.textContent);
 }
 
 function openEditClientModal(id) {
@@ -2876,6 +3268,7 @@ function openEditClientModal(id) {
   document.getElementById('f_url').value = c.shopUrl || '';
   document.getElementById('f_tier').value = c.tier || 'Essentials';
   document.getElementById('f_start').value = c.startDate || '';
+  renderNichePicker(c.backlinkNicheTags || []);
   document.getElementById('clientModal').classList.add('open');
   setTimeout(() => document.getElementById('f_name').focus(), 50);
 }
@@ -2892,9 +3285,11 @@ function saveClientModal() {
     c.shopUrl = document.getElementById('f_url').value.trim();
     c.tier = document.getElementById('f_tier').value;
     c.startDate = document.getElementById('f_start').value;
+    c.backlinkNicheTags = getSelectedNiches();
   } else {
     const c = { id: uid(), name, shopUrl: document.getElementById('f_url').value.trim(),
       tier: document.getElementById('f_tier').value, startDate: document.getElementById('f_start').value,
+      backlinkNicheTags: getSelectedNiches(),
       done: {}, notes: '', p2months: [], p3months: [],
       team: { specialist:'', specialistEmail:'', clientContact:'', clientContactEmail:'', slack:'' },
       resources: [], activity: [], taskNotes: {}, links: [], contacts: [], recordings: [], goals: {}, reportEmbedUrl: '', shareToken: uid(), taskVisibility: {} };
@@ -4142,6 +4537,7 @@ function migrateClient(c) {
   if (c.reportEmbedUrl === undefined) c.reportEmbedUrl = '';
   if (!c.taskVisibility) c.taskVisibility = {};
   if (!c.goals) c.goals = {};
+  if (!c.backlinkNicheTags) c.backlinkNicheTags = [];
   if (!c.shareToken) { c.shareToken = uid(); save(); }
   ensureClientCustomData(c);
   // ── Migrate r1/r2 sub-steps in snapshots ───────────────────────────────
@@ -7091,6 +7487,7 @@ function renderUserBadge() {
   const isOwner = u.role === 'owner';
   document.getElementById('btnAddClient').style.display = isOwner ? 'block' : 'none';
   document.getElementById('btnTeam').style.display = isOwner ? 'block' : 'none';
+  document.getElementById('btnProspects').style.display = isOwner ? 'block' : 'none';
   document.getElementById('btnInternalChat').style.display = 'block';
 }
 
@@ -7200,6 +7597,449 @@ function removeTeamDoc(id) {
 function toggleTeamDocVis(id) {
   const d = S.teamDocs.find(d => d.id === id);
   if (d) { d.workerVisible = !d.workerVisible; saveTeamDocs(); openTeamDocsModal(); }
+}
+
+// ═══════════════════════════════════════════
+//  PROSPECTS VIEW
+// ═══════════════════════════════════════════
+
+function openProspectsView() {
+  document.getElementById('clientView').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('internalChatView').style.display = 'none';
+  const pv = document.getElementById('prospectsView');
+  pv.style.display = 'flex';
+  renderProspectsView();
+}
+
+function closeProspectsView() {
+  document.getElementById('prospectsView').style.display = 'none';
+  if (S.activeId) {
+    document.getElementById('clientView').style.display = 'flex';
+    renderClient();
+  } else {
+    document.getElementById('emptyState').style.display = '';
+  }
+}
+
+// Build domain → [clientNames] lookup across all clients
+function computeUsedByMap() {
+  const map = {}; // domain string → array of client names
+  for (const c of S.clients) {
+    for (const l of (c.links || [])) {
+      if (!l.url) continue;
+      const dom = l.url.replace(/^https?:\/\//,'').replace(/\/.*/,'').toLowerCase();
+      if (!map[dom]) map[dom] = [];
+      if (!map[dom].includes(c.name)) map[dom].push(c.name);
+    }
+  }
+  return map;
+}
+
+// Extract root domain from a site URL string
+function siteDomain(url) {
+  return (url||'').replace(/^https?:\/\//,'').replace(/\/.*/,'').toLowerCase();
+}
+
+// Check if a site's domain matches any key in the usedByMap
+function usedByClients(site, usedByMap) {
+  const dom = siteDomain(site.url);
+  // check exact match and partial (www. prefix variants)
+  for (const key of Object.keys(usedByMap)) {
+    if (key === dom || key === 'www.'+dom || dom === 'www.'+key) return usedByMap[key];
+  }
+  return [];
+}
+
+function renderProspectsView() {
+  const inner = document.getElementById('prospectsViewInner');
+  if (!inner) return;
+  const usedByMap = computeUsedByMap();
+  const tab = S.prospectsTab || 'tier1';
+
+  const tabBtn = (id, label) => `<button onclick="setProspectsTab('${id}')" style="padding:6px 16px;border-radius:8px;font-size:13px;font-weight:500;border:1px solid ${tab===id?'var(--teal)':'var(--gray-200)'};background:${tab===id?'var(--teal-pale)':'var(--white)'};color:${tab===id?'var(--teal-dark)':'var(--gray-500)'};cursor:pointer;">${label}</button>`;
+
+  const sites = S.globalData.sites || [];
+  const tier1 = sites.filter(s => s.tier === 'tier1');
+  const tier2 = sites.filter(s => s.tier === 'tier2');
+  const ab    = sites.filter(s => s.tier === 'ab');
+
+  let body = '';
+  if (tab === 'tier1') body = renderTier1Prospects(tier1, usedByMap);
+  else if (tab === 'tier2') body = renderTier2Prospects(tier2, usedByMap);
+  else body = renderAbProspects(ab, usedByMap);
+
+  inner.innerHTML = `
+    <div style="padding:20px 24px;border-bottom:1px solid var(--gray-200);background:var(--white);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:20px;font-weight:700;color:var(--gray-900);">🔍 Prospect Database</div>
+        <div style="font-size:13px;color:var(--gray-400);margin-top:2px;">Shopiotic's master backlink site database — ${sites.length} sites</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" onclick="openAddSiteModal()">+ Add Site</button>
+        <button class="btn btn-outline btn-sm" onclick="openManageNichesModal()">⚙️ Niches</button>
+        <button class="btn btn-ghost btn-sm" onclick="closeProspectsView()">✕ Close</button>
+      </div>
+    </div>
+    <div style="padding:12px 24px;border-bottom:1px solid var(--gray-200);background:var(--white);display:flex;gap:8px;flex-shrink:0;">
+      ${tabBtn('tier1','Tier 1 · '+tier1.length)}
+      ${tabBtn('tier2','Tier 2 Packages · '+tier2.length)}
+      ${tabBtn('ab','A/B Exchanges · '+ab.length)}
+    </div>
+    <div style="flex:1;overflow:auto;padding:20px 24px;">${body}</div>`;
+}
+
+function setProspectsTab(tab) {
+  S.prospectsTab = tab;
+  S.prospectsSearch = '';
+  S.prospectsNiches = [];
+  S.prospectsStatus = ['available','investigate'];
+  renderProspectsView();
+}
+
+// ── Tier 1 ──────────────────────────────────
+
+function renderTier1Prospects(sites, usedByMap) {
+  const search = (S.prospectsSearch||'').toLowerCase();
+  const filterNiches = S.prospectsNiches || [];
+  const filterStatus = S.prospectsStatus || [];
+  const clientId = S.prospectsClientId || '';
+
+  // Find prospects mode: if a client is selected, show only matching unbuilt sites
+  let filtered = sites;
+  if (search) filtered = filtered.filter(s => s.url.toLowerCase().includes(search) || (s.notes||'').toLowerCase().includes(search) || (s.niches||[]).some(n => n.toLowerCase().includes(search)) || (s.contactName||'').toLowerCase().includes(search) || (s.contactEmail||'').toLowerCase().includes(search));
+  if (filterNiches.length) filtered = filtered.filter(s => (s.niches||[]).some(n => filterNiches.includes(n)));
+  if (filterStatus.length) filtered = filtered.filter(s => filterStatus.includes(s.status));
+  if (clientId) {
+    const c = S.clients.find(x => x.id === clientId);
+    if (c) {
+      const clientNiches = c.backlinkNicheTags || [];
+      const usedDomains = new Set((c.links||[]).map(l => siteDomain(l.url)));
+      filtered = filtered.filter(s => {
+        if (usedDomains.has(siteDomain(s.url))) return false;
+        if (clientNiches.length && !(s.niches||[]).some(n => clientNiches.includes(n))) return false;
+        return true;
+      });
+    }
+  }
+
+  const niches = S.globalData.niches || MASTER_NICHES;
+  const statusKeys = Object.keys(SITE_STATUS_CFG);
+
+  const clientOptions = S.clients.map(c => `<option value="${c.id}" ${clientId===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
+
+  const filterBar = `
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+      <input id="prospectSearch" class="edit-field-input" style="flex:1;min-width:180px;max-width:280px;" placeholder="Search domain, contact, notes…" value="${esc(S.prospectsSearch||'')}" oninput="S.prospectsSearch=this.value;renderProspectsView()" onkeydown="event.stopPropagation()">
+      <select class="edit-field-input" style="min-width:140px;" onchange="S.prospectsClientId=this.value;renderProspectsView()">
+        <option value="">— Find prospects for client —</option>
+        ${clientOptions}
+      </select>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        ${statusKeys.map(k => {
+          const cfg = SITE_STATUS_CFG[k];
+          const on = filterStatus.includes(k);
+          return `<span onclick="toggleProspectStatus('${k}')" style="cursor:pointer;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:600;border:1px solid ${on?cfg.color:'var(--gray-200)'};background:${on?cfg.bg:'var(--white)'};color:${on?cfg.color:'var(--gray-400)'};">${cfg.label}</span>`;
+        }).join('')}
+      </div>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px;">
+      ${niches.map(n => {
+        const on = filterNiches.includes(n);
+        return `<span onclick="toggleProspectNiche('${n.replace(/'/g,"\\'")}')" style="cursor:pointer;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500;border:1px solid ${on?'var(--teal)':'var(--gray-200)'};background:${on?'var(--teal-pale)':'var(--white)'};color:${on?'var(--teal-dark)':'var(--gray-500)'};">${n}</span>`;
+      }).join('')}
+    </div>`;
+
+  if (!filtered.length) return filterBar + `<div style="padding:32px;text-align:center;color:var(--gray-400);">No sites match the current filters.</div>`;
+
+  const exportBtn = clientId ? `<button class="btn btn-outline btn-sm" onclick="exportProspectsCSV()" style="margin-left:8px;">⬇ Export CSV (${filtered.length})</button>` : '';
+  const countLine = `<div style="font-size:12px;color:var(--gray-500);margin-bottom:10px;display:flex;align-items:center;">${filtered.length} site${filtered.length===1?'':'s'}${clientId?' matching client niches & not yet built':''} ${exportBtn}</div>`;
+
+  const cols = '2fr 1.5fr 1fr 1fr 1.5fr 1fr 80px';
+  const headRow = `<div style="display:grid;grid-template-columns:${cols};gap:0;background:var(--gray-50);border-bottom:1px solid var(--gray-200);padding:8px 10px;font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;">
+    <span>Domain</span><span>Niches</span><span>Cost</span><span>Type</span><span>Contact</span><span>Status / Used By</span><span></span>
+  </div>`;
+
+  const rows = filtered.map(s => {
+    const cfg = SITE_STATUS_CFG[s.status] || SITE_STATUS_CFG['investigate'];
+    const usedBy = usedByClients(s, usedByMap);
+    const usedBadges = usedBy.map(n => `<span style="display:inline-block;background:#ede9fe;color:#6d28d9;border-radius:4px;font-size:10px;font-weight:600;padding:1px 5px;">${esc(n)}</span>`).join(' ');
+    const statusBadge = `<span style="display:inline-block;background:${cfg.bg};color:${cfg.color};border-radius:4px;font-size:10px;font-weight:600;padding:1px 5px;">${cfg.label}</span>`;
+    const nicheBadges = (s.niches||[]).map(n => `<span style="display:inline-block;background:var(--gray-100);color:var(--gray-600);border-radius:4px;font-size:10px;padding:1px 5px;">${n}</span>`).join(' ');
+    const contact = [s.contactName, s.contactEmail ? `<a href="mailto:${s.contactEmail}" style="color:var(--teal-dark);" onclick="event.stopPropagation()">${s.contactEmail}</a>` : ''].filter(Boolean).join('<br>');
+    const typeShort = (s.type||'').replace('Link Insert or Guest Post','LI / GP').replace('Link Insert','Link Insert').replace('Guest Post','Guest Post');
+    return `<div style="display:grid;grid-template-columns:${cols};gap:0;border-bottom:1px solid var(--gray-100);padding:8px 10px;font-size:12px;align-items:start;" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background=''">
+      <span style="font-weight:600;word-break:break-all;">${esc(s.url)}${s.notes?`<div style="font-size:11px;color:var(--gray-400);font-weight:400;margin-top:2px;">${esc(s.notes.slice(0,80))}${s.notes.length>80?'…':''}</div>`:''}</span>
+      <span>${nicheBadges}</span>
+      <span style="color:var(--gray-700);">${esc(s.cost||'—')}</span>
+      <span style="color:var(--gray-600);">${esc(typeShort)}</span>
+      <span>${contact}</span>
+      <span>${statusBadge}${usedBadges?`<div style="margin-top:4px;">${usedBadges}</div>`:''}</span>
+      <span style="display:flex;gap:3px;">
+        <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:11px;" onclick="openAddSiteModal('${s.id}')">✏️</button>
+        <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:11px;" onclick="deleteSite('${s.id}')">🗑️</button>
+      </span>
+    </div>`;
+  }).join('');
+
+  return filterBar + countLine + `<div style="border:1px solid var(--gray-200);border-radius:8px;overflow:hidden;">${headRow}${rows}</div>`;
+}
+
+function toggleProspectStatus(key) {
+  const idx = S.prospectsStatus.indexOf(key);
+  if (idx === -1) S.prospectsStatus.push(key);
+  else S.prospectsStatus.splice(idx, 1);
+  renderProspectsView();
+}
+function toggleProspectNiche(niche) {
+  const idx = S.prospectsNiches.indexOf(niche);
+  if (idx === -1) S.prospectsNiches.push(niche);
+  else S.prospectsNiches.splice(idx, 1);
+  renderProspectsView();
+}
+
+function exportProspectsCSV() {
+  const clientId = S.prospectsClientId;
+  const c = S.clients.find(x => x.id === clientId);
+  const sites = S.globalData.sites.filter(s => s.tier === 'tier1');
+  const search = (S.prospectsSearch||'').toLowerCase();
+  const filterNiches = S.prospectsNiches || [];
+  const filterStatus = S.prospectsStatus || [];
+  let filtered = sites;
+  if (search) filtered = filtered.filter(s => s.url.toLowerCase().includes(search) || (s.notes||'').toLowerCase().includes(search) || (s.niches||[]).some(n => n.toLowerCase().includes(search)));
+  if (filterNiches.length) filtered = filtered.filter(s => (s.niches||[]).some(n => filterNiches.includes(n)));
+  if (filterStatus.length) filtered = filtered.filter(s => filterStatus.includes(s.status));
+  if (c) {
+    const clientNiches = c.backlinkNicheTags || [];
+    const usedDomains = new Set((c.links||[]).map(l => siteDomain(l.url)));
+    filtered = filtered.filter(s => {
+      if (usedDomains.has(siteDomain(s.url))) return false;
+      if (clientNiches.length && !(s.niches||[]).some(n => clientNiches.includes(n))) return false;
+      return true;
+    });
+  }
+  const esc2 = v => '"' + (v||'').replace(/"/g,'""') + '"';
+  const rows = [['Domain','Niches','Cost','Type','Contact Name','Contact Email','Notes','Status']];
+  for (const s of filtered) {
+    rows.push([s.url, (s.niches||[]).join(', '), s.cost||'', s.type||'', s.contactName||'', s.contactEmail||'', s.notes||'', SITE_STATUS_CFG[s.status]?.label||s.status||'']);
+  }
+  const csv = rows.map(r => r.map(esc2).join(',')).join('\n');
+  const blob = new Blob([csv], { type:'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = (c ? c.name.replace(/[^a-z0-9]/gi,'_') : 'prospects') + '_backlink_prospects.csv';
+  a.click();
+}
+
+// ── Tier 2 ──────────────────────────────────
+
+function renderTier2Prospects(sites, usedByMap) {
+  const groups = {};
+  for (const s of sites) {
+    const g = s.packageGroup || 'Other';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(s);
+  }
+  return Object.entries(groups).map(([group, gsites]) => {
+    const totalCost = gsites.reduce((sum,s) => sum + (parseFloat(s.cost?.replace(/[^0-9.]/g,''))||0), 0);
+    const rows = gsites.map(s => {
+      const usedBy = usedByClients(s, usedByMap);
+      const usedBadges = usedBy.map(n => `<span style="background:#ede9fe;color:#6d28d9;border-radius:4px;font-size:10px;font-weight:600;padding:1px 5px;">${esc(n)}</span>`).join(' ');
+      return `<div style="display:grid;grid-template-columns:2fr 1.5fr 0.8fr 1fr;gap:0;border-bottom:1px solid var(--gray-100);padding:7px 12px;font-size:12px;align-items:center;">
+        <span style="font-weight:500;">${esc(s.url)}</span>
+        <span>${(s.niches||[]).map(n=>`<span style="background:var(--gray-100);color:var(--gray-600);border-radius:4px;font-size:10px;padding:1px 5px;">${n}</span>`).join(' ')}</span>
+        <span style="color:var(--gray-700);">${esc(s.cost)}</span>
+        <span>${usedBadges||'<span style="color:var(--gray-300);font-size:11px;">not used</span>'}</span>
+      </div>`;
+    }).join('');
+    const [seller, email] = group.split(' · ');
+    return `<div style="border:1px solid var(--gray-200);border-radius:8px;overflow:hidden;margin-bottom:16px;">
+      <div style="background:var(--gray-50);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray-200);">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--gray-800);">${esc(seller)}</div>
+          ${email?`<a href="mailto:${email}" style="font-size:12px;color:var(--teal-dark);">${email}</a>`:''}
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:13px;font-weight:700;color:var(--gray-800);">${gsites.length} sites · $${totalCost.toFixed(2)} total</div>
+          <div style="font-size:11px;color:var(--gray-400);">$${(totalCost/gsites.length).toFixed(2)}/link avg</div>
+        </div>
+      </div>
+      <div style="background:var(--gray-50);display:grid;grid-template-columns:2fr 1.5fr 0.8fr 1fr;padding:6px 12px;font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--gray-200);">
+        <span>Domain</span><span>Niches</span><span>Cost</span><span>Used By</span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+// ── A/B Exchanges ────────────────────────────
+
+function renderAbProspects(sites, usedByMap) {
+  const search = (S.prospectsSearch||'').toLowerCase();
+  const filterNiches = S.prospectsNiches || [];
+  let filtered = sites;
+  if (search) filtered = filtered.filter(s => s.url.toLowerCase().includes(search) || (s.niches||[]).some(n => n.toLowerCase().includes(search)) || (s.redditUrl||'').toLowerCase().includes(search));
+  if (filterNiches.length) filtered = filtered.filter(s => (s.niches||[]).some(n => filterNiches.includes(n)));
+
+  const niches = S.globalData.niches || MASTER_NICHES;
+  const filterBar = `
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+      <input class="edit-field-input" style="flex:1;min-width:180px;max-width:280px;" placeholder="Search domain or Reddit…" value="${esc(S.prospectsSearch||'')}" oninput="S.prospectsSearch=this.value;renderProspectsView()" onkeydown="event.stopPropagation()">
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px;">
+      ${niches.map(n => {
+        const on = filterNiches.includes(n);
+        return `<span onclick="toggleProspectNiche('${n.replace(/'/g,"\\'")}')" style="cursor:pointer;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500;border:1px solid ${on?'var(--teal)':'var(--gray-200)'};background:${on?'var(--teal-pale)':'var(--white)'};color:${on?'var(--teal-dark)':'var(--gray-500)'};">${n}</span>`;
+      }).join('')}
+    </div>`;
+
+  if (!filtered.length) return filterBar + `<div style="padding:32px;text-align:center;color:var(--gray-400);">No exchanges match the current filters.</div>`;
+
+  const cols = '2fr 2fr 1.5fr 1.5fr 60px';
+  const headRow = `<div style="display:grid;grid-template-columns:${cols};gap:0;background:var(--gray-50);border-bottom:1px solid var(--gray-200);padding:8px 10px;font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;">
+    <span>Domain</span><span>Niches</span><span>Reddit Contact</span><span>Exchanged With</span><span></span>
+  </div>`;
+
+  const rows = filtered.map(s => {
+    const usedBy = usedByClients(s, usedByMap);
+    const usedBadges = usedBy.length ? usedBy.map(n => `<span style="background:#e0f2fe;color:#0369a1;border-radius:4px;font-size:10px;font-weight:600;padding:1px 5px;">${esc(n)}</span>`).join(' ') : '<span style="color:var(--gray-300);font-size:11px;">none yet</span>';
+    const nicheBadges = (s.niches||[]).map(n => `<span style="background:var(--gray-100);color:var(--gray-600);border-radius:4px;font-size:10px;padding:1px 5px;">${n}</span>`).join(' ');
+    const reddit = s.redditUrl ? `<a href="${s.redditUrl}" target="_blank" rel="noopener" style="color:var(--teal-dark);font-size:12px;">Reddit ↗</a>` : (s.contactEmail ? `<a href="mailto:${s.contactEmail}" style="color:var(--teal-dark);font-size:12px;">${esc(s.contactEmail)}</a>` : '—');
+    return `<div style="display:grid;grid-template-columns:${cols};gap:0;border-bottom:1px solid var(--gray-100);padding:8px 10px;font-size:12px;align-items:center;" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background=''">
+      <span style="font-weight:500;word-break:break-all;">${esc(s.url)}${s.notes?`<div style="font-size:11px;color:var(--gray-400);margin-top:2px;">${esc(s.notes.slice(0,60))}${s.notes.length>60?'…':''}</div>`:''}</span>
+      <span>${nicheBadges}</span>
+      <span>${reddit}</span>
+      <span>${usedBadges}</span>
+      <span style="display:flex;gap:3px;">
+        <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:11px;" onclick="openAddSiteModal('${s.id}')">✏️</button>
+        <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:11px;" onclick="deleteSite('${s.id}')">🗑️</button>
+      </span>
+    </div>`;
+  }).join('');
+
+  return filterBar + `<div style="font-size:12px;color:var(--gray-500);margin-bottom:10px;">${filtered.length} exchange${filtered.length===1?'':'s'}</div>` + `<div style="border:1px solid var(--gray-200);border-radius:8px;overflow:hidden;">${headRow}${rows}</div>`;
+}
+
+// ── Add / Edit Site Modal ────────────────────
+
+function openAddSiteModal(id) {
+  const site = id ? (S.globalData.sites||[]).find(s => s.id === id) : null;
+  const niches = S.globalData.niches || MASTER_NICHES;
+  const sel = site?.niches || [];
+  const tab = S.prospectsTab || 'tier1';
+  const tierVal = site?.tier || tab === 'tier2' ? 'tier2' : tab === 'ab' ? 'ab' : 'tier1';
+
+  const nichePicker = niches.map(n => {
+    const on = sel.includes(n);
+    return `<span id="sn_${n.replace(/[^a-z0-9]/gi,'_')}" onclick="this.dataset.on=this.dataset.on==='1'?'0':'1';this.style.background=this.dataset.on==='1'?'var(--teal-pale)':'var(--white)';this.style.color=this.dataset.on==='1'?'var(--teal-dark)':'var(--gray-500)';this.style.borderColor=this.dataset.on==='1'?'var(--teal)':'var(--gray-200)';" data-niche="${n}" data-on="${on?'1':'0'}" style="cursor:pointer;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:500;border:1px solid ${on?'var(--teal)':'var(--gray-200)'};background:${on?'var(--teal-pale)':'var(--white)'};color:${on?'var(--teal-dark)':'var(--gray-500)'};">${n}</span>`;
+  }).join('');
+
+  const statusOpts = Object.entries(SITE_STATUS_CFG).map(([k,v]) => `<option value="${k}" ${(site?.status||'available')===k?'selected':''}>${v.label}</option>`).join('');
+  const tierOpts = ['tier1','tier2','ab'].map(t => `<option value="${t}" ${tierVal===t?'selected':''}>${t==='tier1'?'Tier 1':t==='tier2'?'Tier 2 Package':'A/B Exchange'}</option>`).join('');
+
+  const el = document.getElementById('addSiteModal');
+  el.innerHTML = `
+    <div class="modal" style="max-width:600px;max-height:90vh;overflow:auto;">
+      <div class="modal-title">${site ? 'Edit Site' : 'Add Site'}</div>
+      <div class="form-group"><label>Domain / URL</label><input id="sm_url" class="edit-field-input" value="${esc(site?.url||'')}" placeholder="e.g. homecrux.com" onkeydown="event.stopPropagation()"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group"><label>Tier</label><select id="sm_tier" class="edit-field-input">${tierOpts}</select></div>
+        <div class="form-group"><label>Status</label><select id="sm_status" class="edit-field-input">${statusOpts}</select></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group"><label>Cost</label><input id="sm_cost" class="edit-field-input" value="${esc(site?.cost||'')}" placeholder="e.g. $150" onkeydown="event.stopPropagation()"></div>
+        <div class="form-group"><label>Type</label><input id="sm_type" class="edit-field-input" value="${esc(site?.type||'')}" placeholder="e.g. Link Insert" onkeydown="event.stopPropagation()"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group"><label>Contact Name</label><input id="sm_cname" class="edit-field-input" value="${esc(site?.contactName||'')}" onkeydown="event.stopPropagation()"></div>
+        <div class="form-group"><label>Contact Email</label><input id="sm_cemail" class="edit-field-input" value="${esc(site?.contactEmail||'')}" onkeydown="event.stopPropagation()"></div>
+      </div>
+      <div class="form-group" id="sm_reddit_wrap" style="${tierVal==='ab'?'':'display:none;'}"><label>Reddit URL</label><input id="sm_reddit" class="edit-field-input" value="${esc(site?.redditUrl||'')}" placeholder="https://reddit.com/user/..." onkeydown="event.stopPropagation()"></div>
+      <div class="form-group" id="sm_pkg_wrap" style="${tierVal==='tier2'?'':'display:none;'}"><label>Package Group</label><input id="sm_pkg" class="edit-field-input" value="${esc(site?.packageGroup||'')}" placeholder="e.g. Seller Name · seller@email.com" onkeydown="event.stopPropagation()"></div>
+      <div class="form-group"><label>Notes</label><textarea id="sm_notes" class="edit-field-input" rows="2" style="resize:vertical;" onkeydown="event.stopPropagation()">${esc(site?.notes||'')}</textarea></div>
+      <div class="form-group"><label>Niches</label><div style="display:flex;flex-wrap:wrap;gap:5px;padding:8px;border:1px solid var(--gray-200);border-radius:8px;" id="sm_niches">${nichePicker}</div></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="document.getElementById('addSiteModal').classList.remove('open')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveSiteModal('${site?.id||''}')">Save Site</button>
+      </div>
+    </div>`;
+  el.classList.add('open');
+  // Wire tier select to show/hide reddit/package fields
+  document.getElementById('sm_tier').addEventListener('change', function() {
+    document.getElementById('sm_reddit_wrap').style.display = this.value === 'ab' ? '' : 'none';
+    document.getElementById('sm_pkg_wrap').style.display = this.value === 'tier2' ? '' : 'none';
+  });
+}
+
+function saveSiteModal(existingId) {
+  const url = document.getElementById('sm_url').value.trim();
+  if (!url) { showToast('Domain is required','error'); return; }
+  const niches = Array.from(document.getElementById('sm_niches').querySelectorAll('span')).filter(s => s.dataset.on === '1').map(s => s.dataset.niche);
+  const site = {
+    id: existingId || uid(),
+    url,
+    tier: document.getElementById('sm_tier').value,
+    status: document.getElementById('sm_status').value,
+    cost: document.getElementById('sm_cost').value.trim(),
+    type: document.getElementById('sm_type').value.trim(),
+    contactName: document.getElementById('sm_cname').value.trim(),
+    contactEmail: document.getElementById('sm_cemail').value.trim(),
+    redditUrl: document.getElementById('sm_reddit')?.value.trim() || '',
+    packageGroup: document.getElementById('sm_pkg')?.value.trim() || '',
+    notes: document.getElementById('sm_notes').value.trim(),
+    niches,
+  };
+  if (existingId) {
+    const idx = S.globalData.sites.findIndex(s => s.id === existingId);
+    if (idx !== -1) S.globalData.sites[idx] = site;
+  } else {
+    S.globalData.sites.push(site);
+  }
+  saveGlobal();
+  document.getElementById('addSiteModal').classList.remove('open');
+  renderProspectsView();
+}
+
+function deleteSite(id) {
+  if (!confirm('Remove this site from the database?')) return;
+  S.globalData.sites = S.globalData.sites.filter(s => s.id !== id);
+  saveGlobal();
+  renderProspectsView();
+}
+
+// ── Manage Niches ────────────────────────────
+
+function openManageNichesModal() {
+  const el = document.getElementById('addSiteModal');
+  const niches = S.globalData.niches || [];
+  el.innerHTML = `
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-title">⚙️ Manage Niches</div>
+      <div style="font-size:13px;color:var(--gray-500);margin-bottom:12px;">Add new niches to the master list. They'll become available on sites and client pickers.</div>
+      <div id="nicheList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">${niches.map(n=>`<span style="padding:3px 10px;border-radius:99px;font-size:12px;font-weight:500;background:var(--gray-100);color:var(--gray-700);display:flex;align-items:center;gap:5px;">${esc(n)}<button onclick="removeNiche('${n.replace(/'/g,"\\'")}',this)" style="background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:14px;line-height:1;padding:0;">×</button></span>`).join('')}</div>
+      <div style="display:flex;gap:8px;">
+        <input id="newNicheInput" class="edit-field-input" style="flex:1;" placeholder="New niche name…" onkeydown="if(event.key==='Enter')addNiche();event.stopPropagation()">
+        <button class="btn btn-outline btn-sm" onclick="addNiche()">Add</button>
+      </div>
+      <div class="modal-actions"><button class="btn btn-primary" onclick="document.getElementById('addSiteModal').classList.remove('open');renderProspectsView()">Done</button></div>
+    </div>`;
+  el.classList.add('open');
+}
+function addNiche() {
+  const input = document.getElementById('newNicheInput');
+  const val = input.value.trim();
+  if (!val || S.globalData.niches.includes(val)) return;
+  S.globalData.niches.push(val);
+  saveGlobal();
+  input.value = '';
+  // Re-render the list in place
+  const list = document.getElementById('nicheList');
+  if (list) list.innerHTML = S.globalData.niches.map(n=>`<span style="padding:3px 10px;border-radius:99px;font-size:12px;font-weight:500;background:var(--gray-100);color:var(--gray-700);display:flex;align-items:center;gap:5px;">${esc(n)}<button onclick="removeNiche('${n.replace(/'/g,"\\'")}',this)" style="background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:14px;line-height:1;padding:0;">×</button></span>`).join('');
+}
+function removeNiche(niche, btn) {
+  if (!confirm('Remove "'+niche+'" from the niche list?')) return;
+  S.globalData.niches = S.globalData.niches.filter(n => n !== niche);
+  saveGlobal();
+  btn.closest('span').remove();
 }
 
 // ═══════════════════════════════════════════
