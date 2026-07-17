@@ -3500,9 +3500,21 @@ function deleteLink(id) {
   save(); renderClient();
 }
 
-function saveBacklinkNiches(val) {
+function toggleClientNicheTag(niche, el) {
   const c = getClient(); if (!c) return;
-  c.backlinkNiches = val;
+  if (!c.backlinkNicheTags) c.backlinkNicheTags = [];
+  const idx = c.backlinkNicheTags.indexOf(niche);
+  if (idx === -1) {
+    c.backlinkNicheTags.push(niche);
+    el.style.background = 'var(--teal-pale)';
+    el.style.color = 'var(--teal-dark)';
+    el.style.borderColor = 'var(--teal)';
+  } else {
+    c.backlinkNicheTags.splice(idx, 1);
+    el.style.background = 'var(--white)';
+    el.style.color = 'var(--gray-500)';
+    el.style.borderColor = 'var(--gray-200)';
+  }
   save();
 }
 
@@ -3638,12 +3650,16 @@ function openLinksModal() {
     </div>`;
 
   // ── Niches (moved to bottom) ──
-  const niches = c.backlinkNiches || '';
+  const selectedNicheTags = c.backlinkNicheTags || [];
+  const allNiches = S.globalData?.niches || MASTER_NICHES;
   const nichesHTML = S.isClientPortal
-    ? (niches ? `<div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:10px 14px;font-size:13px;margin-top:16px;"><span style="font-weight:600;color:var(--gray-600);">Backlink Niches: </span>${esc(niches)}</div>` : '')
+    ? (selectedNicheTags.length ? `<div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:10px 14px;font-size:13px;margin-top:16px;"><span style="font-weight:600;color:var(--gray-600);">Backlink Niches: </span>${selectedNicheTags.join(', ')}</div>` : '')
     : `<div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;padding:10px 14px;margin-top:16px;">
-        <label style="font-size:12px;font-weight:600;color:var(--gray-600);display:block;margin-bottom:6px;">Client Backlink Niches <span style="font-weight:400;color:var(--gray-400);">(general niches for finding relevant backlink sites)</span></label>
-        <textarea style="width:100%;box-sizing:border-box;border:1px solid var(--gray-200);border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical;min-height:52px;" placeholder="e.g. home improvement, power tools, DIY, renovation…" oninput="saveBacklinkNiches(this.value)" onkeydown="event.stopPropagation()">${esc(niches)}</textarea>
+        <label style="font-size:12px;font-weight:600;color:var(--gray-600);display:block;margin-bottom:6px;">Client Backlink Niches <span style="font-weight:400;color:var(--gray-400);">(used for prospect matching)</span></label>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">${allNiches.map(n => {
+          const on = selectedNicheTags.includes(n);
+          return `<span onclick="toggleClientNicheTag('${n.replace(/'/g,"\\'")}',this)" style="cursor:pointer;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:500;border:1px solid ${on?'var(--teal)':'var(--gray-200)'};background:${on?'var(--teal-pale)':'var(--white)'};color:${on?'var(--teal-dark)':'var(--gray-500)'};">${n}</span>`;
+        }).join('')}</div>
       </div>`;
 
   // ── Footer counts ──
