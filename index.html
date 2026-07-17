@@ -7995,7 +7995,10 @@ function renderTier1Prospects(sites, usedByMap) {
   }).join('');
 
   const table = `<div style="overflow-x:auto;border:1px solid var(--gray-200);border-radius:10px;background:var(--white);box-shadow:0 1px 4px rgba(0,0,0,0.06);">
-    <table style="width:100%;border-collapse:collapse;min-width:700px;">
+    <table style="width:100%;border-collapse:collapse;min-width:700px;table-layout:fixed;">
+      <colgroup>
+        <col style="width:22%"><col style="width:16%"><col style="width:10%"><col style="width:8%"><col style="width:22%"><col style="width:16%"><col style="width:52px">
+      </colgroup>
       <thead>
         <tr style="background:var(--gray-50);border-bottom:1px solid var(--gray-200);">
           <th style="padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.6px;">Domain</th>
