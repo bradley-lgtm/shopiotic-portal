@@ -2071,6 +2071,93 @@ async function load() {
         S.globalData.typeMigrationV1 = true;
         saveGlobal();
       }
+      if (!S.globalData.missingSitesMigrationV1) {
+        const existingDomains = new Set((S.globalData.sites||[]).map(s => siteDomain(s.url)));
+        const check = d => !existingDomains.has(d) && !existingDomains.has(d.replace(/^www\./,'')) && !existingDomains.has('www.'+d);
+        const toAdd = [
+          // ── Explicitly no paid links / deadend ──
+          { url:'inmyownstyle.com', tier:'tier1', status:'deadend', niches:['Interior Design'], contactEmails:['inmyownstyle@gmail.com'], notes:"Site says they don't accept paid text links" },
+          { url:'addicted2decorating.com', tier:'tier1', status:'deadend', niches:['Home Improvement'], contactName:'Kristi', contactEmails:['kristi@addicted2decorating.com'], notes:"Explicitly states she doesn't offer guest posts" },
+          { url:'wildfireinteriors.com', tier:'tier1', status:'deadend', niches:['Interior Design'], contactName:'Ashley', contactEmails:['ashley@wildfireinteriors.com'], notes:"Says all links will be no follow" },
+          { url:'prettyhandygirl.com', tier:'tier1', status:'deadend', niches:['Home Improvement'], notes:"Clearly states she does not offer paid links" },
+          { url:'homestratosphere.com', tier:'tier1', status:'deadend', niches:['Home Improvement'], contactName:'Jon Dykstra', contactEmails:['info@homestratosphere.com','homestratosphere@gmail.com','jgdholdings@gmail.com'], notes:"Explicitly states they do not sell links or accept guest posts" },
+          { url:'uglyducklinghouse.com', tier:'tier1', status:'deadend', niches:['DIY'], contactName:'Sarah Fogle', contactEmails:['contact@uglyducklinghouse.com'], notes:"Website explicitly states she does not accept paid links" },
+          { url:'younghouselove.com', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactEmails:['youngsters@younghouselove.com'], notes:"Explicitly states they don't accept guest posts; unclear on link insertions" },
+          { url:'vintagerevivals.com', tier:'tier1', status:'investigate', niches:['DIY'], contactName:'Mandi', contactEmails:['vintagerevivalsblog@gmail.com'], notes:"Currently not accepting guest posts per contact page" },
+          { url:'theidearoom.net', tier:'tier1', status:'investigate', niches:['DIY'], contactName:'Amy Huntley', contactEmails:['2theidearoom@gmail.com'], notes:"Currently not accepting guest posts" },
+          // ── Uninvestigated / investigate ──
+          { url:'blueistyleblog.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Angela', contactEmails:['angela@blueistyle.com'] },
+          { url:'athomewithashley.com', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactName:'Ashley', contactEmails:['hello@athomewithashley.com'] },
+          { url:'centsationalstyle.com', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactName:'Kate', contactEmails:['kate@centsationalstyle.com'] },
+          { url:'theinspiredroom.net', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactName:'Melissa', contactEmails:['theinspiredroom@gmail.com'] },
+          { url:'notjustahousewife.net', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactName:'Stacy', contactEmails:['stacy@notjustahousewife.net','notjustahousewife@yahoo.com'] },
+          { url:'remodelaholic.com', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactName:'Cassity', contactEmails:['hello@remodelaholic.com','cassity@remodelaholic.com'] },
+          { url:'housebyhoff.com', tier:'tier1', status:'deadend', niches:['Home Improvement'], contactName:'April Hoff', contactEmails:['ah@housebyhoff.com','april@housebyhoff.com'], notes:"Blog seems inactive. Neither email seems to work." },
+          { url:'blesserhouse.com', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactName:'Lauren Shaver', contactEmails:['lauren@blesserhouse.com','hello@blesserhouse.com'] },
+          { url:'shanty-2-chic.com', tier:'tier1', status:'investigate', niches:['DIY'], contactName:'Ashley and Whitney', contactEmails:['hello@shanty-2-chic.com'] },
+          { url:'rainonatinroof.com', tier:'tier1', status:'investigate', niches:['DIY'], contactName:'Jenna', contactEmails:['rainonatinroofblog@gmail.com'] },
+          { url:'pneumaticaddict.com', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactName:'Elisha', contactEmails:['pneumaticaddict@influint.co','pneumaticaddictblog@gmail.com'], notes:"First email most likely to be successful" },
+          { url:'thewoodgraincottage.com', tier:'tier1', status:'deadend', niches:['Home Improvement'], contactName:'Shayna', contactEmails:['shayna@thewoodgraincottage.com'], notes:"Site doesn't load, blog is inactive" },
+          { url:'housedigest.com', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactEmails:['staff@housedigest.com'] },
+          { url:'dezeen.com', tier:'tier1', status:'investigate', niches:['Architecture'], contactEmails:['sales@dezeen.com'] },
+          { url:'dwell.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactEmails:['advertise@dwell.com','edit@dwell.com','sales@dwell.com'] },
+          { url:'homeworlddesign.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactEmails:['info@homeworlddesign.com'] },
+          { url:'designertrapped.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Tasha Agruso', contactEmails:['tasha@kaleidoscopeliving.com','info@designertrapped.com'], notes:"tasha@designertrapped.com is not a valid email" },
+          { url:'dornob.com', tier:'tier1', status:'deadend', niches:['Architecture'], contactEmails:['info@dornob.com'], notes:"None of the emails work" },
+          { url:'amymarietta.com', tier:'tier1', status:'investigate', niches:['Travel'], contactName:'Amy Marietta', contactEmails:['amy@amymarietta.com'], notes:"Delicate traffic figures" },
+          { url:'vocal.media', tier:'tier1', status:'investigate', niches:['General'], cost:'Free', type:'GP', notes:"Free account to write posts. 70+ DA. Could be solid tier 2 link." },
+          { url:'architecturelab.net', tier:'tier1', status:'investigate', niches:['Architecture'], contactEmails:['contact@architecturelab.net'], notes:"Can submit projects; unlikely to sell link insertions" },
+          { url:'sometimes-homemade.com', tier:'tier1', status:'investigate', niches:['DIY'], contactName:'Erin Hoskins', contactEmails:['info@sometimes-homemade.com','erin.hoskins@gmail.com'], notes:"New Seas gets links here" },
+          { url:'simplykalaa.com', tier:'tier1', status:'investigate', niches:['Architecture'], contactName:'Sahaj Sharma', contactUrl:'https://simplykalaa.com/advertise/', contactEmails:['friend@simplykalaa.com'], notes:"New Seas gets links here" },
+          { url:'manmadediy.com', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactEmails:['info@manmadediy.com'], notes:"Email dead; try submission forms and socials" },
+          { url:'myrepurposedlife.com', tier:'tier1', status:'investigate', niches:['DIY'], contactName:'Gail Wilson', contactEmails:['gail@myrepurposedlife.com'] },
+          { url:'lollyjane.com', tier:'tier1', status:'investigate', niches:['DIY'], contactName:'Kristi Kelly', contactEmails:['lollyjane@gmail.com'] },
+          { url:'dwellbeautiful.com', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactName:'Erica', contactEmails:['dwellbeautiful@gmail.com'] },
+          { url:'thehandmadehome.net', tier:'tier1', status:'investigate', niches:['Home Improvement'], cost:'$350', type:'LI', contactName:'Jamin Mills', contactEmails:['jamin@thehandmadehome.net'], contactUrl:'https://www.thehandmadehome.net/contact/' },
+          // ── Feedspot-sourced ──
+          { url:'cococozy.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Colette Shelton', contactEmails:['info@cococozy.com'] },
+          { url:'brightbazaarblog.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Will Taylor', contactEmails:['hello@brightbazaarblog.com'] },
+          { url:'lizmarieblog.com', tier:'tier1', status:'investigate', niches:['DIY'], contactEmails:['HelloLizMarieBlog@gmail.com'] },
+          { url:'beckiowens.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactEmails:['hello@beckiowens.com','service@beckiowens.com'] },
+          { url:'oldtownhome.com', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactName:'Alex & Wendy', contactEmails:['alex@oldtownhome.com','wendy@oldtownhome.com','advertising@oldtownhome.com'] },
+          { url:'homemadebycarmona.com', tier:'tier1', status:'investigate', niches:['DIY'], contactName:'Ursula Carmona', contactEmails:['homemadebycarmona@gmail.com'] },
+          { url:'theletteredcottage.net', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Layla Palmer' },
+          { url:'missmustardseed.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Marian Parsons', contactEmails:['marian@missmustardseed.com'] },
+          { url:'cuckoo4design.com', tier:'tier1', status:'investigate', niches:['DIY'], contactEmails:['info@cuckoo4design.com','cuckoo4design@gmail.com'] },
+          { url:'thriftyandchic.com', tier:'tier1', status:'investigate', niches:['DIY'], contactEmails:['thriftyandchicmotif@gmail.com'] },
+          { url:'lifeonvirginiastreet.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Sarah', contactEmails:['lifeonvirginiastreet@gmail.com'] },
+          { url:'thediyplaybook.com', tier:'tier1', status:'investigate', niches:['DIY'], contactName:'Casey Finn' },
+          { url:'thecountrychiccottage.net', tier:'tier1', status:'investigate', niches:['DIY'], contactName:'Angie Holden', contactEmails:['angie@thecountrychiccottage.net'] },
+          { url:'thelilypadcottage.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Kelly', contactEmails:['Kelly@thelilypadcottage.com'] },
+          { url:'foxhollowcottage.com', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactEmails:['foxhollowcottage@gmail.com'] },
+          { url:'cottagesandbungalowsmag.com', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactEmails:['KMcMaster@egmediamags.com','rdorsey@egmediamags.com'] },
+          { url:'simplysoutherncottage.com', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactName:'Sara McDaniel', contactEmails:['hello@simplysoutherncottage.com'] },
+          { url:'jennasuedesign.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Jenna', contactEmails:['jenna@jennasuedesign.com'] },
+          { url:'cityfarmhouse.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Jennifer O\'Brien', contactEmails:['jen@cityfarmhouse.com'] },
+          { url:'lovehappensmag.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactEmails:['editorial@lovehappensmag.com','ads@lovehappensmag.com','pr@lovehappensmag.com'] },
+          { url:'maisondepax.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Rachel Paxton', contactEmails:['hello@maisondepax.com'] },
+          { url:'homeyohmy.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Amy', contactEmails:['amy@homeyohmy.com'] },
+          { url:'eye-swoon.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Athena Calderone', contactEmails:['partnerships@eye-swoon.com'] },
+          { url:'witanddelight.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Kate Arends', contactEmails:['hello@witanddelight.com'], notes:"Doesn't accept guest posts but partners with sponsor brands — pitch as sponsorship" },
+          { url:'kylieminteriors.ca', tier:'tier1', status:'investigate', niches:['Interior Design'], contactEmails:['onlineconsultation@kylieminteriors.ca'], notes:"Canada-based; verify US traffic share before pitching" },
+          { url:'roomfortuesday.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Sarah Gibson', contactEmails:['sarah@roomfortuesday.com'] },
+          { url:'theturquoisehome.com', tier:'tier1', status:'investigate', niches:['DIY'], contactEmails:['TheTurquoiseHome@gmail.com'] },
+          { url:'carlaaston.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactEmails:['carlaaston@gmail.com'] },
+          { url:'town-n-country-living.com', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactName:'Jennifer', contactEmails:['jezuri@ymail.com'] },
+          { url:'loveandrenovations.com', tier:'tier1', status:'investigate', niches:['Home Improvement'], contactName:'Amanda Hendrix', contactEmails:['amanda@loveandrenovations.com'] },
+          { url:'angelamariemade.com', tier:'tier1', status:'investigate', niches:['DIY'], contactEmails:['angela@angelamariemade.com'], notes:"Doesn't accept guest posts but accepts sponsored content" },
+          { url:'thecolorconcierge.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Michelle', contactEmails:['michelle@thecolorconcierge.com'] },
+          { url:'nestingwithgrace.com', tier:'tier1', status:'investigate', niches:['Interior Design'], contactName:'Brooke Christensen', contactEmails:['nestingwithgrace@gmail.com','nestingwithgrace@yahoo.com'] },
+        ];
+        let added = 0;
+        for (const s of toAdd) {
+          if (!check(siteDomain(s.url))) continue;
+          S.globalData.sites.push({ id: uid(), status:'investigate', ...s });
+          added++;
+        }
+        S.globalData.missingSitesMigrationV1 = true;
+        if (added) saveGlobal();
+      }
     } else {
       // First run — seed from built-in data and persist
       S.globalData = { sites: INITIAL_SITES_SEED.map(s => ({...s})), niches: [...MASTER_NICHES] };
