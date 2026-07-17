@@ -2056,6 +2056,21 @@ async function load() {
         S.globalData.contactsMigrationV1 = true;
         saveGlobal();
       }
+      if (!S.globalData.typeMigrationV1) {
+        const TYPE_MAP = {
+          'link insert': 'LI', 'li': 'LI',
+          'guest post': 'GP', 'gp': 'GP',
+          'link insert or guest post': 'LI / GP', 'guest post or link insert': 'LI / GP',
+          'li / gp': 'LI / GP', 'li/gp': 'LI / GP',
+        };
+        for (const site of S.globalData.sites) {
+          if (!site.type) continue;
+          const normalized = TYPE_MAP[site.type.toLowerCase().trim()];
+          if (normalized) site.type = normalized;
+        }
+        S.globalData.typeMigrationV1 = true;
+        saveGlobal();
+      }
     } else {
       // First run — seed from built-in data and persist
       S.globalData = { sites: INITIAL_SITES_SEED.map(s => ({...s})), niches: [...MASTER_NICHES] };
