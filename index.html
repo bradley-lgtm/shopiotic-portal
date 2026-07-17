@@ -8024,7 +8024,7 @@ function renderTier1Prospects(sites, usedByMap) {
         <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);opacity:.4;pointer-events:none;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input id="prospectSearch" style="width:100%;box-sizing:border-box;padding:8px 10px 8px 32px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-family:inherit;background:var(--white);color:var(--gray-900);outline:none;" placeholder="Search domain, contact, notes…" value="${esc(S.prospectsSearch||'')}" oninput="prospectsSearchInput(this.value,this.selectionStart)" onkeydown="event.stopPropagation()" onfocus="this.style.borderColor='var(--teal)'" onblur="this.style.borderColor='var(--gray-200)'">
       </div>
-      <select style="padding:8px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-family:inherit;background:var(--white);color:${clientId?'var(--gray-900)':'var(--gray-400)'};cursor:pointer;min-width:200px;outline:none;" onchange="S.prospectsClientId=this.value;renderProspectsView()">
+      <select style="padding:8px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-family:inherit;background:var(--white);color:${clientId?'var(--gray-900)':'var(--gray-400)'};cursor:pointer;min-width:200px;outline:none;" onchange="S.prospectsClientId=this.value;const _c=S.clients.find(c=>c.id===this.value);if(_c&&_c.backlinkNicheTags?.length)S.prospectsNiches=[..._c.backlinkNicheTags];else if(!this.value)S.prospectsNiches=[];renderProspectsView()">
         <option value="">Find prospects for client…</option>
         ${clientOptions}
       </select>
