@@ -7776,7 +7776,7 @@ function renderTier1Prospects(sites, usedByMap) {
     const emails = siteEmails(s).map(e => `<a href="mailto:${e}" style="color:var(--teal-dark);display:block;" onclick="event.stopPropagation()">${e}</a>`).join('');
     const contactUrl = s.contactUrl ? `<a href="${s.contactUrl}" target="_blank" rel="noopener" style="color:var(--teal-dark);font-size:11px;display:block;" onclick="event.stopPropagation()">Contact page ↗</a>` : '';
     const contact = [s.contactName ? `<span>${esc(s.contactName)}</span>` : '', emails, contactUrl].filter(Boolean).join('');
-    const typeShort = (s.type||'').replace('Link Insert or Guest Post','LI / GP').replace('Link Insert','Link Insert').replace('Guest Post','Guest Post');
+    const typeShort = s.type || '—';
     return `<div style="display:grid;grid-template-columns:${cols};gap:0;border-bottom:1px solid var(--gray-100);padding:8px 10px;font-size:12px;align-items:start;" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background=''">
       <span style="font-weight:600;word-break:break-all;">${esc(s.url)}${s.notes?`<div style="font-size:11px;color:var(--gray-400);font-weight:400;margin-top:2px;">${esc(s.notes.slice(0,80))}${s.notes.length>80?'…':''}</div>`:''}</span>
       <span>${nicheBadges}</span>
@@ -7959,7 +7959,7 @@ function openAddSiteModal(id) {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div class="form-group"><label>Cost</label><input id="sm_cost" class="edit-field-input" value="${esc(site?.cost||'')}" placeholder="e.g. $150" onkeydown="event.stopPropagation()"></div>
-        <div class="form-group"><label>Type</label><input id="sm_type" class="edit-field-input" value="${esc(site?.type||'')}" placeholder="e.g. Link Insert" onkeydown="event.stopPropagation()"></div>
+        <div class="form-group"><label>Type</label><select id="sm_type" class="edit-field-input"><option value="">—</option>${['LI','GP','LI / GP'].map(t=>`<option value="${t}" ${(site?.type||'')=== t?'selected':''}>${t}</option>`).join('')}</select></div>
       </div>
       <div class="form-group"><label>Contact Name</label><input id="sm_cname" class="edit-field-input" value="${esc(site?.contactName||'')}" onkeydown="event.stopPropagation()"></div>
       <div class="form-group">
