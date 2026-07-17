@@ -7737,7 +7737,7 @@ function renderTier1Prospects(sites, usedByMap) {
 
   const filterBar = `
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
-      <input id="prospectSearch" class="edit-field-input" style="flex:1;min-width:180px;max-width:280px;" placeholder="Search domain, contact, notes…" value="${esc(S.prospectsSearch||'')}" oninput="S.prospectsSearch=this.value;renderProspectsView()" onkeydown="event.stopPropagation()">
+      <input id="prospectSearch" class="edit-field-input" style="flex:1;min-width:180px;max-width:280px;" placeholder="Search domain, contact, notes…" value="${esc(S.prospectsSearch||'')}" oninput="prospectsSearchInput(this.value,this.selectionStart)" onkeydown="event.stopPropagation()">
       <select class="edit-field-input" style="min-width:140px;" onchange="S.prospectsClientId=this.value;renderProspectsView()">
         <option value="">— Find prospects for client —</option>
         ${clientOptions}
@@ -7792,6 +7792,13 @@ function renderTier1Prospects(sites, usedByMap) {
   }).join('');
 
   return filterBar + countLine + `<div style="border:1px solid var(--gray-200);border-radius:8px;overflow:hidden;">${headRow}${rows}</div>`;
+}
+
+function prospectsSearchInput(val, cursorPos) {
+  S.prospectsSearch = val;
+  renderProspectsView();
+  const el = document.getElementById('prospectSearch');
+  if (el) { el.focus(); el.setSelectionRange(cursorPos, cursorPos); }
 }
 
 function toggleProspectStatus(key) {
@@ -7892,7 +7899,7 @@ function renderAbProspects(sites, usedByMap) {
   const niches = S.globalData.niches || MASTER_NICHES;
   const filterBar = `
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
-      <input class="edit-field-input" style="flex:1;min-width:180px;max-width:280px;" placeholder="Search domain or Reddit…" value="${esc(S.prospectsSearch||'')}" oninput="S.prospectsSearch=this.value;renderProspectsView()" onkeydown="event.stopPropagation()">
+      <input id="prospectSearch" class="edit-field-input" style="flex:1;min-width:180px;max-width:280px;" placeholder="Search domain or Reddit…" value="${esc(S.prospectsSearch||'')}" oninput="prospectsSearchInput(this.value,this.selectionStart)" onkeydown="event.stopPropagation()">
     </div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px;">
       ${niches.map(n => {
