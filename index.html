@@ -8075,7 +8075,7 @@ function renderTier2Prospects(sites, usedByMap) {
       </div>`;
     }).join('');
     const [seller, email] = group.split(' · ');
-    return `<div style="border:1px solid var(--gray-200);border-radius:8px;overflow:hidden;margin-bottom:16px;">
+    return `<div style="border:1px solid var(--gray-200);border-radius:8px;overflow:hidden;margin-bottom:16px;background:var(--white);box-shadow:0 1px 4px rgba(0,0,0,0.06);">
       <div style="background:var(--gray-50);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray-200);">
         <div>
           <div style="font-size:13px;font-weight:600;color:var(--gray-800);">${esc(seller)}</div>
@@ -8142,7 +8142,7 @@ function renderAbProspects(sites, usedByMap) {
     </div>`;
   }).join('');
 
-  return filterBar + `<div style="font-size:12px;color:var(--gray-500);margin-bottom:10px;">${filtered.length} exchange${filtered.length===1?'':'s'}</div>` + `<div style="border:1px solid var(--gray-200);border-radius:8px;overflow:hidden;">${headRow}${rows}</div>`;
+  return filterBar + `<div style="font-size:12px;color:var(--gray-500);margin-bottom:10px;">${filtered.length} exchange${filtered.length===1?'':'s'}</div>` + `<div style="border:1px solid var(--gray-200);border-radius:8px;overflow:hidden;background:var(--white);box-shadow:0 1px 4px rgba(0,0,0,0.06);">${headRow}${rows}</div>`;
 }
 
 // ── Add / Edit Site Modal ────────────────────
@@ -8321,7 +8321,8 @@ function pkgAddDomainRow() {
       <input class="edit-field-input pkg-domain-input" style="flex:1;" placeholder="domain.com" oninput="pkgUpdateAvg()" onkeydown="event.stopPropagation()">
       <button onclick="document.getElementById('${rowId}').remove();pkgUpdateAvg()" style="background:none;border:none;color:var(--gray-300);cursor:pointer;font-size:16px;padding:0 4px;" title="Remove">×</button>
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:4px;">${niches.map(n=>`<span onclick="this.dataset.on=this.dataset.on==='1'?'0':'1';this.style.background=this.dataset.on==='1'?'var(--teal-pale)':'transparent';this.style.color=this.dataset.on==='1'?'var(--teal-dark)':'var(--gray-400)';this.style.borderColor=this.dataset.on==='1'?'var(--teal)':'var(--gray-200)';" data-niche="${n}" data-on="0" style="cursor:pointer;padding:2px 8px;border-radius:99px;font-size:11px;border:1px solid var(--gray-200);background:transparent;color:var(--gray-400);">${n}</span>`).join('')}</div>`;
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${niches.map(n=>`<span onclick="this.dataset.on=this.dataset.on==='1'?'0':'1';this.style.background=this.dataset.on==='1'?'var(--teal-pale)':'transparent';this.style.color=this.dataset.on==='1'?'var(--teal-dark)':'var(--gray-400)';this.style.borderColor=this.dataset.on==='1'?'var(--teal)':'var(--gray-200)';" data-niche="${n}" data-on="0" style="cursor:pointer;padding:2px 8px;border-radius:99px;font-size:11px;border:1px solid var(--gray-200);background:transparent;color:var(--gray-400);">${n}</span>`).join('')}</div>
+    <input class="edit-field-input pkg-domain-notes" style="width:100%;box-sizing:border-box;font-size:12px;" placeholder="Notes (optional)" onkeydown="event.stopPropagation()">`;
   container.appendChild(div);
 }
 
@@ -8348,7 +8349,8 @@ function savePackageModal() {
   const domains = domainRows.map(row => {
     const url = row.querySelector('.pkg-domain-input')?.value.trim() || '';
     const niches = Array.from(row.querySelectorAll('span[data-niche]')).filter(s=>s.dataset.on==='1').map(s=>s.dataset.niche);
-    return { url, niches };
+    const notes = row.querySelector('.pkg-domain-notes')?.value.trim() || '';
+    return { url, niches, notes };
   }).filter(d => d.url);
 
   if (!domains.length) { showToast('Add at least one domain','error'); return; }
@@ -8368,7 +8370,7 @@ function savePackageModal() {
       contactEmails: emails,
       contactUrl: links[0] || '',
       niches: d.niches,
-      notes: '',
+      notes: d.notes,
     });
   }
   saveGlobal();
