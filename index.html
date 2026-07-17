@@ -7665,6 +7665,17 @@ function siteDomain(url) {
   return (url||'').replace(/^https?:\/\//,'').replace(/\/.*/,'').toLowerCase();
 }
 
+// Build the set of used domains for a client, adding both www and non-www variants
+function clientUsedDomains(c) {
+  const set = new Set();
+  for (const l of (c.links||[])) {
+    const d = siteDomain(l.url);
+    set.add(d);
+    set.add(d.startsWith('www.') ? d.slice(4) : 'www.'+d);
+  }
+  return set;
+}
+
 // Check if a site's domain matches any key in the usedByMap
 function usedByClients(site, usedByMap) {
   const dom = siteDomain(site.url);
@@ -7738,7 +7749,7 @@ function renderTier1Prospects(sites, usedByMap) {
     const c = S.clients.find(x => x.id === clientId);
     if (c) {
       const clientNiches = c.backlinkNicheTags || [];
-      const usedDomains = new Set((c.links||[]).map(l => siteDomain(l.url)));
+      const usedDomains = clientUsedDomains(c);
       filtered = filtered.filter(s => {
         if (usedDomains.has(siteDomain(s.url))) return false;
         if (clientNiches.length && !(s.niches||[]).some(n => clientNiches.includes(n))) return false;
@@ -7844,7 +7855,7 @@ function exportProspectsCSV() {
   if (filterStatus.length) filtered = filtered.filter(s => filterStatus.includes(s.status));
   if (c) {
     const clientNiches = c.backlinkNicheTags || [];
-    const usedDomains = new Set((c.links||[]).map(l => siteDomain(l.url)));
+    const usedDomains = clientUsedDomains(c);
     filtered = filtered.filter(s => {
       if (usedDomains.has(siteDomain(s.url))) return false;
       if (clientNiches.length && !(s.niches||[]).some(n => clientNiches.includes(n))) return false;
