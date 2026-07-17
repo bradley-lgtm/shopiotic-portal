@@ -7862,7 +7862,7 @@ function renderProspectsView() {
           <div style="font-size:12px;color:var(--gray-400);margin-top:2px;">${sites.length} sites across all tiers</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
-          <button class="btn btn-outline btn-sm" onclick="openAddSiteModal()" style="font-size:12px;">+ Add Site</button>
+          <button class="btn btn-outline btn-sm" onclick="openAddForTab()" style="font-size:12px;">${tab==='tier2'?'+ Add Package':tab==='ab'?'+ Add Exchange':'+ Add Site'}</button>
           <button class="btn btn-outline btn-sm" onclick="openManageNichesModal()" style="font-size:12px;">Manage Niches</button>
           <button onclick="closeProspectsView()" style="background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:18px;line-height:1;padding:4px 6px;" title="Close">×</button>
         </div>
@@ -8147,74 +8147,98 @@ function renderAbProspects(sites, usedByMap) {
 
 // ── Add / Edit Site Modal ────────────────────
 
-function openAddSiteModal(id) {
-  const site = id ? (S.globalData.sites||[]).find(s => s.id === id) : null;
-  const niches = S.globalData.niches || MASTER_NICHES;
-  const sel = site?.niches || [];
+function smClose() { document.getElementById('addSiteModal').classList.remove('open'); }
+
+function openAddForTab() {
   const tab = S.prospectsTab || 'tier1';
-  const tierVal = site?.tier || tab === 'tier2' ? 'tier2' : tab === 'ab' ? 'ab' : 'tier1';
+  if (tab === 'tier2') openAddPackageModal();
+  else openAddSiteModal(null, tab === 'ab' ? 'ab' : 'tier1');
+}
 
-  const nichePicker = niches.map(n => {
-    const on = sel.includes(n);
-    return `<span id="sn_${n.replace(/[^a-z0-9]/gi,'_')}" onclick="this.dataset.on=this.dataset.on==='1'?'0':'1';this.style.background=this.dataset.on==='1'?'var(--teal-pale)':'var(--white)';this.style.color=this.dataset.on==='1'?'var(--teal-dark)':'var(--gray-500)';this.style.borderColor=this.dataset.on==='1'?'var(--teal)':'var(--gray-200)';" data-niche="${n}" data-on="${on?'1':'0'}" style="cursor:pointer;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:500;border:1px solid ${on?'var(--teal)':'var(--gray-200)'};background:${on?'var(--teal-pale)':'var(--white)'};color:${on?'var(--teal-dark)':'var(--gray-500)'};">${n}</span>`;
+function smNichePicker(selNiches, prefix) {
+  const niches = S.globalData.niches || MASTER_NICHES;
+  return niches.map(n => {
+    const on = (selNiches||[]).includes(n);
+    return `<span onclick="this.dataset.on=this.dataset.on==='1'?'0':'1';this.style.background=this.dataset.on==='1'?'var(--teal-pale)':'transparent';this.style.color=this.dataset.on==='1'?'var(--teal-dark)':'var(--gray-400)';this.style.borderColor=this.dataset.on==='1'?'var(--teal)':'var(--gray-200)';" data-niche="${n}" data-prefix="${prefix||'sm'}" data-on="${on?'1':'0'}" style="cursor:pointer;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:500;border:1px solid ${on?'var(--teal)':'var(--gray-200)'};background:${on?'var(--teal-pale)':'transparent'};color:${on?'var(--teal-dark)':'var(--gray-400)'};">${n}</span>`;
   }).join('');
+}
 
+function smGetNiches(containerId) {
+  return Array.from(document.getElementById(containerId).querySelectorAll('span[data-niche]')).filter(s => s.dataset.on === '1').map(s => s.dataset.niche);
+}
+
+function smEmailRows(emails) {
+  return (emails.length ? emails : ['']).map(e => `<div style="display:flex;gap:6px;align-items:center;"><input class="edit-field-input sm-email-input" style="flex:1;" value="${esc(e)}" placeholder="email@example.com" onkeydown="event.stopPropagation()"><button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--gray-300);cursor:pointer;font-size:16px;padding:0 4px;">×</button></div>`).join('');
+}
+
+function smAddEmailRow(listId) {
+  const list = document.getElementById(listId || 'sm_emails_list');
+  if (!list) return;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:6px;align-items:center;';
+  div.innerHTML = `<input class="edit-field-input sm-email-input" style="flex:1;" placeholder="email@example.com" onkeydown="event.stopPropagation()"><button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--gray-300);cursor:pointer;font-size:16px;padding:0 4px;">×</button>`;
+  list.appendChild(div);
+  div.querySelector('input').focus();
+}
+
+const SM_CLOSE_BTN = `<button onclick="smClose()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:20px;line-height:1;padding:4px;" title="Close">×</button>`;
+
+// ── Tier 1 modal ────────────────────────────
+
+function openAddSiteModal(id, tierHint) {
+  const site = id ? (S.globalData.sites||[]).find(s => s.id === id) : null;
+  const tier = site?.tier || tierHint || 'tier1';
+  const isAb = tier === 'ab';
   const statusOpts = Object.entries(SITE_STATUS_CFG).map(([k,v]) => `<option value="${k}" ${(site?.status||'available')===k?'selected':''}>${v.label}</option>`).join('');
-  const tierOpts = ['tier1','tier2','ab'].map(t => `<option value="${t}" ${tierVal===t?'selected':''}>${t==='tier1'?'Tier 1':t==='tier2'?'Tier 2 Package':'A/B Exchange'}</option>`).join('');
+  const title = site ? (isAb ? 'Edit Exchange' : 'Edit Site') : (isAb ? 'Add A/B Exchange' : 'Add Site');
 
   const el = document.getElementById('addSiteModal');
   el.innerHTML = `
-    <div class="modal" style="max-width:600px;max-height:90vh;overflow:auto;">
-      <div class="modal-title">${site ? 'Edit Site' : 'Add Site'}</div>
+    <div class="modal" style="max-width:580px;max-height:90vh;overflow-y:auto;position:relative;">
+      ${SM_CLOSE_BTN}
+      <div class="modal-title" style="padding-right:36px;">${title}</div>
       <div class="form-group"><label>Domain / URL</label><input id="sm_url" class="edit-field-input" value="${esc(site?.url||'')}" placeholder="e.g. homecrux.com" onkeydown="event.stopPropagation()"></div>
+      ${!isAb ? `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div class="form-group"><label>Tier</label><select id="sm_tier" class="edit-field-input">${tierOpts}</select></div>
         <div class="form-group"><label>Status</label><select id="sm_status" class="edit-field-input">${statusOpts}</select></div>
+        <div class="form-group"><label>Type</label><select id="sm_type" class="edit-field-input"><option value="">—</option>${['LI','GP','LI / GP'].map(t=>`<option value="${t}" ${(site?.type||'')===t?'selected':''}>${t}</option>`).join('')}</select></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div class="form-group"><label>Cost</label><input id="sm_cost" class="edit-field-input" value="${esc(site?.cost||'')}" placeholder="e.g. $150" onkeydown="event.stopPropagation()"></div>
-        <div class="form-group"><label>Type</label><select id="sm_type" class="edit-field-input"><option value="">—</option>${['LI','GP','LI / GP'].map(t=>`<option value="${t}" ${(site?.type||'')=== t?'selected':''}>${t}</option>`).join('')}</select></div>
-      </div>
+      <div class="form-group"><label>Cost</label><input id="sm_cost" class="edit-field-input" value="${esc(site?.cost||'')}" placeholder="e.g. $150" onkeydown="event.stopPropagation()"></div>
+      ` : ''}
+      ${isAb ? `<div class="form-group"><label>Reddit URL</label><input id="sm_reddit" class="edit-field-input" value="${esc(site?.redditUrl||'')}" placeholder="https://reddit.com/user/..." onkeydown="event.stopPropagation()"></div>` : ''}
       <div class="form-group"><label>Contact Name</label><input id="sm_cname" class="edit-field-input" value="${esc(site?.contactName||'')}" onkeydown="event.stopPropagation()"></div>
       <div class="form-group">
-        <label>Contact Emails <span style="font-weight:400;color:var(--gray-400);font-size:12px;">(one per line, or add rows)</span></label>
-        <div id="sm_emails_list" style="display:flex;flex-direction:column;gap:4px;">${siteEmails(site||{}).concat(['']). map((e,i) => `<div style="display:flex;gap:6px;"><input class="edit-field-input sm-email-input" style="flex:1;" value="${esc(e)}" placeholder="email@example.com" onkeydown="event.stopPropagation()"><button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:18px;line-height:1;padding:0 4px;">×</button></div>`).join('')}</div>
-        <button type="button" onclick="smAddEmailRow()" class="btn btn-ghost btn-sm" style="margin-top:4px;font-size:12px;">+ Add email</button>
+        <label>Contact Emails</label>
+        <div id="sm_emails_list" style="display:flex;flex-direction:column;gap:4px;">${smEmailRows(siteEmails(site||{}))}</div>
+        <button type="button" onclick="smAddEmailRow('sm_emails_list')" style="margin-top:6px;background:none;border:none;color:var(--teal-dark);cursor:pointer;font-size:12px;font-weight:600;padding:0;">+ Add email</button>
       </div>
       <div class="form-group"><label>Contact URL <span style="font-weight:400;color:var(--gray-400);font-size:12px;">(contact page, form, social, etc.)</span></label><input id="sm_contacturl" class="edit-field-input" value="${esc(site?.contactUrl||'')}" placeholder="https://…" onkeydown="event.stopPropagation()"></div>
-      <div class="form-group" id="sm_reddit_wrap" style="${tierVal==='ab'?'':'display:none;'}"><label>Reddit URL</label><input id="sm_reddit" class="edit-field-input" value="${esc(site?.redditUrl||'')}" placeholder="https://reddit.com/user/..." onkeydown="event.stopPropagation()"></div>
-      <div class="form-group" id="sm_pkg_wrap" style="${tierVal==='tier2'?'':'display:none;'}"><label>Package Group</label><input id="sm_pkg" class="edit-field-input" value="${esc(site?.packageGroup||'')}" placeholder="e.g. Seller Name · seller@email.com" onkeydown="event.stopPropagation()"></div>
       <div class="form-group"><label>Notes</label><textarea id="sm_notes" class="edit-field-input" rows="2" style="resize:vertical;" onkeydown="event.stopPropagation()">${esc(site?.notes||'')}</textarea></div>
-      <div class="form-group"><label>Niches</label><div style="display:flex;flex-wrap:wrap;gap:5px;padding:8px;border:1px solid var(--gray-200);border-radius:8px;" id="sm_niches">${nichePicker}</div></div>
+      <div class="form-group"><label>Niches</label><div style="display:flex;flex-wrap:wrap;gap:5px;padding:8px;border:1px solid var(--gray-200);border-radius:8px;" id="sm_niches">${smNichePicker(site?.niches)}</div></div>
       <div class="modal-actions">
-        <button class="btn btn-outline" onclick="document.getElementById('addSiteModal').classList.remove('open')">Cancel</button>
-        <button class="btn btn-primary" onclick="saveSiteModal('${site?.id||''}')">Save Site</button>
+        <button class="btn btn-outline" onclick="smClose()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveSiteModal('${site?.id||''}','${tier}')">${site ? 'Save Changes' : (isAb ? 'Add Exchange' : 'Add Site')}</button>
       </div>
     </div>`;
   el.classList.add('open');
-  // Wire tier select to show/hide reddit/package fields
-  document.getElementById('sm_tier').addEventListener('change', function() {
-    document.getElementById('sm_reddit_wrap').style.display = this.value === 'ab' ? '' : 'none';
-    document.getElementById('sm_pkg_wrap').style.display = this.value === 'tier2' ? '' : 'none';
-  });
 }
 
-function saveSiteModal(existingId) {
+function saveSiteModal(existingId, tier) {
   const url = document.getElementById('sm_url').value.trim();
   if (!url) { showToast('Domain is required','error'); return; }
-  const niches = Array.from(document.getElementById('sm_niches').querySelectorAll('span')).filter(s => s.dataset.on === '1').map(s => s.dataset.niche);
+  const isAb = tier === 'ab';
+  const niches = smGetNiches('sm_niches');
   const site = {
     id: existingId || uid(),
-    url,
-    tier: document.getElementById('sm_tier').value,
-    status: document.getElementById('sm_status').value,
-    cost: document.getElementById('sm_cost').value.trim(),
-    type: document.getElementById('sm_type').value.trim(),
-    contactName: document.getElementById('sm_cname').value.trim(),
+    url, tier,
+    status: document.getElementById('sm_status')?.value || 'available',
+    cost: document.getElementById('sm_cost')?.value.trim() || '',
+    type: document.getElementById('sm_type')?.value.trim() || '',
+    contactName: document.getElementById('sm_cname')?.value.trim() || '',
     contactEmails: Array.from(document.querySelectorAll('.sm-email-input')).map(i => i.value.trim()).filter(Boolean),
     contactUrl: document.getElementById('sm_contacturl')?.value.trim() || '',
     redditUrl: document.getElementById('sm_reddit')?.value.trim() || '',
-    packageGroup: document.getElementById('sm_pkg')?.value.trim() || '',
+    packageGroup: existingId ? ((S.globalData.sites||[]).find(s=>s.id===existingId)?.packageGroup||'') : '',
     notes: document.getElementById('sm_notes').value.trim(),
     niches,
   };
@@ -8225,18 +8249,132 @@ function saveSiteModal(existingId) {
     S.globalData.sites.push(site);
   }
   saveGlobal();
-  document.getElementById('addSiteModal').classList.remove('open');
+  smClose();
   renderProspectsView();
 }
 
-function smAddEmailRow() {
-  const list = document.getElementById('sm_emails_list');
+// ── Tier 2 Package modal ─────────────────────
+
+function openAddPackageModal() {
+  const el = document.getElementById('addSiteModal');
+  el.innerHTML = `
+    <div class="modal" style="max-width:640px;max-height:90vh;overflow-y:auto;position:relative;">
+      ${SM_CLOSE_BTN}
+      <div class="modal-title" style="padding-right:36px;">Add Package</div>
+      <div style="font-size:12px;color:var(--gray-400);margin:-8px 0 16px;">Add a seller's package — one set of contact details, multiple domains.</div>
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);margin-bottom:8px;">Seller / Contact</div>
+      <div class="form-group"><label>Name</label><input id="pkg_name" class="edit-field-input" placeholder="e.g. Jane Smith" onkeydown="event.stopPropagation()"></div>
+      <div class="form-group">
+        <label>Emails</label>
+        <div id="pkg_emails_list" style="display:flex;flex-direction:column;gap:4px;">${smEmailRows([])}</div>
+        <button type="button" onclick="smAddEmailRow('pkg_emails_list')" style="margin-top:6px;background:none;border:none;color:var(--teal-dark);cursor:pointer;font-size:12px;font-weight:600;padding:0;">+ Add email</button>
+      </div>
+      <div class="form-group">
+        <label>Other Contact Links <span style="font-weight:400;color:var(--gray-400);font-size:12px;">(contact page, Reddit, social, etc.)</span></label>
+        <div id="pkg_links_list" style="display:flex;flex-direction:column;gap:4px;">
+          <div style="display:flex;gap:6px;align-items:center;"><input class="edit-field-input pkg-link-input" style="flex:1;" placeholder="https://…" onkeydown="event.stopPropagation()"><button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--gray-300);cursor:pointer;font-size:16px;padding:0 4px;">×</button></div>
+        </div>
+        <button type="button" onclick="pkgAddLinkRow()" style="margin-top:6px;background:none;border:none;color:var(--teal-dark);cursor:pointer;font-size:12px;font-weight:600;padding:0;">+ Add link</button>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);margin:16px 0 8px;">Package Cost</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <input id="pkg_cost" class="edit-field-input" style="width:160px;" placeholder="e.g. $150" oninput="pkgUpdateAvg()" onkeydown="event.stopPropagation()">
+        <span id="pkg_avg" style="font-size:12px;color:var(--gray-400);">— avg/link</span>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);margin-bottom:8px;">Domains</div>
+      <div id="pkg_domains" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <button type="button" onclick="pkgAddDomainRow()" style="margin-top:10px;background:none;border:1px dashed var(--gray-200);color:var(--teal-dark);cursor:pointer;font-size:12px;font-weight:600;padding:8px;border-radius:8px;width:100%;">+ Add Domain</button>
+
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="smClose()">Cancel</button>
+        <button class="btn btn-primary" onclick="savePackageModal()">Save Package</button>
+      </div>
+    </div>`;
+  el.classList.add('open');
+  pkgAddDomainRow();
+  pkgAddDomainRow();
+}
+
+function pkgAddLinkRow() {
+  const list = document.getElementById('pkg_links_list');
   if (!list) return;
   const div = document.createElement('div');
-  div.style.cssText = 'display:flex;gap:6px;';
-  div.innerHTML = `<input class="edit-field-input sm-email-input" style="flex:1;" placeholder="email@example.com" onkeydown="event.stopPropagation()"><button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:18px;line-height:1;padding:0 4px;">×</button>`;
+  div.style.cssText = 'display:flex;gap:6px;align-items:center;';
+  div.innerHTML = `<input class="edit-field-input pkg-link-input" style="flex:1;" placeholder="https://…" onkeydown="event.stopPropagation()"><button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--gray-300);cursor:pointer;font-size:16px;padding:0 4px;">×</button>`;
   list.appendChild(div);
   div.querySelector('input').focus();
+}
+
+function pkgAddDomainRow() {
+  const niches = S.globalData.niches || MASTER_NICHES;
+  const container = document.getElementById('pkg_domains');
+  if (!container) return;
+  const rowId = 'pkgrow_' + uid();
+  const div = document.createElement('div');
+  div.id = rowId;
+  div.style.cssText = 'border:1px solid var(--gray-200);border-radius:8px;padding:10px 12px;background:var(--gray-50);';
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <input class="edit-field-input pkg-domain-input" style="flex:1;" placeholder="domain.com" oninput="pkgUpdateAvg()" onkeydown="event.stopPropagation()">
+      <button onclick="document.getElementById('${rowId}').remove();pkgUpdateAvg()" style="background:none;border:none;color:var(--gray-300);cursor:pointer;font-size:16px;padding:0 4px;" title="Remove">×</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;">${niches.map(n=>`<span onclick="this.dataset.on=this.dataset.on==='1'?'0':'1';this.style.background=this.dataset.on==='1'?'var(--teal-pale)':'transparent';this.style.color=this.dataset.on==='1'?'var(--teal-dark)':'var(--gray-400)';this.style.borderColor=this.dataset.on==='1'?'var(--teal)':'var(--gray-200)';" data-niche="${n}" data-on="0" style="cursor:pointer;padding:2px 8px;border-radius:99px;font-size:11px;border:1px solid var(--gray-200);background:transparent;color:var(--gray-400);">${n}</span>`).join('')}</div>`;
+  container.appendChild(div);
+}
+
+function pkgUpdateAvg() {
+  const costRaw = (document.getElementById('pkg_cost')?.value || '').replace(/[^0-9.]/g,'');
+  const cost = parseFloat(costRaw) || 0;
+  const domainCount = document.querySelectorAll('.pkg-domain-input').length;
+  const filled = Array.from(document.querySelectorAll('.pkg-domain-input')).filter(i => i.value.trim()).length;
+  const avg = document.getElementById('pkg_avg');
+  if (!avg) return;
+  if (cost && filled) avg.textContent = `$${(cost/filled).toFixed(2)} avg/link (${filled} domain${filled===1?'':'s'})`;
+  else if (cost) avg.textContent = `$${cost.toFixed(2)} total`;
+  else avg.textContent = '— avg/link';
+}
+
+function savePackageModal() {
+  const name = document.getElementById('pkg_name')?.value.trim() || '';
+  const emails = Array.from(document.querySelectorAll('#pkg_emails_list .sm-email-input')).map(i=>i.value.trim()).filter(Boolean);
+  const links = Array.from(document.querySelectorAll('.pkg-link-input')).map(i=>i.value.trim()).filter(Boolean);
+  const costRaw = (document.getElementById('pkg_cost')?.value || '').trim();
+  const totalCost = parseFloat(costRaw.replace(/[^0-9.]/g,'')) || 0;
+
+  const domainRows = Array.from(document.getElementById('pkg_domains').children);
+  const domains = domainRows.map(row => {
+    const url = row.querySelector('.pkg-domain-input')?.value.trim() || '';
+    const niches = Array.from(row.querySelectorAll('span[data-niche]')).filter(s=>s.dataset.on==='1').map(s=>s.dataset.niche);
+    return { url, niches };
+  }).filter(d => d.url);
+
+  if (!domains.length) { showToast('Add at least one domain','error'); return; }
+
+  // Build packageGroup string from contact info
+  const pkgGroup = [name, ...emails].filter(Boolean).join(' · ') || 'Other';
+  const avgCost = domains.length ? (totalCost / domains.length) : 0;
+  const costStr = avgCost ? `$${avgCost.toFixed(2)}` : costRaw;
+
+  for (const d of domains) {
+    S.globalData.sites.push({
+      id: uid(), url: d.url, tier: 'tier2',
+      status: 'available',
+      cost: costStr,
+      packageGroup: pkgGroup,
+      contactName: name,
+      contactEmails: emails,
+      contactUrl: links[0] || '',
+      niches: d.niches,
+      notes: '',
+    });
+  }
+  saveGlobal();
+  smClose();
+  renderProspectsView();
+  showToast(`Package saved — ${domains.length} domain${domains.length===1?'':'s'} added`,'success');
 }
 
 function deleteSite(id) {
