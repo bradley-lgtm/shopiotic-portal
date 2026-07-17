@@ -127,12 +127,13 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
 }
 .btn-add-client:hover { box-shadow: 0 4px 14px rgba(124,58,237,0.45); transform: translateY(-1px); }
 .btn-team {
-  width: 100%; padding: 8px 12px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.5);
-  border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; font-size: 12px; font-weight: 500;
-  cursor: pointer; transition: all 0.15s; margin-top: 6px; letter-spacing: -0.1px;
+  width: 100%; padding: 7px 10px; background: transparent; color: rgba(255,255,255,0.45);
+  border: none; border-radius: 6px; font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all 0.12s; margin-top: 2px; letter-spacing: 0.2px;
+  text-align: left;
 }
-.btn-team:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.8); }
-.btn-team.active { background: rgba(124,58,237,0.35); color: #fff; border-color: rgba(124,58,237,0.6); }
+.btn-team:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.85); }
+.btn-team.active { background: rgba(124,58,237,0.25); color: #fff; }
 /* ── TEAM MODAL ── */
 .team-modal { width: 580px; max-width: 97vw; max-height: 88vh; display: flex; flex-direction: column; }
 .worker-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--gray-100); }
@@ -962,11 +963,11 @@ body { height: 100%; height: -webkit-fill-available; overflow: hidden; font-fami
 
   <div class="sidebar-footer">
     <button class="btn-add-client" id="btnAddClient" onclick="openAddClientModal()">+ Add Client</button>
-    <button class="btn-team" id="btnInternalChat" onclick="openInternalChat()" style="display:none;">💬 Team Chat</button>
-    <button class="btn-team" id="btnTeam" onclick="openTeamModal()" style="display:none;">👥 Team</button>
-    <button class="btn-team" id="btnTeamDocs" onclick="openTeamDocsModal()" style="display:none;">📁 Team Docs</button>
-    <button class="btn-team" id="btnProspects" onclick="openProspectsView()" style="display:none;">🔍 Prospects</button>
-    <button class="btn-team" onclick="openSettings()">⚙️ Settings</button>
+    <button class="btn-team" id="btnInternalChat" onclick="openInternalChat()" style="display:none;">Team Chat</button>
+    <button class="btn-team" id="btnTeam" onclick="openTeamModal()" style="display:none;">Team Members</button>
+    <button class="btn-team" id="btnTeamDocs" onclick="openTeamDocsModal()" style="display:none;">Team Docs</button>
+    <button class="btn-team" id="btnProspects" onclick="openProspectsView()" style="display:none;">Backlink Database</button>
+    <button class="btn-team" onclick="openSettings()">Settings</button>
   </div>
 </div>
 
