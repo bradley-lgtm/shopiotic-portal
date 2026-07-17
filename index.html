@@ -7839,12 +7839,15 @@ function renderProspectsView() {
   const usedByMap = computeUsedByMap();
   const tab = S.prospectsTab || 'tier1';
 
-  const tabBtn = (id, label) => `<button onclick="setProspectsTab('${id}')" style="padding:6px 16px;border-radius:8px;font-size:13px;font-weight:500;border:1px solid ${tab===id?'var(--teal)':'var(--gray-200)'};background:${tab===id?'var(--teal-pale)':'var(--white)'};color:${tab===id?'var(--teal-dark)':'var(--gray-500)'};cursor:pointer;">${label}</button>`;
-
   const sites = S.globalData.sites || [];
   const tier1 = sites.filter(s => s.tier === 'tier1');
   const tier2 = sites.filter(s => s.tier === 'tier2');
   const ab    = sites.filter(s => s.tier === 'ab');
+
+  const tabItem = (id, label, count) => {
+    const active = tab === id;
+    return `<button onclick="setProspectsTab('${id}')" style="padding:12px 20px;background:none;border:none;border-bottom:2px solid ${active?'var(--teal)':'transparent'};color:${active?'var(--teal-dark)':'var(--gray-400)'};font-size:13px;font-weight:${active?'600':'500'};cursor:pointer;white-space:nowrap;transition:all .15s;">${label}<span style="margin-left:6px;font-size:11px;background:${active?'var(--teal-pale)':'var(--gray-100)'};color:${active?'var(--teal-dark)':'var(--gray-400)'};border-radius:99px;padding:1px 7px;font-weight:600;">${count}</span></button>`;
+  };
 
   let body = '';
   if (tab === 'tier1') body = renderTier1Prospects(tier1, usedByMap);
@@ -7852,23 +7855,25 @@ function renderProspectsView() {
   else body = renderAbProspects(ab, usedByMap);
 
   inner.innerHTML = `
-    <div style="padding:20px 24px;border-bottom:1px solid var(--gray-200);background:var(--white);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-      <div>
-        <div style="font-size:20px;font-weight:700;color:var(--gray-900);">🔍 Prospect Database</div>
-        <div style="font-size:13px;color:var(--gray-400);margin-top:2px;">Shopiotic's master backlink site database — ${sites.length} sites</div>
+    <div style="padding:18px 28px 0;background:var(--white);flex-shrink:0;border-bottom:1px solid var(--gray-200);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--gray-900);letter-spacing:-.3px;">Backlink Database</div>
+          <div style="font-size:12px;color:var(--gray-400);margin-top:2px;">${sites.length} sites across all tiers</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="btn btn-outline btn-sm" onclick="openAddSiteModal()" style="font-size:12px;">+ Add Site</button>
+          <button class="btn btn-outline btn-sm" onclick="openManageNichesModal()" style="font-size:12px;">Manage Niches</button>
+          <button onclick="closeProspectsView()" style="background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:18px;line-height:1;padding:4px 6px;" title="Close">×</button>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-outline btn-sm" onclick="openAddSiteModal()">+ Add Site</button>
-        <button class="btn btn-outline btn-sm" onclick="openManageNichesModal()">⚙️ Niches</button>
-        <button class="btn btn-ghost btn-sm" onclick="closeProspectsView()">✕ Close</button>
+      <div style="display:flex;gap:0;overflow-x:auto;">
+        ${tabItem('tier1','Tier 1',tier1.length)}
+        ${tabItem('tier2','Tier 2 Packages',tier2.length)}
+        ${tabItem('ab','A/B Exchanges',ab.length)}
       </div>
     </div>
-    <div style="padding:12px 24px;border-bottom:1px solid var(--gray-200);background:var(--white);display:flex;gap:8px;flex-shrink:0;">
-      ${tabBtn('tier1','Tier 1 · '+tier1.length)}
-      ${tabBtn('tier2','Tier 2 Packages · '+tier2.length)}
-      ${tabBtn('ab','A/B Exchanges · '+ab.length)}
-    </div>
-    <div style="flex:1;overflow:auto;padding:20px 24px;">${body}</div>`;
+    <div style="flex:1;overflow:auto;padding:20px 28px;">${body}</div>`;
 }
 
 function setProspectsTab(tab) {
@@ -7907,66 +7912,90 @@ function renderTier1Prospects(sites, usedByMap) {
 
   const niches = S.globalData.niches || MASTER_NICHES;
   const statusKeys = Object.keys(SITE_STATUS_CFG);
-
   const clientOptions = S.clients.map(c => `<option value="${c.id}" ${clientId===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
+  const hasActiveNiches = filterNiches.length > 0;
 
   const filterBar = `
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
-      <input id="prospectSearch" class="edit-field-input" style="flex:1;min-width:180px;max-width:280px;" placeholder="Search domain, contact, notes…" value="${esc(S.prospectsSearch||'')}" oninput="prospectsSearchInput(this.value,this.selectionStart)" onkeydown="event.stopPropagation()">
-      <select class="edit-field-input" style="min-width:140px;" onchange="S.prospectsClientId=this.value;renderProspectsView()">
-        <option value="">— Find prospects for client —</option>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+      <div style="position:relative;flex:1;min-width:180px;max-width:300px;">
+        <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);opacity:.4;pointer-events:none;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="prospectSearch" style="width:100%;box-sizing:border-box;padding:8px 10px 8px 32px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-family:inherit;background:var(--white);color:var(--gray-900);outline:none;" placeholder="Search domain, contact, notes…" value="${esc(S.prospectsSearch||'')}" oninput="prospectsSearchInput(this.value,this.selectionStart)" onkeydown="event.stopPropagation()" onfocus="this.style.borderColor='var(--teal)'" onblur="this.style.borderColor='var(--gray-200)'">
+      </div>
+      <select style="padding:8px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-family:inherit;background:var(--white);color:${clientId?'var(--gray-900)':'var(--gray-400)'};cursor:pointer;min-width:200px;outline:none;" onchange="S.prospectsClientId=this.value;renderProspectsView()">
+        <option value="">Find prospects for client…</option>
         ${clientOptions}
       </select>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+      ${clientId ? `<button onclick="exportProspectsCSV()" style="padding:8px 14px;border:1px solid var(--gray-200);border-radius:8px;font-size:12px;font-weight:500;background:var(--white);color:var(--gray-600);cursor:pointer;white-space:nowrap;" onmouseover="this.style.borderColor='var(--teal)';this.style.color='var(--teal-dark)'" onmouseout="this.style.borderColor='var(--gray-200)';this.style.color='var(--gray-600)'">Export CSV (${filtered.length})</button>` : ''}
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+      <div style="display:flex;gap:4px;">
         ${statusKeys.map(k => {
           const cfg = SITE_STATUS_CFG[k];
           const on = filterStatus.includes(k);
-          return `<span onclick="toggleProspectStatus('${k}')" style="cursor:pointer;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:600;border:1px solid ${on?cfg.color:'var(--gray-200)'};background:${on?cfg.bg:'var(--white)'};color:${on?cfg.color:'var(--gray-400)'};">${cfg.label}</span>`;
+          return `<button onclick="toggleProspectStatus('${k}')" style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid ${on?cfg.color:'var(--gray-200)'};background:${on?cfg.bg:'transparent'};color:${on?cfg.color:'var(--gray-400)'};transition:all .12s;">${cfg.label}</button>`;
         }).join('')}
       </div>
-    </div>
-    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px;">
-      ${niches.map(n => {
-        const on = filterNiches.includes(n);
-        return `<span onclick="toggleProspectNiche('${n.replace(/'/g,"\\'")}')" style="cursor:pointer;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500;border:1px solid ${on?'var(--teal)':'var(--gray-200)'};background:${on?'var(--teal-pale)':'var(--white)'};color:${on?'var(--teal-dark)':'var(--gray-500)'};">${n}</span>`;
-      }).join('')}
+      <div style="width:1px;height:18px;background:var(--gray-200);"></div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:11px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;margin-right:2px;">Niche</span>
+        ${niches.map(n => {
+          const on = filterNiches.includes(n);
+          return `<button onclick="toggleProspectNiche('${n.replace(/'/g,"\\'")}')" style="padding:4px 10px;border-radius:5px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid ${on?'var(--teal)':'var(--gray-200)'};background:${on?'var(--teal-pale)':'transparent'};color:${on?'var(--teal-dark)':'var(--gray-400)'};transition:all .12s;">${n}</button>`;
+        }).join('')}
+        ${hasActiveNiches ? `<button onclick="S.prospectsNiches=[];renderProspectsView()" style="padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;border:none;background:none;color:var(--gray-400);text-decoration:underline;">clear</button>` : ''}
+      </div>
     </div>`;
 
-  if (!filtered.length) return filterBar + `<div style="padding:32px;text-align:center;color:var(--gray-400);">No sites match the current filters.</div>`;
-
-  const exportBtn = clientId ? `<button class="btn btn-outline btn-sm" onclick="exportProspectsCSV()" style="margin-left:8px;">⬇ Export CSV (${filtered.length})</button>` : '';
-  const countLine = `<div style="font-size:12px;color:var(--gray-500);margin-bottom:10px;display:flex;align-items:center;">${filtered.length} site${filtered.length===1?'':'s'}${clientId?' matching client niches & not yet built':''} ${exportBtn}</div>`;
-
-  const cols = '2fr 1.5fr 1fr 1fr 1.5fr 1fr 80px';
-  const headRow = `<div style="display:grid;grid-template-columns:${cols};gap:0;background:var(--gray-50);border-bottom:1px solid var(--gray-200);padding:8px 10px;font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;">
-    <span>Domain</span><span>Niches</span><span>Cost</span><span>Type</span><span>Contact</span><span>Status / Used By</span><span></span>
+  const countLine = `<div style="font-size:12px;color:var(--gray-500);margin-bottom:10px;font-weight:500;">
+    ${filtered.length} site${filtered.length===1?'':'s'}${clientId?' — matching niches, not yet built for this client':''}
   </div>`;
+
+  if (!filtered.length) return filterBar + `<div style="padding:48px 0;text-align:center;color:var(--gray-400);font-size:13px;">No sites match the current filters.</div>`;
 
   const rows = filtered.map(s => {
     const cfg = SITE_STATUS_CFG[s.status] || SITE_STATUS_CFG['investigate'];
     const usedBy = usedByClients(s, usedByMap);
-    const usedBadges = usedBy.map(n => `<span style="display:inline-block;background:#ede9fe;color:#6d28d9;border-radius:4px;font-size:10px;font-weight:600;padding:1px 5px;">${esc(n)}</span>`).join(' ');
-    const statusBadge = `<span style="display:inline-block;background:${cfg.bg};color:${cfg.color};border-radius:4px;font-size:10px;font-weight:600;padding:1px 5px;">${cfg.label}</span>`;
-    const nicheBadges = (s.niches||[]).map(n => `<span style="display:inline-block;background:var(--gray-100);color:var(--gray-600);border-radius:4px;font-size:10px;padding:1px 5px;">${n}</span>`).join(' ');
-    const emails = siteEmails(s).map(e => `<a href="mailto:${e}" style="color:var(--teal-dark);display:block;" onclick="event.stopPropagation()">${e}</a>`).join('');
-    const contactUrl = s.contactUrl ? `<a href="${s.contactUrl}" target="_blank" rel="noopener" style="color:var(--teal-dark);font-size:11px;display:block;" onclick="event.stopPropagation()">Contact page ↗</a>` : '';
-    const contact = [s.contactName ? `<span>${esc(s.contactName)}</span>` : '', emails, contactUrl].filter(Boolean).join('');
-    const typeShort = s.type || '—';
-    return `<div style="display:grid;grid-template-columns:${cols};gap:0;border-bottom:1px solid var(--gray-100);padding:8px 10px;font-size:12px;align-items:start;" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background=''">
-      <span style="font-weight:600;word-break:break-all;">${esc(s.url)}${s.notes?`<div style="font-size:11px;color:var(--gray-400);font-weight:400;margin-top:2px;white-space:normal;">${esc(s.notes)}</div>`:''}</span>
-      <span>${nicheBadges}</span>
-      <span style="color:var(--gray-700);">${esc(s.cost||'—')}</span>
-      <span style="color:var(--gray-600);">${esc(typeShort)}</span>
-      <span>${contact}</span>
-      <span>${statusBadge}${usedBadges?`<div style="margin-top:4px;">${usedBadges}</div>`:''}</span>
-      <span style="display:flex;gap:3px;">
-        <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:11px;" onclick="openAddSiteModal('${s.id}')">✏️</button>
-        <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:11px;" onclick="deleteSite('${s.id}')">🗑️</button>
-      </span>
-    </div>`;
+    const usedBadges = usedBy.map(n => `<span style="display:inline-block;background:#ede9fe;color:#7c3aed;border-radius:4px;font-size:10px;font-weight:600;padding:1px 6px;margin:1px 1px 0 0;">${esc(n)}</span>`).join('');
+    const statusBadge = `<span style="display:inline-block;background:${cfg.bg};color:${cfg.color};border-radius:4px;font-size:10px;font-weight:700;padding:2px 7px;letter-spacing:.2px;">${cfg.label}</span>`;
+    const nicheBadges = (s.niches||[]).map(n => `<span style="display:inline-block;background:var(--gray-100);color:var(--gray-500);border-radius:3px;font-size:10px;padding:1px 5px;margin:1px 2px 1px 0;">${n}</span>`).join('');
+    const emails = siteEmails(s).map(e => `<a href="mailto:${e}" style="color:var(--teal-dark);font-size:11px;display:block;margin-top:1px;" onclick="event.stopPropagation()">${e}</a>`).join('');
+    const contactUrl = s.contactUrl ? `<a href="${s.contactUrl}" target="_blank" rel="noopener" style="color:var(--teal-dark);font-size:10px;display:block;margin-top:2px;opacity:.8;" onclick="event.stopPropagation()">Contact page ↗</a>` : '';
+    const contact = [s.contactName ? `<span style="font-size:12px;font-weight:500;color:var(--gray-700);">${esc(s.contactName)}</span>` : '', emails, contactUrl].filter(Boolean).join('');
+    return `<tr style="border-bottom:1px solid var(--gray-100);transition:background .1s;" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background=''">
+      <td style="padding:10px 12px;vertical-align:top;">
+        <div style="font-size:12px;font-weight:600;color:var(--gray-900);">${esc(s.url)}</div>
+        ${s.notes?`<div style="font-size:11px;color:var(--gray-400);margin-top:3px;line-height:1.4;">${esc(s.notes)}</div>`:''}
+      </td>
+      <td style="padding:10px 12px;vertical-align:top;min-width:120px;">${nicheBadges}</td>
+      <td style="padding:10px 12px;vertical-align:top;white-space:nowrap;font-size:12px;color:var(--gray-700);font-weight:500;">${esc(s.cost||'—')}</td>
+      <td style="padding:10px 12px;vertical-align:top;white-space:nowrap;font-size:12px;color:var(--gray-500);">${esc(s.type||'—')}</td>
+      <td style="padding:10px 12px;vertical-align:top;min-width:160px;">${contact||'<span style="color:var(--gray-300);font-size:11px;">—</span>'}</td>
+      <td style="padding:10px 12px;vertical-align:top;min-width:130px;">${statusBadge}${usedBadges?`<div style="margin-top:5px;">${usedBadges}</div>`:''}</td>
+      <td style="padding:10px 8px;vertical-align:top;white-space:nowrap;">
+        <button onclick="openAddSiteModal('${s.id}')" style="background:none;border:none;color:var(--gray-300);cursor:pointer;padding:2px 4px;font-size:13px;" onmouseover="this.style.color='var(--gray-600)'" onmouseout="this.style.color='var(--gray-300)'" title="Edit">✎</button>
+        <button onclick="deleteSite('${s.id}')" style="background:none;border:none;color:var(--gray-300);cursor:pointer;padding:2px 4px;font-size:13px;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='var(--gray-300)'" title="Delete">✕</button>
+      </td>
+    </tr>`;
   }).join('');
 
-  return filterBar + countLine + `<div style="border:1px solid var(--gray-200);border-radius:8px;overflow:hidden;">${headRow}${rows}</div>`;
+  const table = `<div style="overflow-x:auto;border:1px solid var(--gray-200);border-radius:10px;">
+    <table style="width:100%;border-collapse:collapse;min-width:700px;">
+      <thead>
+        <tr style="background:var(--gray-50);border-bottom:1px solid var(--gray-200);">
+          <th style="padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.6px;">Domain</th>
+          <th style="padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.6px;">Niches</th>
+          <th style="padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.6px;">Cost</th>
+          <th style="padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.6px;">Type</th>
+          <th style="padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.6px;">Contact</th>
+          <th style="padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.6px;">Status</th>
+          <th style="padding:9px 8px;width:52px;"></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+
+  return filterBar + countLine + table;
 }
 
 function prospectsSearchInput(val, cursorPos) {
