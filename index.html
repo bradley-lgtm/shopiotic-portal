@@ -7977,16 +7977,17 @@ function renderTier1Prospects(sites, usedByMap) {
     const emails = siteEmails(s).map(e => `<a href="mailto:${e}" style="color:var(--teal-dark);font-size:11px;display:block;margin-top:1px;" onclick="event.stopPropagation()">${e}</a>`).join('');
     const contactUrl = s.contactUrl ? `<a href="${s.contactUrl}" target="_blank" rel="noopener" style="color:var(--teal-dark);font-size:10px;display:block;margin-top:2px;opacity:.8;" onclick="event.stopPropagation()">Contact page ↗</a>` : '';
     const contact = [s.contactName ? `<span style="font-size:12px;font-weight:500;color:var(--gray-700);">${esc(s.contactName)}</span>` : '', emails, contactUrl].filter(Boolean).join('');
+    const tdBase = 'padding:10px 16px 10px 12px;vertical-align:top;overflow:hidden;border-right:1px solid var(--gray-100);';
     return `<tr style="border-bottom:1px solid var(--gray-100);transition:background .1s;" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background=''">
-      <td style="padding:10px 12px;vertical-align:top;">
-        <div style="font-size:12px;font-weight:600;color:var(--gray-900);">${esc(s.url)}</div>
+      <td style="${tdBase}">
+        <div style="font-size:12px;font-weight:600;color:var(--gray-900);word-break:break-all;">${esc(s.url)}</div>
         ${s.notes?`<div style="font-size:11px;color:var(--gray-400);margin-top:3px;line-height:1.4;">${esc(s.notes)}</div>`:''}
       </td>
-      <td style="padding:10px 12px;vertical-align:top;min-width:120px;">${nicheBadges}</td>
-      <td style="padding:10px 12px;vertical-align:top;white-space:nowrap;font-size:12px;color:var(--gray-700);font-weight:500;">${esc(s.cost||'—')}</td>
-      <td style="padding:10px 12px;vertical-align:top;white-space:nowrap;font-size:12px;color:var(--gray-500);">${esc(s.type||'—')}</td>
-      <td style="padding:10px 12px;vertical-align:top;min-width:160px;">${contact||'<span style="color:var(--gray-300);font-size:11px;">—</span>'}</td>
-      <td style="padding:10px 12px;vertical-align:top;min-width:130px;">${statusBadge}${usedBadges?`<div style="margin-top:5px;">${usedBadges}</div>`:''}</td>
+      <td style="${tdBase}">${nicheBadges}</td>
+      <td style="${tdBase}font-size:12px;color:var(--gray-700);font-weight:500;">${esc(s.cost||'—')}</td>
+      <td style="${tdBase}font-size:12px;color:var(--gray-500);">${esc(s.type||'—')}</td>
+      <td style="${tdBase}">${contact||'<span style="color:var(--gray-300);font-size:11px;">—</span>'}</td>
+      <td style="${tdBase}">${statusBadge}${usedBadges?`<div style="margin-top:5px;">${usedBadges}</div>`:''}</td>
       <td style="padding:10px 8px;vertical-align:top;white-space:nowrap;">
         <button onclick="openAddSiteModal('${s.id}')" style="background:none;border:none;color:var(--gray-300);cursor:pointer;padding:2px 4px;font-size:13px;" onmouseover="this.style.color='var(--gray-600)'" onmouseout="this.style.color='var(--gray-300)'" title="Edit">✎</button>
         <button onclick="deleteSite('${s.id}')" style="background:none;border:none;color:var(--gray-300);cursor:pointer;padding:2px 4px;font-size:13px;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='var(--gray-300)'" title="Delete">✕</button>
