@@ -7636,6 +7636,13 @@ function computeUsedByMap() {
   return map;
 }
 
+// Normalize contact emails — handles legacy single-string field
+function siteEmails(s) {
+  if (Array.isArray(s.contactEmails) && s.contactEmails.length) return s.contactEmails.filter(Boolean);
+  if (s.contactEmail) return [s.contactEmail];
+  return [];
+}
+
 // Extract root domain from a site URL string
 function siteDomain(url) {
   return (url||'').replace(/^https?:\/\//,'').replace(/\/.*/,'').toLowerCase();
@@ -7766,7 +7773,9 @@ function renderTier1Prospects(sites, usedByMap) {
     const usedBadges = usedBy.map(n => `<span style="display:inline-block;background:#ede9fe;color:#6d28d9;border-radius:4px;font-size:10px;font-weight:600;padding:1px 5px;">${esc(n)}</span>`).join(' ');
     const statusBadge = `<span style="display:inline-block;background:${cfg.bg};color:${cfg.color};border-radius:4px;font-size:10px;font-weight:600;padding:1px 5px;">${cfg.label}</span>`;
     const nicheBadges = (s.niches||[]).map(n => `<span style="display:inline-block;background:var(--gray-100);color:var(--gray-600);border-radius:4px;font-size:10px;padding:1px 5px;">${n}</span>`).join(' ');
-    const contact = [s.contactName, s.contactEmail ? `<a href="mailto:${s.contactEmail}" style="color:var(--teal-dark);" onclick="event.stopPropagation()">${s.contactEmail}</a>` : ''].filter(Boolean).join('<br>');
+    const emails = siteEmails(s).map(e => `<a href="mailto:${e}" style="color:var(--teal-dark);display:block;" onclick="event.stopPropagation()">${e}</a>`).join('');
+    const contactUrl = s.contactUrl ? `<a href="${s.contactUrl}" target="_blank" rel="noopener" style="color:var(--teal-dark);font-size:11px;display:block;" onclick="event.stopPropagation()">Contact page ↗</a>` : '';
+    const contact = [s.contactName ? `<span>${esc(s.contactName)}</span>` : '', emails, contactUrl].filter(Boolean).join('');
     const typeShort = (s.type||'').replace('Link Insert or Guest Post','LI / GP').replace('Link Insert','Link Insert').replace('Guest Post','Guest Post');
     return `<div style="display:grid;grid-template-columns:${cols};gap:0;border-bottom:1px solid var(--gray-100);padding:8px 10px;font-size:12px;align-items:start;" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background=''">
       <span style="font-weight:600;word-break:break-all;">${esc(s.url)}${s.notes?`<div style="font-size:11px;color:var(--gray-400);font-weight:400;margin-top:2px;">${esc(s.notes.slice(0,80))}${s.notes.length>80?'…':''}</div>`:''}</span>
@@ -7819,9 +7828,9 @@ function exportProspectsCSV() {
     });
   }
   const esc2 = v => '"' + (v||'').replace(/"/g,'""') + '"';
-  const rows = [['Domain','Niches','Cost','Type','Contact Name','Contact Email','Notes','Status']];
+  const rows = [['Domain','Niches','Cost','Type','Contact Name','Contact Emails','Contact URL','Notes','Status']];
   for (const s of filtered) {
-    rows.push([s.url, (s.niches||[]).join(', '), s.cost||'', s.type||'', s.contactName||'', s.contactEmail||'', s.notes||'', SITE_STATUS_CFG[s.status]?.label||s.status||'']);
+    rows.push([s.url, (s.niches||[]).join(', '), s.cost||'', s.type||'', s.contactName||'', siteEmails(s).join(', '), s.contactUrl||'', s.notes||'', SITE_STATUS_CFG[s.status]?.label||s.status||'']);
   }
   const csv = rows.map(r => r.map(esc2).join(',')).join('\n');
   const blob = new Blob([csv], { type:'text/csv' });
@@ -7903,11 +7912,14 @@ function renderAbProspects(sites, usedByMap) {
     const usedBy = usedByClients(s, usedByMap);
     const usedBadges = usedBy.length ? usedBy.map(n => `<span style="background:#e0f2fe;color:#0369a1;border-radius:4px;font-size:10px;font-weight:600;padding:1px 5px;">${esc(n)}</span>`).join(' ') : '<span style="color:var(--gray-300);font-size:11px;">none yet</span>';
     const nicheBadges = (s.niches||[]).map(n => `<span style="background:var(--gray-100);color:var(--gray-600);border-radius:4px;font-size:10px;padding:1px 5px;">${n}</span>`).join(' ');
-    const reddit = s.redditUrl ? `<a href="${s.redditUrl}" target="_blank" rel="noopener" style="color:var(--teal-dark);font-size:12px;">Reddit ↗</a>` : (s.contactEmail ? `<a href="mailto:${s.contactEmail}" style="color:var(--teal-dark);font-size:12px;">${esc(s.contactEmail)}</a>` : '—');
+    const abEmails = siteEmails(s).map(e => `<a href="mailto:${e}" style="color:var(--teal-dark);font-size:12px;display:block;">${e}</a>`).join('');
+    const abContactUrl = s.contactUrl ? `<a href="${s.contactUrl}" target="_blank" rel="noopener" style="color:var(--teal-dark);font-size:11px;display:block;">Contact page ↗</a>` : '';
+    const reddit = s.redditUrl ? `<a href="${s.redditUrl}" target="_blank" rel="noopener" style="color:var(--teal-dark);font-size:12px;display:block;">Reddit ↗</a>` : '';
+    const abContact = [reddit, abEmails, abContactUrl].filter(Boolean).join('') || '—';
     return `<div style="display:grid;grid-template-columns:${cols};gap:0;border-bottom:1px solid var(--gray-100);padding:8px 10px;font-size:12px;align-items:center;" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background=''">
       <span style="font-weight:500;word-break:break-all;">${esc(s.url)}${s.notes?`<div style="font-size:11px;color:var(--gray-400);margin-top:2px;">${esc(s.notes.slice(0,60))}${s.notes.length>60?'…':''}</div>`:''}</span>
       <span>${nicheBadges}</span>
-      <span>${reddit}</span>
+      <span>${abContact}</span>
       <span>${usedBadges}</span>
       <span style="display:flex;gap:3px;">
         <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:11px;" onclick="openAddSiteModal('${s.id}')">✏️</button>
@@ -7949,10 +7961,13 @@ function openAddSiteModal(id) {
         <div class="form-group"><label>Cost</label><input id="sm_cost" class="edit-field-input" value="${esc(site?.cost||'')}" placeholder="e.g. $150" onkeydown="event.stopPropagation()"></div>
         <div class="form-group"><label>Type</label><input id="sm_type" class="edit-field-input" value="${esc(site?.type||'')}" placeholder="e.g. Link Insert" onkeydown="event.stopPropagation()"></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div class="form-group"><label>Contact Name</label><input id="sm_cname" class="edit-field-input" value="${esc(site?.contactName||'')}" onkeydown="event.stopPropagation()"></div>
-        <div class="form-group"><label>Contact Email</label><input id="sm_cemail" class="edit-field-input" value="${esc(site?.contactEmail||'')}" onkeydown="event.stopPropagation()"></div>
+      <div class="form-group"><label>Contact Name</label><input id="sm_cname" class="edit-field-input" value="${esc(site?.contactName||'')}" onkeydown="event.stopPropagation()"></div>
+      <div class="form-group">
+        <label>Contact Emails <span style="font-weight:400;color:var(--gray-400);font-size:12px;">(one per line, or add rows)</span></label>
+        <div id="sm_emails_list" style="display:flex;flex-direction:column;gap:4px;">${siteEmails(site||{}).concat(['']). map((e,i) => `<div style="display:flex;gap:6px;"><input class="edit-field-input sm-email-input" style="flex:1;" value="${esc(e)}" placeholder="email@example.com" onkeydown="event.stopPropagation()"><button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:18px;line-height:1;padding:0 4px;">×</button></div>`).join('')}</div>
+        <button type="button" onclick="smAddEmailRow()" class="btn btn-ghost btn-sm" style="margin-top:4px;font-size:12px;">+ Add email</button>
       </div>
+      <div class="form-group"><label>Contact URL <span style="font-weight:400;color:var(--gray-400);font-size:12px;">(contact page, form, social, etc.)</span></label><input id="sm_contacturl" class="edit-field-input" value="${esc(site?.contactUrl||'')}" placeholder="https://…" onkeydown="event.stopPropagation()"></div>
       <div class="form-group" id="sm_reddit_wrap" style="${tierVal==='ab'?'':'display:none;'}"><label>Reddit URL</label><input id="sm_reddit" class="edit-field-input" value="${esc(site?.redditUrl||'')}" placeholder="https://reddit.com/user/..." onkeydown="event.stopPropagation()"></div>
       <div class="form-group" id="sm_pkg_wrap" style="${tierVal==='tier2'?'':'display:none;'}"><label>Package Group</label><input id="sm_pkg" class="edit-field-input" value="${esc(site?.packageGroup||'')}" placeholder="e.g. Seller Name · seller@email.com" onkeydown="event.stopPropagation()"></div>
       <div class="form-group"><label>Notes</label><textarea id="sm_notes" class="edit-field-input" rows="2" style="resize:vertical;" onkeydown="event.stopPropagation()">${esc(site?.notes||'')}</textarea></div>
@@ -7982,7 +7997,8 @@ function saveSiteModal(existingId) {
     cost: document.getElementById('sm_cost').value.trim(),
     type: document.getElementById('sm_type').value.trim(),
     contactName: document.getElementById('sm_cname').value.trim(),
-    contactEmail: document.getElementById('sm_cemail').value.trim(),
+    contactEmails: Array.from(document.querySelectorAll('.sm-email-input')).map(i => i.value.trim()).filter(Boolean),
+    contactUrl: document.getElementById('sm_contacturl')?.value.trim() || '',
     redditUrl: document.getElementById('sm_reddit')?.value.trim() || '',
     packageGroup: document.getElementById('sm_pkg')?.value.trim() || '',
     notes: document.getElementById('sm_notes').value.trim(),
@@ -7997,6 +8013,16 @@ function saveSiteModal(existingId) {
   saveGlobal();
   document.getElementById('addSiteModal').classList.remove('open');
   renderProspectsView();
+}
+
+function smAddEmailRow() {
+  const list = document.getElementById('sm_emails_list');
+  if (!list) return;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:6px;';
+  div.innerHTML = `<input class="edit-field-input sm-email-input" style="flex:1;" placeholder="email@example.com" onkeydown="event.stopPropagation()"><button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:18px;line-height:1;padding:0 4px;">×</button>`;
+  list.appendChild(div);
+  div.querySelector('input').focus();
 }
 
 function deleteSite(id) {
