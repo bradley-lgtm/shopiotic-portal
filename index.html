@@ -7794,7 +7794,7 @@ function renderTier1Prospects(sites, usedByMap) {
     const contact = [s.contactName ? `<span>${esc(s.contactName)}</span>` : '', emails, contactUrl].filter(Boolean).join('');
     const typeShort = s.type || '—';
     return `<div style="display:grid;grid-template-columns:${cols};gap:0;border-bottom:1px solid var(--gray-100);padding:8px 10px;font-size:12px;align-items:start;" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background=''">
-      <span style="font-weight:600;word-break:break-all;">${esc(s.url)}${s.notes?`<div style="font-size:11px;color:var(--gray-400);font-weight:400;margin-top:2px;">${esc(s.notes.slice(0,80))}${s.notes.length>80?'…':''}</div>`:''}</span>
+      <span style="font-weight:600;word-break:break-all;">${esc(s.url)}${s.notes?`<div style="font-size:11px;color:var(--gray-400);font-weight:400;margin-top:2px;white-space:normal;">${esc(s.notes)}</div>`:''}</span>
       <span>${nicheBadges}</span>
       <span style="color:var(--gray-700);">${esc(s.cost||'—')}</span>
       <span style="color:var(--gray-600);">${esc(typeShort)}</span>
@@ -7940,7 +7940,7 @@ function renderAbProspects(sites, usedByMap) {
     const reddit = s.redditUrl ? `<a href="${s.redditUrl}" target="_blank" rel="noopener" style="color:var(--teal-dark);font-size:12px;display:block;">Reddit ↗</a>` : '';
     const abContact = [reddit, abEmails, abContactUrl].filter(Boolean).join('') || '—';
     return `<div style="display:grid;grid-template-columns:${cols};gap:0;border-bottom:1px solid var(--gray-100);padding:8px 10px;font-size:12px;align-items:center;" onmouseover="this.style.background='var(--gray-50)'" onmouseout="this.style.background=''">
-      <span style="font-weight:500;word-break:break-all;">${esc(s.url)}${s.notes?`<div style="font-size:11px;color:var(--gray-400);margin-top:2px;">${esc(s.notes.slice(0,60))}${s.notes.length>60?'…':''}</div>`:''}</span>
+      <span style="font-weight:500;word-break:break-all;">${esc(s.url)}${s.notes?`<div style="font-size:11px;color:var(--gray-400);margin-top:2px;white-space:normal;">${esc(s.notes)}</div>`:''}</span>
       <span>${nicheBadges}</span>
       <span>${abContact}</span>
       <span>${usedBadges}</span>
