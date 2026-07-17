@@ -7863,6 +7863,7 @@ function renderProspectsView() {
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
           <button class="btn btn-outline btn-sm" onclick="openAddForTab()" style="font-size:12px;">${tab==='tier2'?'+ Add Package':tab==='ab'?'+ Add Exchange':'+ Add Site'}</button>
+          ${tab==='tier2'?`<a href="https://docs.google.com/spreadsheets/d/1swxgRm1ig-mhNLha2oWSU2c1oIb6Fp7xgN-INM3JZI4/edit" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="font-size:12px;text-decoration:none;">Article Generator ↗</a>`:''}
           <button class="btn btn-outline btn-sm" onclick="openManageNichesModal()" style="font-size:12px;">Manage Niches</button>
           <button onclick="closeProspectsView()" style="background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:18px;line-height:1;padding:4px 6px;" title="Close">×</button>
         </div>
