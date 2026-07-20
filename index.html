@@ -2022,7 +2022,7 @@ function initSupabase(url, key) {
 //  STATE & STORAGE
 // ═══════════════════════════════════════════
 
-let S = { clients: [], activeId: null, activeTab: 'overview', p2Month: 2, p3Month: 6, currentUser: null, isClientPortal: false, teamDocs: [], globalData: { sites: [], niches: [...MASTER_NICHES] }, prospectsTab: 'tier1', prospectsSearch: '', prospectsNiches: [], prospectsStatus: ['available','investigate'], prospectsClientId: '' };
+let S = { clients: [], activeId: null, activeTab: 'overview', p2Month: 2, p3Month: 6, currentUser: null, isClientPortal: false, teamDocs: [], globalData: { sites: [], niches: [...MASTER_NICHES] }, prospectsTab: 'tier1', prospectsSearch: '', prospectsNiches: [], prospectsStatus: ['available','investigate','deadend','unsuitable'], prospectsClientId: '' };
 let editingId = null;
 let _saveTimers = {}; // debounce timers per client id
 
@@ -7983,7 +7983,7 @@ function setProspectsTab(tab) {
   S.prospectsTab = tab;
   S.prospectsSearch = '';
   S.prospectsNiches = [];
-  S.prospectsStatus = ['available','investigate'];
+  S.prospectsStatus = ['available','investigate','deadend','unsuitable'];
   renderProspectsView();
 }
 
