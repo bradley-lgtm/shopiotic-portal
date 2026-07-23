@@ -2158,6 +2158,30 @@ async function load() {
         S.globalData.missingSitesMigrationV1 = true;
         if (added) saveGlobal();
       }
+      if (!S.globalData.egMediaMigrationV1) {
+        const existingDomains = new Set((S.globalData.sites||[]).map(s => siteDomain(s.url)));
+        const check = d => !existingDomains.has(d) && !existingDomains.has(d.replace(/^www\./,'')) && !existingDomains.has('www.'+d);
+        const egEmails = ['KMcMaster@egmediamags.com','rdorsey@egmediamags.com'];
+        const egSites = [
+          { url:'hobbyfarms.com',            niches:['Home & Living','Magazine'],              notes:'EGMedia publication' },
+          { url:'horseillustrated.com',       niches:['Magazine','Lifestyle'],                  notes:'EGMedia publication' },
+          { url:'youngrider.com',             niches:['Magazine','Teen'],                       notes:'EGMedia publication' },
+          { url:'westernlifetoday.com',       niches:['Magazine','Lifestyle'],                  notes:'EGMedia publication' },
+          { url:'chickensmagazine.com',       niches:['Home & Living','Magazine'],              notes:'EGMedia publication' },
+          { url:'rockandgem.com',             niches:['Magazine','General'],                    notes:'EGMedia publication' },
+          { url:'coinagemag.com',             niches:['Magazine','General'],                    notes:'EGMedia publication' },
+          { url:'atomicranch.com',            niches:['Home Improvement','Interior Design','Magazine'], notes:'EGMedia publication' },
+          { url:'americanfarmhousestyle.com', niches:['Home Improvement','Interior Design','Magazine'], notes:'EGMedia publication' },
+        ];
+        let egAdded = 0;
+        for (const s of egSites) {
+          if (!check(siteDomain(s.url))) continue;
+          S.globalData.sites.push({ id:uid(), tier:'tier1', status:'investigate', type:'GP', contactName:'Rima Dorsey', contactEmails:egEmails, ...s });
+          egAdded++;
+        }
+        S.globalData.egMediaMigrationV1 = true;
+        if (egAdded) saveGlobal();
+      }
     } else {
       // First run — seed from built-in data and persist
       S.globalData = { sites: INITIAL_SITES_SEED.map(s => ({...s})), niches: [...MASTER_NICHES] };
